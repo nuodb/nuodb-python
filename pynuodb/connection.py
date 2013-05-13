@@ -18,7 +18,8 @@ paramstyle = "qmark"
 def connect(dsn=None, user=None, password=None, host=None, database=None):
     # TODO: figure out which options to use, and use that to create the
     # connection instance correctly
-    return Connection()
+    return Connection(host, database, user, password)
+
 
 class Connection:
 
@@ -81,7 +82,7 @@ class Connection:
         pass
 
     def cursor(self):
-        return Cursor
+        return Cursor()
     
 class Cursor:
 

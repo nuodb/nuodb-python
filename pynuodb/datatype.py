@@ -6,7 +6,7 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 import datetime, decimal, time
 
 class Date:
-	def __init__(self, year, month day):
+	def __init__(self, year, month, day):
 		pass
 
 class Time:
