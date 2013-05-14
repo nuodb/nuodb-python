@@ -8,6 +8,7 @@ from nuodb.session import Session, SessionException
 #from exception import DataError
 
 import uuid
+from exception import DataError
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -43,7 +44,7 @@ class EncodedSession(Session):
 
     def putScaledInt(self, value, scale):
         if scale is 0:
-            putInt(value)
+            self.putInt(value)
         elif value is 0:
             packed = chr(60) + chr(scale)
         else:
@@ -82,10 +83,10 @@ class EncodedSession(Session):
         if length < 40:
             packed = chr(150 + length)
         else:
-            lengthStr = toByteSting(length)
+            lengthStr = self.toByteSting(length)
             packed = chr(72 + len(lengthStr)) + lengthStr + value
         self.__output += packed
-        return this
+        return self
 
     def putDouble(self, value):
         pass
@@ -98,20 +99,20 @@ class EncodedSession(Session):
         if length is 0:
             packed = chr(191)
         else:
-            lengthStr = toByteSting(length)
+            lengthStr = self.toByteSting(length)
             packed = chr(191 + len(lengthStr)) + lengthStr + value
         self.__output += packed
-        return this
+        return self
 
     def putClob(self, value):
         length = len(value)
         if length is 0:
             packed = chr(196)
         else:
-            lengthStr = toByteSting(length)
+            lengthStr = self.toByteSting(length)
             packed = chr(196 + len(lengthStr)) + lengthStr + value
         self.__output += packed
-        return this
+        return self
 
     #
     # Methods to get values out of the last exchange
@@ -177,6 +178,7 @@ class EncodedSession(Session):
     # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):
         try:
+#             print "message to server: %s" % self.__output
             self.send(self.__output)
         finally:
             self.__output = None

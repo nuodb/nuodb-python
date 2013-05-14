@@ -3,13 +3,13 @@ __all__ = [ 'Warning', 'Error', 'InterfaceError', 'DatabaseError', 'DataError',
             'OperationalError', 'IntegrityError', 'InternalError',
             'ProgrammingError', 'NotSupportedError' ]
 
-class Warning(Exception):
+class Warning(StandardError):
     def __init__(self, value):
         self.__value = value
     def __str__(self):
         return repr(self.__value)
 
-class Error(Exception):
+class Error(StandardError):
     def __init__(self, value):
         self.__value = value
     def __str__(self):
