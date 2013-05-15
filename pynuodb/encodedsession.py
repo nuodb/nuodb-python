@@ -175,6 +175,9 @@ class EncodedSession(Session):
 
         raise DataError('Not a UUID')
 
+    def getResults(self):
+        pass
+
     # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):
         try:
@@ -189,7 +192,7 @@ class EncodedSession(Session):
 
             # TODO: include the actual error message, and use a different type
             if self.getInt() != 0:
-                raise SessionException('Non-zero status')
+                raise SessionException('Non-zero status: %s' % self.getString())
         else:
             self.__input = None
 

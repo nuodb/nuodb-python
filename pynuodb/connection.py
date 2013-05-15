@@ -31,7 +31,8 @@ class Connection:
         self.__session = EncodedSession(host, port)
 
         cp = ClientPassword()
-        parameters = {'user' : username, 'schema' : 'test' }
+#         parameters = {'user' : username }
+        parameters = {'user' : username, 'schema' : 'user' }
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
         for (k, v) in parameters.iteritems():
@@ -113,44 +114,52 @@ class Cursor:
             self.session.putMessageId(protocol.EXECUTEQUERY).putInt(handle).putString(operation)
             
             self.session.exchangeMessages()
-             
-#             rsHandle = self.session.getInt()
-#             count = self.session.getInt()
-#             colname = self.session.getString()
-#             result = self.session.getInt()
-#             fieldValue = self.session.getInt()
+
+            rsHandle    = self.session.getInt()
+            count       = self.session.getInt()
+            colname     = self.session.getString()
+            result      = self.session.getInt()
+            
+            fieldValue  = self.session.getString()
+        
+            # we do not know what method to call at this point so create a generic get
+#             fieldValue = self.session.getResults()
+            
+            print 'handle: %s, count: %s, column: %s, result: %s, value: %s' % (rsHandle, count, colname, result, fieldValue)
+            return fieldValue
+            
 #             r2 = self.session.getInt()
-#              
+#               
 #             print "count: " + str(count)
 #             print "name: " + colname
 #             print "value: " + str(fieldValue)
             
         except Exception, error:
-            print "database error: %s" % str(error)
+            print "NuoDB error: %s" % str(error)
 
     def executemany(self, operation, seq_of_parameters):
         try:
             pass
         except Exception, error:
-            pass
+            print "NuoDB error: %s" % str(error)
 
     def fetchone(self):
         try:
             pass
         except Exception, error:
-            pass
+            print "NuoDB error: %s" % str(error)
 
     def fetchmany(self, size=None):
         try:
             pass
         except Exception, error:
-            pass
+            print "NuoDB error: %s" % str(error)
 
     def fetchall(self):
         try:
             pass
         except Exception, error:
-            pass
+            print "NuoDB error: %s" % str(error)
 
     def nextset(self):
         raise NotSupportedError
