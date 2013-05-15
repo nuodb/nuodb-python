@@ -175,8 +175,31 @@ class EncodedSession(Session):
 
         raise DataError('Not a UUID')
 
-    def getResults(self):
-        pass
+    def getValue(self):
+        typeCode = self.session._getTypeCode()
+        
+        # get integer
+        if typeCode in range(10, 51) or typeCode in range(52, 59):
+            return self.getInt()
+        
+        # get scaled int
+        elif typeCode is 60 or typeCode in range(61, 68):
+            return self.getScaledInt()
+        
+        # get string
+        elif typeCode in range(109, 148) or typeCode in range(69, 72):
+            return self.getString()
+        
+        # get boolean
+        elif typeCode in [2, 3]:
+            return self.getBoolean()
+        
+        # get uuid
+        elif typeCode is 202:
+            return self.getUUID()
+        
+        else:
+            raise NotImplementedError
 
     # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):

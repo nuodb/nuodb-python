@@ -110,27 +110,15 @@ class Cursor(object):
             # Create a statement handle
             self.session.putMessageId(protocol.CREATE)
             self.session.exchangeMessages()
-            self.handle = self.session.getInt()
+            self.handle         = self.session.getInt()
+            self.column_count   = self.session.getInt()
             
             # Use handle to query dual
-            self.session.putMessageId(protocol.EXECUTEQUERY).putInt(self.handle).putString(operation)
+            self.session.putMessageId(protocol.EXECUTE).putInt(self.handle).putString(operation)
             
             self.session.exchangeMessages()
 
-#             rsHandle    = self.session.getInt()
-#             count       = self.session.getInt()
-#             colname     = self.session.getString()
-#             result      = self.session.getInt()
-#             fieldValue  = self.session.getString()
-            
-#             print 'handle: %s, count: %s, column: %s, result: %s, value: %s' % (rsHandle, count, colname, result, fieldValue)
-#             return fieldValue
-            
-#             r2 = self.session.getInt()
-#               
-#             print "count: " + str(count)
-#             print "name: " + colname
-#             print "value: " + str(fieldValue)
+            # protocol.EXECUTE returns ExecuteResponse
             
         except Exception, error:
             print "NuoDB error: %s" % str(error)
@@ -143,7 +131,10 @@ class Cursor(object):
 
     def fetchone(self):
         try:
+            
+            # call self.session.getValue() here
             pass
+            
         except Exception, error:
             print "NuoDB error: %s" % str(error)
 
