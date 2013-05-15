@@ -7,7 +7,6 @@ from nuodb.session import Session, SessionException
 #from . import exception
 #from exception import DataError
 
-import struct
 import uuid
 from exception import DataError
 
@@ -19,11 +18,11 @@ class EncodedSession(Session):
     def __init__(self, host, port, service='SQL2'):
         Session.__init__(self, host, port=port, service=service)
         self.doConnect()
-        self.typeCode = None
+
         self.__output = None
         self.__input = None
         self.__inpos = 0
- 
+
     #
     # Methods to put values into the next message
 
@@ -90,11 +89,7 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
-        byteString = struct.pack('d', value)
-        lengthStr = len(byteString)
-        packed = chr(77 + lengthStr) + byteString
-        self.__output += packed
-        return self
+        pass
 
     def putTime(self, value):
         pass
@@ -118,67 +113,64 @@ class EncodedSession(Session):
             packed = chr(196 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
-        
-    def putScaledTime(self, value):
-        pass
-        
-    def putScaledDate(self, value):
-        pass
 
     #
     # Methods to get values out of the last exchange
 
     def getInt(self):
+        typeCode = self._getTypeCode()
 
-        if self.typeCode in range(10, 51):
-            return self.typeCode - 20
+        if typeCode in range(10, 51):
+            return typeCode - 20
 
-        if self.typeCode in range(52, 59):
-            return fromByteString(self._takeBytes(self.typeCode - 51))
+        if typeCode in range(52, 59):
+            return fromByteString(self._takeBytes(typeCode - 51))
 
-        if self.typeCode == 1:
+        if typeCode == 1:
             return 0
 
         raise DataError('Not an integer')
 
     def getScaledInt(self):
+        typeCode = self._getTypeCode()
 
-        if self.typeCode is 60:
+        if typeCode is 60:
             return (0, self.__takeBytes(1))
 
-        if self.typeCode in range(61, 68):
+        if typeCode in range(61, 68):
             scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(self.typeCode - 60)), scale)
+            return (fromByteString(self.__takeBytes(typeCode - 60)), scale)
 
         raise DataError('Not a scaled integer')
 
     def getString(self):
+        typeCode = self._getTypeCode()
 
-        if self.typeCode in range(109, 148):
-            return self._takeBytes(self.typeCode - 109)
+        if typeCode in range(109, 148):
+            return self._takeBytes(typeCode - 109)
 
-        if self.typeCode in range(69, 72):
-            strLength = fromByteString(self._takeBytes(self.typeCode - 68))
+        if typeCode in range(69, 72):
+            strLength = fromByteString(self._takeBytes(typeCode - 68))
             return self._takeBytes(strLength)
 
         raise DataError('Not a string')
 
     def getBoolean(self):
+        typeCode = self._getTypeCode()
 
-        if self.typeCode == 2:
+        if typeCode == 2:
             return True
-        if self.typeCode == 3:
+        if typeCode == 3:
             return False
 
         raise DataError('Not a boolean')
 
     def getNull(self):
-        if self.typeCode != 1:
+        if self._getTypeCode() != 1:
             raise DataError('Not null')
 
     def getDouble(self):
-        typeCode = self._getTypeCode()
-        return struct.unpack('d', self.__takeBytes(typeCode - 76))[0]
+        raise NotImplementedError
 
     def getTime(self):
         raise NotImplementedError
@@ -186,10 +178,7 @@ class EncodedSession(Session):
     def getOpaque(self):
         raise NotImplementedError
     
-    def getBlob(self):
-        raise NotImplementedError
-    
-    def getClob(self):
+    def getBlog(self):
         raise NotImplementedError
     
     def getScaledTime(self):
@@ -199,12 +188,12 @@ class EncodedSession(Session):
         raise NotImplementedError
 
     def getUUID(self):
-        if self.typeCode == 202:
+        if self._getTypeCode() == 202:
             return uuid.UUID(self._takeBytes(16))
-        if self.typeCode == 201:
+        if self._getTypeCode() == 201:
             # before version 11
             pass
-        if self.typeCode == 227:
+        if self._getTypeCode() == 227:
             # version 11 and later
             pass
 
@@ -212,58 +201,54 @@ class EncodedSession(Session):
 
     def getValue(self):
 
-        self.typeCode = self._getTypeCode()
+        typeCode = self._peekTypeCode()
         
         # get null type
-        if self.typeCode is 1:
+        if typeCode is 1:
             return self.getNull()
         
         # get boolean type
-        elif self.typeCode in [2, 3]:
+        elif typeCode in [2, 3]:
             return self.getBoolean()
         
         # get uuid type
-        elif self.typeCode in [202, 201, 227]:
+        elif typeCode in [202, 201, 227]:
             return self.getUUID()
         
         # get integer type
-        elif self.typeCode in range(10, 60):
+        elif typeCode in range(10, 60):
             return self.getInt()
         
         # get scaled int type
-        elif self.typeCode in range(60, 69):
+        elif typeCode in range(60, 69):
             return self.getScaledInt()
         
         # get double precision type
-        elif self.typeCode in range(77, 86):
+        elif typeCode in range(77, 86):
             return self.getDouble()
         
         # get string type
-        elif self.typeCode in range(69, 73) or self.typeCode in range(109, 150):
+        elif typeCode in range(69, 73) or typeCode in range(109, 150):
             return self.getString()
-
+        
         # get opague type
-        elif self.typeCode in range(73, 77) or self.typeCode in range(150, 191):
+        elif typeCode in range(73, 77) or typeCode in range(150, 191):
             return self.getOpaque()
         
         # get blob/clob type
-        elif self.typeCode in range(191, 201):
+        elif typeCode in range(191, 201):
             return self.getBlob()
         
-        #get clob type
-        elif self.typeCode in range(196, 201):
-            return self.getClob()
-        
         # get time type
-        elif self.typeCode in range(86, 109):
+        elif typeCode in range(86, 109):
             return self.getTime()
         
         # get scaled time
-        elif self.typeCode in range(211, 227):
+        elif typeCode in range(211, 227):
             return self.getScaledTime()
         
         # get scaled date
-        elif self.typeCode in range(203, 211):
+        elif typeCode in range(203, 211):
             return self.getScaledDate()
         
         else:
