@@ -169,34 +169,51 @@ class EncodedSession(Session):
         if self._getTypeCode() != 1:
             raise DataError('Not null')
 
+    def getDouble(self):
+        raise NotImplementedError
+
     def getUUID(self):
         if self._getTypeCode() == 202:
             return uuid.UUID(self._takeBytes(16))
+        if self._getTypeCode() == 201:
+            # before version 11
+            pass
+        if self._getTypeCode() == 227:
+            # version 11 and later
+            pass
 
         raise DataError('Not a UUID')
 
     def getValue(self):
         typeCode = self.session._getTypeCode()
         
-        # get integer
-        if typeCode in range(10, 51) or typeCode in range(52, 59):
-            return self.getInt()
-        
-        # get scaled int
-        elif typeCode is 60 or typeCode in range(61, 68):
-            return self.getScaledInt()
-        
-        # get string
-        elif typeCode in range(109, 148) or typeCode in range(69, 72):
-            return self.getString()
+        # get null
+        if typeCode is 1:
+            return self.getNull()
         
         # get boolean
         elif typeCode in [2, 3]:
             return self.getBoolean()
         
         # get uuid
-        elif typeCode is 202:
+        elif typeCode in [202, 201, 227]:
             return self.getUUID()
+        
+        # get integer
+        elif typeCode in range(10, 51) or typeCode in range(52, 59):
+            return self.getInt()
+        
+        # get scaled int
+        elif typeCode is 60 or typeCode in range(61, 68):
+            return self.getScaledInt()
+        
+        # get double precision
+        elif typeCode in range(77, 85):
+            return self.getDouble()
+        
+        # get string
+        elif typeCode in range(109, 148) or typeCode in range(69, 72):
+            return self.getString()
         
         else:
             raise NotImplementedError
