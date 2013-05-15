@@ -18,7 +18,7 @@ class EncodedSession(Session):
     def __init__(self, host, port, service='SQL2'):
         Session.__init__(self, host, port=port, service=service)
         self.doConnect()
-
+        self.typeCode = None
         self.__output = None
         self.__input = None
         self.__inpos = 0
@@ -118,55 +118,51 @@ class EncodedSession(Session):
     # Methods to get values out of the last exchange
 
     def getInt(self):
-        typeCode = self._getTypeCode()
 
-        if typeCode in range(10, 51):
-            return typeCode - 20
+        if self.typeCode in range(10, 51):
+            return self.typeCode - 20
 
-        if typeCode in range(52, 59):
-            return fromByteString(self._takeBytes(typeCode - 51))
+        if self.typeCode in range(52, 59):
+            return fromByteString(self._takeBytes(self.typeCode - 51))
 
-        if typeCode == 1:
+        if self.typeCode == 1:
             return 0
 
         raise DataError('Not an integer')
 
     def getScaledInt(self):
-        typeCode = self._getTypeCode()
 
-        if typeCode is 60:
+        if self.typeCode is 60:
             return (0, self.__takeBytes(1))
 
-        if typeCode in range(61, 68):
+        if self.typeCode in range(61, 68):
             scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(typeCode - 60)), scale)
+            return (fromByteString(self.__takeBytes(self.typeCode - 60)), scale)
 
         raise DataError('Not a scaled integer')
 
     def getString(self):
-        typeCode = self._getTypeCode()
 
-        if typeCode in range(109, 148):
-            return self._takeBytes(typeCode - 109)
+        if self.typeCode in range(109, 148):
+            return self._takeBytes(self.typeCode - 109)
 
-        if typeCode in range(69, 72):
-            strLength = fromByteString(self._takeBytes(typeCode - 68))
+        if self.typeCode in range(69, 72):
+            strLength = fromByteString(self._takeBytes(self.typeCode - 68))
             return self._takeBytes(strLength)
 
         raise DataError('Not a string')
 
     def getBoolean(self):
-        typeCode = self._getTypeCode()
 
-        if typeCode == 2:
+        if self.typeCode == 2:
             return True
-        if typeCode == 3:
+        if self.typeCode == 3:
             return False
 
         raise DataError('Not a boolean')
 
     def getNull(self):
-        if self._getTypeCode() != 1:
+        if self.typeCode != 1:
             raise DataError('Not null')
 
     def getDouble(self):
@@ -188,12 +184,12 @@ class EncodedSession(Session):
         raise NotImplementedError
 
     def getUUID(self):
-        if self._getTypeCode() == 202:
+        if self.typeCode == 202:
             return uuid.UUID(self._takeBytes(16))
-        if self._getTypeCode() == 201:
+        if self.typeCode == 201:
             # before version 11
             pass
-        if self._getTypeCode() == 227:
+        if self.typeCode == 227:
             # version 11 and later
             pass
 
@@ -201,54 +197,54 @@ class EncodedSession(Session):
 
     def getValue(self):
 
-        typeCode = self._getTypeCode()
+        self.typeCode = self._getTypeCode()
         
         # get null type
-        if typeCode is 1:
+        if self.typeCode is 1:
             return self.getNull()
         
         # get boolean type
-        elif typeCode in [2, 3]:
+        elif self.typeCode in [2, 3]:
             return self.getBoolean()
         
         # get uuid type
-        elif typeCode in [202, 201, 227]:
+        elif self.typeCode in [202, 201, 227]:
             return self.getUUID()
         
         # get integer type
-        elif typeCode in range(10, 60):
+        elif self.typeCode in range(10, 60):
             return self.getInt()
         
         # get scaled int type
-        elif typeCode in range(60, 69):
+        elif self.typeCode in range(60, 69):
             return self.getScaledInt()
         
         # get double precision type
-        elif typeCode in range(77, 86):
+        elif self.typeCode in range(77, 86):
             return self.getDouble()
         
         # get string type
-        elif typeCode in range(69, 73) or typeCode in range(109, 150):
+        elif self.typeCode in range(69, 73) or self.typeCode in range(109, 150):
             return self.getString()
         
         # get opague type
-        elif typeCode in range(73, 77) or typeCode in range(150, 191):
+        elif self.typeCode in range(73, 77) or self.typeCode in range(150, 191):
             return self.getOpaque()
         
         # get blob/clob type
-        elif typeCode in range(191, 201):
+        elif self.typeCode in range(191, 201):
             return self.getBlob()
         
         # get time type
-        elif typeCode in range(86, 109):
+        elif self.typeCode in range(86, 109):
             return self.getTime()
         
         # get scaled time
-        elif typeCode in range(211, 227):
+        elif self.typeCode in range(211, 227):
             return self.getScaledTime()
         
         # get scaled date
-        elif typeCode in range(203, 211):
+        elif self.typeCode in range(203, 211):
             return self.getScaledDate()
         
         else:
