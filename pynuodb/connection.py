@@ -11,6 +11,7 @@ import string
 import protocol
 
 from exception import *
+from result import Result
 
 # http://www.python.org/dev/peps/pep-0249
 
@@ -24,7 +25,7 @@ def connect(database=None, user=None, password=None, host=None, port=48004):
     return Connection(host, database, user, password)
 
 
-class Connection:
+class Connection(object):
 
     def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql'):
         (host, port) = getCloudEntry(broker, dbName)
@@ -87,7 +88,7 @@ class Connection:
     def cursor(self):
         return Cursor(self.__session)
     
-class Cursor:
+class Cursor(object):
 
     def __init__(self, session):
         self.session = session
@@ -95,6 +96,7 @@ class Cursor:
         self.description = None
         self.rowcount = -1
         self.arraysize = 1
+        self.handle = None
 
     def close(self):
         pass
@@ -108,25 +110,21 @@ class Cursor:
             # Create a statement handle
             self.session.putMessageId(protocol.CREATE)
             self.session.exchangeMessages()
-            handle = self.session.getInt()
+            self.handle = self.session.getInt()
             
             # Use handle to query dual
-            self.session.putMessageId(protocol.EXECUTEQUERY).putInt(handle).putString(operation)
+            self.session.putMessageId(protocol.EXECUTEQUERY).putInt(self.handle).putString(operation)
             
             self.session.exchangeMessages()
 
-            rsHandle    = self.session.getInt()
-            count       = self.session.getInt()
-            colname     = self.session.getString()
-            result      = self.session.getInt()
+#             rsHandle    = self.session.getInt()
+#             count       = self.session.getInt()
+#             colname     = self.session.getString()
+#             result      = self.session.getInt()
+#             fieldValue  = self.session.getString()
             
-            fieldValue  = self.session.getString()
-        
-            # we do not know what method to call at this point so create a generic get
-#             fieldValue = self.session.getResults()
-            
-            print 'handle: %s, count: %s, column: %s, result: %s, value: %s' % (rsHandle, count, colname, result, fieldValue)
-            return fieldValue
+#             print 'handle: %s, count: %s, column: %s, result: %s, value: %s' % (rsHandle, count, colname, result, fieldValue)
+#             return fieldValue
             
 #             r2 = self.session.getInt()
 #               
