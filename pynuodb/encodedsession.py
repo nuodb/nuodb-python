@@ -215,6 +215,7 @@ class EncodedSession(Session):
         raise DataError('Not a UUID')
 
     def getValue(self):
+
         typeCode = self._getTypeCode()
         
         # get null type
@@ -230,43 +231,43 @@ class EncodedSession(Session):
             return self.getUUID()
         
         # get integer type
-        elif typeCode in range(10, 51) or typeCode in range(52, 59):
+        elif typeCode in range(10, 60):
             return self.getInt()
         
         # get scaled int type
-        elif typeCode is 60 or typeCode in range(61, 68):
+        elif typeCode in range(60, 69):
             return self.getScaledInt()
         
         # get double precision type
-        elif typeCode in range(77, 85):
+        elif typeCode in range(77, 86):
             return self.getDouble()
         
         # get string type
-        elif typeCode in range(109, 148) or typeCode in range(69, 72):
+        elif typeCode in range(69, 73) or typeCode in range(109, 150):
             return self.getString()
         
         # get opaque type
-        elif typeCode in range(73, 76) or typeCode in range(150, 189):
+        elif typeCode in range(73, 77) or typeCode in range(150, 191):
             return self.getOpaque()
         
         # get blob type
-        elif typeCode in range(191, 195):
+        elif typeCode in range(191, 196):
             return self.getBlob()
         
         #get clob type
-        elif typeCode in range(196, 200):
+        elif typeCode in range(196, 201):
             return self.getClob()
         
         # get time type
-        elif typeCode in range(86, 94) or typeCode in range(95, 103) or typeCode in range(104, 108):
+        elif typeCode in range(86, 109):
             return self.getTime()
         
         # get scaled time
-        elif typeCode in range(211, 218) or typeCode in range(219, 226):
+        elif typeCode in range(211, 227):
             return self.getScaledTime()
         
         # get scaled date
-        elif typeCode in range(203, 210):
+        elif typeCode in range(203, 211):
             return self.getScaledDate()
         
         else:
@@ -294,8 +295,10 @@ class EncodedSession(Session):
     def setCiphers(self, cipherIn, cipherOut):
         Session._setCiphers(self, cipherIn, cipherOut)
 
-    #
     # Protected utility routines
+
+    def _peekTypeCode(self):
+        return ord(self.__input[self.__inpos])
 
     def _getTypeCode(self):
         try:
