@@ -7,6 +7,7 @@ from nuodb.session import Session, SessionException
 #from . import exception
 #from exception import DataError
 
+from struct import *
 import uuid
 from exception import DataError
 
@@ -89,7 +90,11 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
-        pass
+        byteString = struct.pack('d', value)
+        lengthStr = len(byteString)
+        packed = chr(77 + lengthStr) + byteString
+        self.__output += packed
+        return self
 
     def putTime(self, value):
         pass
@@ -113,6 +118,12 @@ class EncodedSession(Session):
             packed = chr(196 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
+        
+    def putScaledTime(self, value):
+        pass
+        
+    def putScaledDate(self, value):
+        pass
 
     #
     # Methods to get values out of the last exchange
@@ -170,7 +181,8 @@ class EncodedSession(Session):
             raise DataError('Not null')
 
     def getDouble(self):
-        raise NotImplementedError
+        typeCode = self._getTypeCode()
+        return struct.unpack('d', self.__takeBytes(typeCode - 76))[0]
 
     def getTime(self):
         raise NotImplementedError
@@ -178,7 +190,10 @@ class EncodedSession(Session):
     def getOpaque(self):
         raise NotImplementedError
     
-    def getBlog(self):
+    def getBlob(self):
+        raise NotImplementedError
+    
+    def getClob(self):
         raise NotImplementedError
     
     def getScaledTime(self):
@@ -230,13 +245,17 @@ class EncodedSession(Session):
         elif typeCode in range(109, 148) or typeCode in range(69, 72):
             return self.getString()
         
-        # get opague type
+        # get opaque type
         elif typeCode in range(73, 76) or typeCode in range(150, 189):
             return self.getOpaque()
         
-        # get blob/clob type
-        elif typeCode in range(191, 195) or typeCode in range(196, 200):
-            return self.getBlog()
+        # get blob type
+        elif typeCode in range(191, 195):
+            return self.getBlob()
+        
+        #get clob type
+        elif typeCode in range(196, 200):
+            return self.getClob()
         
         # get time type
         elif typeCode in range(86, 94) or typeCode in range(95, 103) or typeCode in range(104, 108):
