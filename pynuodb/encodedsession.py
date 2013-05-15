@@ -120,7 +120,7 @@ class EncodedSession(Session):
     def getInt(self):
         typeCode = self._getTypeCode()
 
-        if typeCode in range(10, 51):
+        if typeCode in range(10, 52):
             return typeCode - 20
 
         if typeCode in range(52, 59):
