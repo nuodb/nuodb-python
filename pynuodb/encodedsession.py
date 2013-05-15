@@ -22,7 +22,7 @@ class EncodedSession(Session):
         self.__output = None
         self.__input = None
         self.__inpos = 0
-
+ 
     #
     # Methods to put values into the next message
 
