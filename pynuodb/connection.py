@@ -11,7 +11,6 @@ import string
 import protocol
 
 from exception import *
-from result import Result
 
 # http://www.python.org/dev/peps/pep-0249
 
@@ -131,7 +130,6 @@ class Cursor(object):
 
     def fetchone(self):
         try:
-            
             # call self.session.getValue() here
             pass
             
