@@ -172,6 +172,21 @@ class EncodedSession(Session):
     def getDouble(self):
         raise NotImplementedError
 
+    def getTime(self):
+        raise NotImplementedError
+    
+    def getOpaque(self):
+        raise NotImplementedError
+    
+    def getBlog(self):
+        raise NotImplementedError
+    
+    def getScaledTime(self):
+        raise NotImplementedError
+    
+    def getScaledDate(self):
+        raise NotImplementedError
+
     def getUUID(self):
         if self._getTypeCode() == 202:
             return uuid.UUID(self._takeBytes(16))
@@ -185,35 +200,55 @@ class EncodedSession(Session):
         raise DataError('Not a UUID')
 
     def getValue(self):
-        typeCode = self.session._getTypeCode()
+        typeCode = self._getTypeCode()
         
-        # get null
+        # get null type
         if typeCode is 1:
             return self.getNull()
         
-        # get boolean
+        # get boolean type
         elif typeCode in [2, 3]:
             return self.getBoolean()
         
-        # get uuid
+        # get uuid type
         elif typeCode in [202, 201, 227]:
             return self.getUUID()
         
-        # get integer
+        # get integer type
         elif typeCode in range(10, 51) or typeCode in range(52, 59):
             return self.getInt()
         
-        # get scaled int
+        # get scaled int type
         elif typeCode is 60 or typeCode in range(61, 68):
             return self.getScaledInt()
         
-        # get double precision
+        # get double precision type
         elif typeCode in range(77, 85):
             return self.getDouble()
         
-        # get string
+        # get string type
         elif typeCode in range(109, 148) or typeCode in range(69, 72):
             return self.getString()
+        
+        # get opague type
+        elif typeCode in range(73, 76) or typeCode in range(150, 189):
+            return self.getOpaque()
+        
+        # get blob/clob type
+        elif typeCode in range(191, 195) or typeCode in range(196, 200):
+            return self.getBlog()
+        
+        # get time type
+        elif typeCode in range(86, 94) or typeCode in range(95, 103) or typeCode in range(104, 108):
+            return self.getTime()
+        
+        # get scaled time
+        elif typeCode in range(211, 218) or typeCode in range(219, 226):
+            return self.getScaledTime()
+        
+        # get scaled date
+        elif typeCode in range(203, 210):
+            return self.getScaledDate()
         
         else:
             raise NotImplementedError
