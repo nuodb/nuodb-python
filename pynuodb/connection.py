@@ -7,10 +7,12 @@ from nuodb.crypt import ClientPassword, RC4Cipher
 from nuodb.session import SessionException
 from nuodb.util import getCloudEntry
 
+
 import string
 import protocol
 
 from exception import *
+
 
 # http://www.python.org/dev/peps/pep-0249
 
@@ -94,8 +96,15 @@ class Cursor(object):
         
         self.description = None
         self.rowcount = -1
+        self.colcount = -1
         self.arraysize = 1
-        self.handle = None
+        
+        self._st_handle = None
+        self._rs_handle = None
+        self._results = []
+        self._results_pos = 0
+        
+        self._complete = False
 
     def close(self):
         pass
@@ -104,23 +113,47 @@ class Cursor(object):
         raise NotSupportedError
 
     def execute(self, operation, parameters=None):
-        print 'execute: %s' % operation
-        try:
-            # Create a statement handle
-            self.session.putMessageId(protocol.CREATE)
-            self.session.exchangeMessages()
-            self.handle         = self.session.getInt()
-            self.column_count   = self.session.getInt()
-            
-            # Use handle to query dual
-            self.session.putMessageId(protocol.EXECUTE).putInt(self.handle).putString(operation)
-            
+        # Create a statement handle
+        self.session.putMessageId(protocol.CREATE)
+        self.session.exchangeMessages()
+        self._st_handle = self.session.getInt()
+        
+        # Use handle to query
+        self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
+        self.session.exchangeMessages()
+        
+        result = self.session.getInt()
+
+        # TODO: check this, should be -1 on select?
+        self.rowcount = self.session.getInt() 
+
+        if result > 0:
+            self.session.putMessageId(protocol.GETRESULTSET).putInt(self._st_handle)
             self.session.exchangeMessages()
 
-            # protocol.EXECUTE returns ExecuteResponse
+            self._rs_handle = self.session.getInt()
+            self.colcount = self.session.getInt()
+
+            col_num_iter = xrange(self.colcount)   
+        
+            #TODO: add type_code to description
+            self.description = [None] * self.colcount
+            for i in col_num_iter:
+                self.description[i] = [self.session.getString()] + [None] * 6
+
+            next_row = self.session.getInt()
+            while next_row == 1:
+                row = [None] * self.colcount
+                for i in col_num_iter:
+                    row[i] = self.session.getValue()
+        
+                self._results.append(tuple(row))
             
-        except Exception, error:
-            print "NuoDB error: %s" % str(error)
+                try:
+                    next_row = self.session.getInt()  
+                except:
+                    break
+
 
     def executemany(self, operation, seq_of_parameters):
         try:
@@ -130,21 +163,53 @@ class Cursor(object):
 
     def fetchone(self):
         try:
-            # call self.session.getValue() here
-            pass
+            if self._results_pos == len(self._results):
+                if not self._complete:
+                    self._get_next_results()
+                else:
+                    return None
+                    
+            res = self._results[self._results_pos]
+            self._results_pos += 1
+            return res
             
         except Exception, error:
             print "NuoDB error: %s" % str(error)
 
     def fetchmany(self, size=None):
         try:
-            pass
+            if size == None:
+                size = self.arraysize
+                
+            fetched_rows = []
+            num_fetched_rows = 0
+            while num_fetched_rows < size:
+                row = self.fetchone()
+                if row == None:
+                    break
+                else:
+                    fetched_rows.append(row)
+                    num_fetched_rows += 1
+            
+            return fetched_rows
+        
+            
         except Exception, error:
             print "NuoDB error: %s" % str(error)
 
     def fetchall(self):
         try:
-            pass
+            fetched_rows = []
+            while True:
+                row = self.fetchone()
+                if row == None:
+                    break
+                else:
+                    fetched_rows.append(row)
+                    
+            return fetched_rows   
+                    
+                
         except Exception, error:
             print "NuoDB error: %s" % str(error)
 
@@ -159,3 +224,30 @@ class Cursor(object):
 
     def setoutputsize(self, size, column=None):
         pass
+        
+    def _get_next_results(self):
+
+        self.session.putMessageId(protocol.NEXT).putInt(self._rs_handle)
+        self.session.exchangeMessages()
+        
+        col_num_iter = xrange(self.colcount)
+        
+        self._results = []
+        next_row = self.session.getInt()
+        while next_row == 1:
+            row = [None] * self.colcount
+            for i in col_num_iter:
+                row[i] = self.session.getValue()
+        
+            self._results.append(tuple(row))
+            
+            try:
+                next_row = self.session.getInt()
+            except:
+                break
+        
+        self._results_pos = 0
+        
+        if next_row == 0:
+            self._complete = True
+        

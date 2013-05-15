@@ -4,11 +4,8 @@ __all__  = [ 'EncodedSession' ]
 from nuodb.crypt import toByteString, fromByteString
 from nuodb.session import Session, SessionException
 
-#from . import exception
-#from exception import DataError
-
 import uuid
-from exception import DataError
+from exception import DataError, DatabaseError
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -268,7 +265,7 @@ class EncodedSession(Session):
 
             # TODO: include the actual error message, and use a different type
             if self.getInt() != 0:
-                raise SessionException('Non-zero status: %s' % self.getString())
+                raise DatabaseError('Non-zero status: %s' % self.getString())
         else:
             self.__input = None
 
