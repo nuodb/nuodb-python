@@ -7,6 +7,7 @@ from nuodb.session import Session, SessionException
 #from . import exception
 #from exception import DataError
 
+import struct
 import uuid
 from exception import DataError
 
@@ -22,7 +23,7 @@ class EncodedSession(Session):
         self.__output = None
         self.__input = None
         self.__inpos = 0
-
+ 
     #
     # Methods to put values into the next message
 
@@ -89,7 +90,11 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
-        pass
+        byteString = struct.pack('d', value)
+        lengthStr = len(byteString)
+        packed = chr(77 + lengthStr) + byteString
+        self.__output += packed
+        return self
 
     def putTime(self, value):
         pass
@@ -113,6 +118,12 @@ class EncodedSession(Session):
             packed = chr(196 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
+        
+    def putScaledTime(self, value):
+        pass
+        
+    def putScaledDate(self, value):
+        pass
 
     #
     # Methods to get values out of the last exchange
@@ -166,7 +177,8 @@ class EncodedSession(Session):
             raise DataError('Not null')
 
     def getDouble(self):
-        raise NotImplementedError
+        typeCode = self._getTypeCode()
+        return struct.unpack('d', self.__takeBytes(typeCode - 76))[0]
 
     def getTime(self):
         raise NotImplementedError
@@ -174,7 +186,10 @@ class EncodedSession(Session):
     def getOpaque(self):
         raise NotImplementedError
     
-    def getBlog(self):
+    def getBlob(self):
+        raise NotImplementedError
+    
+    def getClob(self):
         raise NotImplementedError
     
     def getScaledTime(self):
@@ -226,7 +241,7 @@ class EncodedSession(Session):
         # get string type
         elif self.typeCode in range(69, 73) or self.typeCode in range(109, 150):
             return self.getString()
-        
+
         # get opague type
         elif self.typeCode in range(73, 77) or self.typeCode in range(150, 191):
             return self.getOpaque()
@@ -234,6 +249,10 @@ class EncodedSession(Session):
         # get blob/clob type
         elif self.typeCode in range(191, 201):
             return self.getBlob()
+        
+        #get clob type
+        elif self.typeCode in range(196, 201):
+            return self.getClob()
         
         # get time type
         elif self.typeCode in range(86, 109):
