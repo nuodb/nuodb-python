@@ -28,7 +28,7 @@ def connect(database=None, user=None, password=None, host=None, port=48004):
 
 class Connection(object):
 
-    def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql'):
+    def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql', auto_commit=False):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
         self._trans_id = None
@@ -56,8 +56,12 @@ class Connection(object):
         self.__session.putMessageId(protocol.AUTHENTICATION).putString('Success!')
         self.__session.exchangeMessages()
         
-        # set auto commit to false by default, maybe have auto-commit field as constructor field above
-        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
+        # set auto commit to false by default
+        if auto_commit:
+            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
+        else:
+            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(1)
+        
         self.__session.exchangeMessages()
 
     def testConnection(self):
