@@ -5,6 +5,8 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 
 import datetime, decimal, time
 
+
+
 class Date(object):
 	
 	def __init__(self, year, month, day):
@@ -70,3 +72,11 @@ BINARY 		= TypeObject(str)
 NUMBER 		= TypeObject(int, decimal.Decimal)
 DATETIME 	= TypeObject(datetime.datetime, datetime.date, datetime.time)
 ROWID 		= TypeObject()
+
+def TypeObjectFromNuodb(nuodb_type):
+    ''' returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
+    supplied NuoDB column type name
+    '''
+    pass
+
+    
