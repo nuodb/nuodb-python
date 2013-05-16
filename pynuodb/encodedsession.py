@@ -135,6 +135,18 @@ class EncodedSession(Session):
     def putScaledDate(self, value, scale):
         pass
 
+    def putValue(self, value):
+        if value == None:
+            return self.putNull()
+        elif value == True or value == False:
+            return self.putBoolean(value)
+        elif type(value) == int:
+            return self.putInt(value)
+        elif type(value) == float:
+            return self.putDouble(value)
+        else:
+            return self.putString(value)
+        
     #
     # Methods to get values out of the last exchange
 

@@ -113,15 +113,34 @@ class Cursor(object):
         raise NotSupportedError
 
     def execute(self, operation, parameters=None):
-        # Create a statement handle
-        self.session.putMessageId(protocol.CREATE)
-        self.session.exchangeMessages()
-        self._st_handle = self.session.getInt()
         
-        # Use handle to query
-        self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
-        self.session.exchangeMessages()
+        if not parameters:
+            # Create a statement handle
+            self.session.putMessageId(protocol.CREATE)
+            self.session.exchangeMessages()
+            self._st_handle = self.session.getInt()
         
+            # Use handle to query
+            self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
+            self.session.exchangeMessages()
+        
+        else:
+            # Create a statement handle
+            self.session.putMessageId(protocol.PREPARE).putString(operation)
+            self.session.exchangeMessages()
+            self._st_handle = self.session.getInt()
+            p_count = self.session.getInt()
+            
+            if p_count != len(parameters):
+                raise OperationalError
+            
+            # Use handle to query
+            self.session.putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+            self.session.putInt(self._st_handle).putInt(p_count)
+            for param in parameters[:]:
+                self.session.putValue(param)
+            self.session.exchangeMessages()
+                
         result = self.session.getInt()
 
         # TODO: check this, should be -1 on select?
