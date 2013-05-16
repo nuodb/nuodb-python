@@ -58,11 +58,11 @@ class Connection(object):
         
         # set auto commit to false by default
         if auto_commit:
-            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
-        else:
             self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(1)
+        else:
+            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
         
-        self.__session.exchangeMessages()
+        self.__session.exchangeMessages(False)
 
     def testConnection(self):
 
@@ -197,6 +197,9 @@ class Cursor(object):
                 flags = self.session.getInt()
                 self.description[i] = [columnName, TypeObjectFromNuodb(columnTypeName), 
                                        columnDisplaySize, None, precision, scale, None]
+                                       
+        if self.rowcount < 0:
+            self.rowcount = -1
 
     def _execute(self, operation):
         # Create a statement handle
@@ -229,8 +232,10 @@ class Cursor(object):
         rowCount = 0
         for parameters in seq_of_parameters[:]:
             self.execute(operation, parameters)
-            rowCount += self.rowcount
-        self.rowcount = rowCount            
+            if self.rowcount >= 0:
+                rowCount += self.rowcount
+        if rowCount != 0:
+            self.rowcount = rowCount            
 
     def fetchone(self):
         try:
