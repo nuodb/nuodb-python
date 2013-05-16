@@ -110,7 +110,7 @@ class Cursor(object):
         pass
 
     def callproc(self, procname, parameters=None):
-        raise NotSupportedError
+        raise NotSupportedError("not supported")
 
     def execute(self, operation, parameters=None):
         # Create a statement handle
@@ -214,10 +214,10 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def nextset(self):
-        raise NotSupportedError
+        raise NotSupportedError("not supported")
     
     def arraysize(self):
-        raise NotSupportedError
+        raise NotSupportedError("not supported")
 
     def setinputsizes(self, sizes):
         pass

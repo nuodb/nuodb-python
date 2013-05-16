@@ -5,18 +5,47 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 
 import datetime, decimal, time
 
-class Date:
+class Date(object):
+	
 	def __init__(self, year, month, day):
-		pass
+		self.year 	= year
+		self.month 	= month
+		self.day 	= day
+		
+	def __str__(self):
+		return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
 
-class Time:
+class Time(object):
+	
 	def __init__(self, hour, minute, second):
-		pass
+		self.hour 	= hour
+		self.minute = minute
+		self.second = second
 
-class Timestamp:
+	def __str__(self):
+		return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
+
+class Timestamp(object):
+	
 	def __init__(self, year, month, day, hour, minute, second):
-		pass
-
+		self.year 	= year
+		self.month 	= month
+		self.day 	= day
+		self.hour 	= hour
+		self.minute = minute
+		self.second = second
+		
+	def __str__(self):
+		return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat()
+		
+class Binary(object):
+	
+	def __init__(self, string):
+		self.string = string
+		
+	def __str__(self):
+		return "%s" % self.string
+		
 def DateFromTicks(ticks):
 	return Date(*time.localtime(ticks)[:3])
 
@@ -26,11 +55,7 @@ def TimeFromTicks(ticks):
 def TimestampFromTicks(ticks):
 	return Timestamp(*time.localtime(ticks)[:6])
 
-class Binary:
-	def __init__(self, string):
-		pass
-
-class TypeObject:
+class TypeObject(object):
 	def __init__(self, *values):
 		self.values = values
 	def __cmp__(self, other):
@@ -40,8 +65,13 @@ class TypeObject:
 			return 1
 		return -1
 
-STRING = TypeObject(str)
-BINARY = TypeObject(str)
-NUMBER = TypeObject(int, decimal.Decimal)
-DATETIME = TypeObject(datetime.datetime, datetime.date, datetime.time)
-ROWID = TypeObject()
+print DateFromTicks(1368721972)
+print TimeFromTicks(1368721972)
+print TimestampFromTicks(1368721972)
+print Binary(123412341234)
+
+STRING 		= TypeObject(str)
+BINARY 		= TypeObject(str)
+NUMBER 		= TypeObject(int, decimal.Decimal)
+DATETIME 	= TypeObject(datetime.datetime, datetime.date, datetime.time)
+ROWID 		= TypeObject()
