@@ -32,6 +32,7 @@ class Connection(object):
     def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql'):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
+        self._trans_id = None
 
         cp = ClientPassword()
 #         parameters = {'user' : username }
@@ -81,11 +82,13 @@ class Connection(object):
         pass
 
     def commit(self):
-        # isn't commit automatic?
-        pass
+        self.__session.putMessageId(protocol.COMMITTRANSACTION)
+        self.__session.exchangeMessages()
+        self._trans_id = self.__session.getValue()
 
     def rollback(self):
-        pass
+        self.__session.putMessageId(protocol.ROLLBACKTRANSACTION)
+        self.__session.exchangeMessages()
 
     def cursor(self):
         return Cursor(self.__session)
