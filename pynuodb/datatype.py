@@ -3,9 +3,8 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 			'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
 			'DATETIME', 'ROWID' ]
 
+from exception import *
 import datetime, decimal, time
-
-
 
 class Date(object):
 	
@@ -46,7 +45,7 @@ class Binary(object):
 		self.string = string
 		
 	def __str__(self):
-		return "%s" % self.string
+		return "%s" % [ bin(ord(ch))[2:].zfill(8) for ch in self.string ]
 		
 def DateFromTicks(ticks):
 	return Date(*time.localtime(ticks)[:3])
@@ -74,9 +73,7 @@ DATETIME 	= TypeObject(datetime.datetime, datetime.date, datetime.time)
 ROWID 		= TypeObject()
 
 def TypeObjectFromNuodb(nuodb_type):
-    ''' returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
-    supplied NuoDB column type name
-    '''
-    pass
-
-    
+	""" returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the supplied NuoDB column type name 
+	"""
+	pass
+	
