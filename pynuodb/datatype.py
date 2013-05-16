@@ -65,11 +65,6 @@ class TypeObject(object):
 			return 1
 		return -1
 
-print DateFromTicks(1368721972)
-print TimeFromTicks(1368721972)
-print TimestampFromTicks(1368721972)
-print Binary(123412341234)
-
 STRING 		= TypeObject(str)
 BINARY 		= TypeObject(str)
 NUMBER 		= TypeObject(int, decimal.Decimal)
