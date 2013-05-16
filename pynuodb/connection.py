@@ -100,6 +100,7 @@ class Connection(object):
     def close(self):
         self.__session.putMessageId(protocol.CLOSE)
         self.__session.exchangeMessages()
+        self.__session.closed = True
 
     def commit(self):
         self.__session.putMessageId(protocol.COMMITTRANSACTION)
@@ -117,11 +118,20 @@ class Cursor(object):
 
     def __init__(self, session):
         self.session = session
+        self.closed = False
         
         self._reset()
 
     def close(self):
-        pass
+        self.closed = True
+
+    def isclosed(self, method):
+        if self.closed == True:
+            errorMsg = "can't", method, "cursor is closed"
+            raise Error(errorMsg)
+        if self.session.closed == True:
+            errorMsg = "can't", method, "session is closed"
+            raise Error(errorMsg)
 
     def _reset(self):
         self.description = None
@@ -140,6 +150,7 @@ class Cursor(object):
         raise NotSupportedError
 
     def execute(self, operation, parameters=None):
+        self.isclosed("execute")
         self._reset()
         if not parameters:
             self._execute(operation)
@@ -229,6 +240,7 @@ class Cursor(object):
         self.session.exchangeMessages()
 
     def executemany(self, operation, seq_of_parameters):
+        self.isclosed("execute many")
         rowCount = 0
         for parameters in seq_of_parameters[:]:
             self.execute(operation, parameters)
@@ -238,6 +250,7 @@ class Cursor(object):
             self.rowcount = rowCount            
 
     def fetchone(self):
+        self.isclosed("fetch one")
         try:
             if self._results_pos == len(self._results):
                 if not self._complete:
@@ -253,6 +266,7 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def fetchmany(self, size=None):
+        self.isclosed("fetch many")
         try:
             if size == None:
                 size = self.arraysize
@@ -274,6 +288,7 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def fetchall(self):
+        self.isclosed("fetch all")
         try:
             fetched_rows = []
             while True:
