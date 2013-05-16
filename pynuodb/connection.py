@@ -3,6 +3,7 @@ __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection',
             'Cursor' ]
 
 from encodedsession import EncodedSession
+from datatype import TypeObjectFromNuodb
 from nuodb.crypt import ClientPassword, RC4Cipher
 from nuodb.session import SessionException
 from nuodb.util import getCloudEntry
@@ -94,6 +95,12 @@ class Cursor(object):
     def __init__(self, session):
         self.session = session
         
+        self._reset()
+
+    def close(self):
+        pass
+
+    def _reset(self):
         self.description = None
         self.rowcount = -1
         self.colcount = -1
@@ -106,40 +113,16 @@ class Cursor(object):
         
         self._complete = False
 
-    def close(self):
-        pass
-
     def callproc(self, procname, parameters=None):
-        raise NotSupportedError("not supported")
+        raise NotSupportedError
 
     def execute(self, operation, parameters=None):
-        
+        self._reset()
         if not parameters:
-            # Create a statement handle
-            self.session.putMessageId(protocol.CREATE)
-            self.session.exchangeMessages()
-            self._st_handle = self.session.getInt()
-        
-            # Use handle to query
-            self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
-            self.session.exchangeMessages()
-        
+            self._execute(operation)
+            
         else:
-            # Create a statement handle
-            self.session.putMessageId(protocol.PREPARE).putString(operation)
-            self.session.exchangeMessages()
-            self._st_handle = self.session.getInt()
-            p_count = self.session.getInt()
-            
-            if p_count != len(parameters):
-                raise OperationalError
-            
-            # Use handle to query
-            self.session.putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
-            self.session.putInt(self._st_handle).putInt(p_count)
-            for param in parameters[:]:
-                self.session.putValue(param)
-            self.session.exchangeMessages()
+            self._executeprepared(operation, parameters)
                 
         result = self.session.getInt()
 
@@ -153,12 +136,10 @@ class Cursor(object):
             self._rs_handle = self.session.getInt()
             self.colcount = self.session.getInt()
 
-            col_num_iter = xrange(self.colcount)   
-        
-            #TODO: add type_code to description
-            self.description = [None] * self.colcount
+            col_num_iter = xrange(self.colcount)                  
+
             for i in col_num_iter:
-                self.description[i] = [self.session.getString()] + [None] * 6
+                self.session.getString()
 
             next_row = self.session.getInt()
             while next_row == 1:
@@ -172,7 +153,54 @@ class Cursor(object):
                     next_row = self.session.getInt()  
                 except:
                     break
+                    
+            # add description attribute
+            self.session.putMessageId(protocol.GETMETADATA).putInt(self._rs_handle)
+            self.session.exchangeMessages()
+            
+            self.description = [None] * self.session.getInt()
+            for i in col_num_iter:
+                catalogName = self.session.getString()
+                schemaName = self.session.getString()
+                tableName = self.session.getString()
+                columnName = self.session.getString()
+                columnLabel = self.session.getString()
+                collationSequence = self.session.getValue()
+                columnTypeName = self.session.getString()
+                columnType = self.session.getInt()
+                columnDisplaySize = self.session.getInt()
+                precision = self.session.getInt()
+                scale = self.session.getInt()
+                flags = self.session.getInt()
+                self.description[i] = [columnName, TypeObjectFromNuodb(columnTypeName), 
+                                       columnDisplaySize, None, precision, scale, None]
 
+    def _execute(self, operation):
+        # Create a statement handle
+        self.session.putMessageId(protocol.CREATE)
+        self.session.exchangeMessages()
+        self._st_handle = self.session.getInt()
+        
+        # Use handle to query
+        self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
+        self.session.exchangeMessages()
+
+    def _executeprepared(self, operation, parameters):
+        # Create a statement handle
+        self.session.putMessageId(protocol.PREPARE).putString(operation)
+        self.session.exchangeMessages()
+        self._st_handle = self.session.getInt()
+        p_count = self.session.getInt()
+        
+        if p_count != len(parameters):
+            raise OperationalError
+        
+        # Use handle to query
+        self.session.putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+        self.session.putInt(self._st_handle).putInt(p_count)
+        for param in parameters[:]:
+            self.session.putValue(param)
+        self.session.exchangeMessages()
 
     def executemany(self, operation, seq_of_parameters):
         try:
@@ -233,10 +261,10 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def nextset(self):
-        raise NotSupportedError("not supported")
+        raise NotSupportedError
     
     def arraysize(self):
-        raise NotSupportedError("not supported")
+        raise NotSupportedError
 
     def setinputsizes(self, sizes):
         pass
