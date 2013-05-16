@@ -1,10 +1,15 @@
 
 __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 			'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-			'DATETIME', 'ROWID' ]
+			'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
 
 from exception import *
 import datetime, decimal, time
+<<<<<<< Updated upstream
+=======
+from exception import DataError
+
+>>>>>>> Stashed changes
 
 class Date(object):
 	
@@ -72,8 +77,72 @@ NUMBER 		= TypeObject(int, decimal.Decimal)
 DATETIME 	= TypeObject(datetime.datetime, datetime.date, datetime.time)
 ROWID 		= TypeObject()
 
-def TypeObjectFromNuodb(nuodb_type):
-	""" returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the supplied NuoDB column type name 
-	"""
-	pass
-	
+def TypeObjectFromNuodb(nuodb_type_name):
+    ''' returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
+    supplied NuoDB column type name
+    '''
+    
+    if nuodb_type_name == "<null>":
+        return None
+        
+    elif nuodb_type_name == "string":
+        return STRING
+        
+    elif nuodb_type_name == "char":
+        return STRING
+        
+    elif nuodb_type_name == "varchar":
+        return STRING
+        
+    elif nuodb_type_name == "smallint":
+        return NUMBER
+        
+    elif nuodb_type_name == "integer":
+        return NUMBER
+        
+    elif nuodb_type_name == "bigint":
+        return NUMBER
+        
+    elif nuodb_type_name == "float":
+        return NUMBER
+        
+    elif nuodb_type_name == "double":
+        return NUMBER
+        
+    elif nuodb_type_name == "date":
+        return DATETIME
+        
+    elif nuodb_type_name == "timestamp":
+        return DATETIME
+        
+    elif nuodb_type_name == "time":
+        return DATETIME
+        
+    elif nuodb_type_name == "clob":
+        return BINARY
+        
+    elif nuodb_type_name == "blob":
+        return BINARY
+        
+    elif nuodb_type_name == "numeric":
+        return NUMBER
+        
+    elif nuodb_type_name == "number":
+        return NUMBER
+        
+    elif nuodb_type_name == "bytes":
+        return BINARY
+        
+    elif nuodb_type_name == "binarystring":
+        return BINARY
+        
+    elif nuodb_type_name == "binaryvaryingstring":
+        return BINARY
+        
+    elif nuodb_type_name == "boolean":
+        #TODO: Not sure about this?
+        return NUMBER
+
+    else:
+        raise DataError('received unknown column type from the database')
+
