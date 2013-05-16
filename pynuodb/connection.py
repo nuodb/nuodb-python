@@ -203,10 +203,11 @@ class Cursor(object):
         self.session.exchangeMessages()
 
     def executemany(self, operation, seq_of_parameters):
-        try:
-            pass
-        except Exception, error:
-            print "NuoDB error: %s" % str(error)
+        rowCount = 0
+        for parameters in seq_of_parameters[:]:
+            self.execute(operation, parameters)
+            rowCount += self.rowcount
+        self.rowcount = rowCount            
 
     def fetchone(self):
         try:
