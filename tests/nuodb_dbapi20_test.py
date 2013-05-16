@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# Test suite driver for psycopg2. This is not official - more an example.
-
 import dbapi20
 import unittest
 import popen2
@@ -52,8 +50,10 @@ class test_NuoDB(dbapi20.DatabaseAPI20Test):
     def tearDown(self):
         dbapi20.DatabaseAPI20Test.tearDown(self)
 
+    # Unsupported tests
     def test_nextset(self): pass
     def test_setoutputsize(self): pass
+    def test_callproc(self): pass
 
 if __name__ == '__main__':
     unittest.main()
