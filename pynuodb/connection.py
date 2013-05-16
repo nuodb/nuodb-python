@@ -88,30 +88,40 @@ class Connection(object):
 
     @property
     def auto_commit(self):
+        self._check_closed()
         self.__session.putMessageId(protocol.GETAUTOCOMMIT)
         self.__session.exchangeMessages()
         return self.__session.getValue()
     
     @auto_commit.setter
     def auto_commit(self, value):
+        self._check_closed()
         self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
         self.__session.exchangeMessages()
 
     def close(self):
+        self._check_closed()
         self.__session.putMessageId(protocol.CLOSE)
         self.__session.exchangeMessages()
         self.__session.closed = True
 
+    def _check_closed(self):
+        if self.__session.closed:
+            raise Error("connection is closed")
+
     def commit(self):
+        self._check_closed()
         self.__session.putMessageId(protocol.COMMITTRANSACTION)
         self.__session.exchangeMessages()
         self._trans_id = self.__session.getValue()
 
     def rollback(self):
+        self._check_closed()
         self.__session.putMessageId(protocol.ROLLBACKTRANSACTION)
         self.__session.exchangeMessages()
 
     def cursor(self):
+        self._check_closed()
         return Cursor(self.__session)
     
 class Cursor(object):
@@ -123,15 +133,14 @@ class Cursor(object):
         self._reset()
 
     def close(self):
+        self._check_closed()
         self.closed = True
 
-    def isclosed(self, method):
-        if self.closed == True:
-            errorMsg = "can't", method, "cursor is closed"
-            raise Error(errorMsg)
-        if self.session.closed == True:
-            errorMsg = "can't", method, "session is closed"
-            raise Error(errorMsg)
+    def _check_closed(self):
+        if self.closed:
+            raise Error("cursor is closed")
+        if self.session.closed:
+            raise Error("connection is closed")
 
     def _reset(self):
         self.description = None
@@ -150,7 +159,7 @@ class Cursor(object):
         raise NotSupportedError
 
     def execute(self, operation, parameters=None):
-        self.isclosed("execute")
+        self._check_closed()
         self._reset()
         if not parameters:
             self._execute(operation)
@@ -240,7 +249,7 @@ class Cursor(object):
         self.session.exchangeMessages()
 
     def executemany(self, operation, seq_of_parameters):
-        self.isclosed("execute many")
+        self._check_closed()
         rowCount = 0
         for parameters in seq_of_parameters[:]:
             self.execute(operation, parameters)
@@ -250,7 +259,7 @@ class Cursor(object):
             self.rowcount = rowCount            
 
     def fetchone(self):
-        self.isclosed("fetch one")
+        self._check_closed()
         try:
             if self._results_pos == len(self._results):
                 if not self._complete:
@@ -266,7 +275,7 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def fetchmany(self, size=None):
-        self.isclosed("fetch many")
+        self._check_closed()
         try:
             if size == None:
                 size = self.arraysize
@@ -288,7 +297,7 @@ class Cursor(object):
             print "NuoDB error: %s" % str(error)
 
     def fetchall(self):
-        self.isclosed("fetch all")
+        self._check_closed()
         try:
             fetched_rows = []
             while True:
