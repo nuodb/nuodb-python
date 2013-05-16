@@ -79,7 +79,8 @@ class Connection(object):
         print "value: " + str(fieldValue)
 
     def close(self):
-        pass
+        self.__session.putMessageId(protocol.CLOSE)
+        self.__session.exchangeMessages()
 
     def commit(self):
         self.__session.putMessageId(protocol.COMMITTRANSACTION)
