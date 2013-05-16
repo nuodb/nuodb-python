@@ -26,7 +26,6 @@ def connect(database=None, user=None, password=None, host=None, port=48004):
     # connection instance correctly
     return Connection(host, database, user, password)
 
-
 class Connection(object):
 
     def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql'):
@@ -36,6 +35,8 @@ class Connection(object):
 
         cp = ClientPassword()
 #         parameters = {'user' : username }
+        
+        # still need to do schema stuff
         parameters = {'user' : username, 'schema' : 'user' }
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
@@ -53,7 +54,10 @@ class Connection(object):
         self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
         self.__session.putMessageId(protocol.AUTHENTICATION).putString('Success!')
-
+        self.__session.exchangeMessages()
+        
+        # set auto commit to false by default, maybe have auto-commit field as constructor field above
+        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
         self.__session.exchangeMessages()
 
     def testConnection(self):
@@ -77,6 +81,17 @@ class Connection(object):
         print "count: " + str(count)
         print "name: " + colname
         print "value: " + str(fieldValue)
+
+    @property
+    def auto_commit(self):
+        self.__session.putMessageId(protocol.GETAUTOCOMMIT)
+        self.__session.exchangeMessages()
+        return self.__session.getValue()
+    
+    @auto_commit.setter
+    def auto_commit(self, value):
+        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
+        self.__session.exchangeMessages()
 
     def close(self):
         self.__session.putMessageId(protocol.CLOSE)
