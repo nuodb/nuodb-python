@@ -246,10 +246,10 @@ class EncodedSession(Session):
         raise DataError('Not a clob')
     
     def getScaledTime(self):
-        raise NotImplementedError
+        raise NotImplementedError("not implemented")
     
     def getScaledDate(self):
-        raise NotImplementedError
+        raise NotImplementedError("not implemented")
 
     def getUUID(self):
         if self._getTypeCode() == 202:
@@ -316,7 +316,7 @@ class EncodedSession(Session):
             return self.getScaledDate()
         
         else:
-            raise NotImplementedError
+            raise NotImplementedError("not implemented")
 
     # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):
