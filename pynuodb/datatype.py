@@ -3,13 +3,9 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 			'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
 			'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
 
-from exception import *
 import datetime, decimal, time
-<<<<<<< Updated upstream
-=======
 from exception import DataError
 
->>>>>>> Stashed changes
 
 class Date(object):
 	
