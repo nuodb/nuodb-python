@@ -26,16 +26,16 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-TESTS=$(shell find test -name "*.unit.py")
+TESTS=$(shell find . -name \*_test.py)
 
 all:
 	make install
 	make test
 
-install
+install:
 	python setup.py
 
 test:
-	pyunit $(TESTS)
+	nosetests $(TESTS)
 
 .PHONY: all install test
