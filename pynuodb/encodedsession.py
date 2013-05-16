@@ -78,7 +78,7 @@ class EncodedSession(Session):
     def putOpaque(self, value):
         length = len(value)
         if length < 40:
-            packed = chr(150 + length)
+            packed = chr(150 + length) + value
         else:
             lengthStr = self.toByteSting(length)
             packed = chr(72 + len(lengthStr)) + lengthStr + value
@@ -86,10 +86,28 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
-        pass
+        valueStr = struct.pack('d', value)
+        packed = chr(77 + len(valueStr)) + valueStr
+        self.__output += packed
+        return self
 
-    def putTime(self, value):
-        pass
+    def putMsSinceEpoch(self, value):
+        valueStr = toByteString(value)
+        packed = chr(86 + len(valueStr)) + valueStr
+        self.__output += packed
+        return self
+        
+    def putNsSinceEpoch(self, value):
+        valueStr = toByteString(value)
+        packed = chr(95 + len(valueStr)) + valueStr
+        self.__output += packed
+        return self
+        
+    def putMsSinceMidnight(self, value):
+        valueStr = toByteString(value)
+        packed = chr(104 + len(valueStr)) + valueStr
+        self.__output += packed
+        return self
 
     def putBlob(self, value):
         length = len(value)
@@ -110,6 +128,12 @@ class EncodedSession(Session):
             packed = chr(196 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
+        
+    def putScaledTime(self, value, scale):
+        pass
+        
+    def putScaledDate(self, value, scale):
+        pass
 
     #
     # Methods to get values out of the last exchange
@@ -120,21 +144,18 @@ class EncodedSession(Session):
         if typeCode in range(10, 52):
             return typeCode - 20
 
-        if typeCode in range(52, 59):
+        if typeCode in range(52, 60):
             return fromByteString(self._takeBytes(typeCode - 51))
-
-        if typeCode == 1:
-            return 0
 
         raise DataError('Not an integer')
 
     def getScaledInt(self):
         typeCode = self._getTypeCode()
 
-        if typeCode is 60:
+        if typeCode == 60:
             return (0, self.__takeBytes(1))
 
-        if typeCode in range(61, 68):
+        if typeCode in range(61, 69):
             scale = self.__takeBytes(1)
             return (fromByteString(self.__takeBytes(typeCode - 60)), scale)
 
@@ -143,10 +164,10 @@ class EncodedSession(Session):
     def getString(self):
         typeCode = self._getTypeCode()
 
-        if typeCode in range(109, 148):
+        if typeCode in range(109, 149):
             return self._takeBytes(typeCode - 109)
 
-        if typeCode in range(69, 72):
+        if typeCode in range(69, 73):
             strLength = fromByteString(self._takeBytes(typeCode - 68))
             return self._takeBytes(strLength)
 
@@ -167,16 +188,62 @@ class EncodedSession(Session):
             raise DataError('Not null')
 
     def getDouble(self):
-        raise NotImplementedError
+        typeCode = self._getTypeCode()
+        
+        if typeCode in range(77, 86):
+            return struct.unpack('d', self.__takeBytes(typeCode - 77))[0]
+            
+        raise DataError('Not a double')
 
     def getTime(self):
-        raise NotImplementedError
+        typeCode = self._getTypeCode()
+        
+        if typeCode in range(86, 95):
+            return fromByteString(self._takeBytes(typeCode - 86))
+            
+        if typeCode in range(95, 104):
+            return fromByteString(self._takeBytes(typeCode - 95))
+            
+        if typeCode in range(104, 109):
+            return fromByteString(self._takeBytes(typeCode - 104))
+            
+        raise DataError('Not a time')
     
     def getOpaque(self):
-        raise NotImplementedError
+        typeCode = self._getTypeCode()
+
+        if typeCode in range(150, 190):
+            return self._takeBytes(typeCode - 150)
+
+        if typeCode in range(73, 77):
+            strLength = fromByteString(self._takeBytes(typeCode - 72))
+            return self._takeBytes(strLength)
+
+        raise DataError('Not an opaque value')
+
+    def getBlob(self):
+        typeCode = self._getTypeCode()
+        
+        if typeCode == 191:
+            return None
+        
+        if typeCode in range(192, 196):
+            strLength = fromByteString(self._takeBytes(typeCode - 191))
+            return self._takeBytes(strLength)
+
+        raise DataError('Not a blob')
     
-    def getBlog(self):
-        raise NotImplementedError
+    def getClob(self):
+        typeCode = self._getTypeCode()
+        
+        if typeCode == 196:
+            return None
+        
+        if typeCode in range(197, 201):
+            strLength = fromByteString(self._takeBytes(typeCode - 196))
+            return self._takeBytes(strLength)
+
+        raise DataError('Not a clob')
     
     def getScaledTime(self):
         raise NotImplementedError
