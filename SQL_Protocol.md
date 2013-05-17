@@ -133,17 +133,80 @@ Each of the messages below is broken into the expected, valid input and the resu
 For each message the name of the message is followed by the identifier for that message. The message identifier will always be encoded as the first byte in any any request from a client to a server.
 
 ### Analyze (70)
+
+_Request_      | _Response_ 
+-------------- | ----------------
+Integer (mask) | String (result) 
+
 ### Authentication (86)
+
+_Request_      | _Response_ 
+-------------- | -------------------
+Integer (mask) | String ("Success!") 
+
+This message is sent exactly once, after the the initial connection is made and the database is opened. After calculating the session key the client encrypts a known string and sends it to the server. If the server can decrypt the message and get the expected string then both sides have agreed on the same key. Otherwise, the session is closed by the server.
+
 ### CloseConnection (5)
+
+_Request_ | _Response_ 
+--------- | ----------
+None      | None 
+
 ### CloseResultSet (28)
+
+_Request_                    | _Response_ 
+---------------------------  | ----------
+Integer (result set handle)  | None 
+
 ### CloseStatement (15)
+
+_Request_                    | _Response_ 
+---------------------------  | ----------
+Integer (statement handle)   | None 
+
 ### CommitTransaction (7)
+
+_Request_ | _Response_ 
+--------- | ------------------------------------------------------------------------------------
+None      | 64-bit Integer (transaction id), Integer (node id), 64-bit Integer (commit sequence) 
+
 ### CreateStatement (11)
+
+_Request_                    | _Response_ 
+---------------------------  | --------------------------
+None                         | Integer (statement handle) 
+
+If auto-commit is true on this connection, then creating a new statement causes any existing transaction to commit.
+
 ### Execute (18)
+
+_Request_                                       | _Response_ 
+----------------------------------------------  | ----------------------------------------------------------
+Integer (statement handle), String (statement)  | EXECUTE RESPONSE (1 if execution is finished, 0 otherwise) 
+
+Blocks pending commit
+
 ### ExecuteBatchStatement (83)
+
+Blocks pending commit
+
+In the case of failed execution, this will return the specific error message:
+
+Integer (EXECUTE_FAILED = -3), Integer (SQL error code), String (error message)
+
 ### ExecuteBatchPreparedStatement (84)
+
+_Request_                                   | _Response_ 
+------------------------------------------  | -----------------------------
+Integer (prepared statement handle), COUNT  | COUNT Integers (update count)
+
+Block pending commit
+
+
 ### ExecuteKeys (91)
+
 ### ExecuteKeyIds (93)
+
 ### ExecuteKeyNames (92)
 ### ExecutePreparedStatement (22)
 ### ExecutePreparedQuery (23)
@@ -192,5 +255,5 @@ For each message the name of the message is followed by the identifier for that 
 ### SetTransactionIsolation (64)
 ### SetTraceFlags (72)
 ### StatementAnalyze (71)
-### SupportTransactionIsolcation (100)
+### SupportTransactionIsolation (100)
 
