@@ -1,6 +1,4 @@
 # NuoDB SQL Protocol
-
-## Overview
 This document describes the protocol between SQL clients and Transaction Engines in NuoDB. With the exception of an initial handshake, all messages are tightly encoded in a binary representation and encrypted.
 
 Note that the protocol is designed to handle revisions and be compatible across versions. Even before the first public release of the product several revisions were made. This document covers revisions from Protocol Version 10 to Protocol Version 11.
@@ -8,10 +6,11 @@ Note that the protocol is designed to handle revisions and be compatible across 
 When the protocol is updated this document should also be updated to reflect those changes.
 
 The following NuoDB releases included changes to the SQL Protocol Version:
-| NuoDB Version       | SQL Protocol Version |
-| ------------------- | -------------------- |
-| 1.0                 | 10                   |
-| 1.0.2               | 10                   |
+
+NuoDB Version  | SQL Protocol Version
+-------------- | --------------------
+1.0            | 10                  
+1.0.2          | 11                  
 
 ## Initial Session Handshake
 All exchanges between client and server follow the same pattern. An SQL client (client) initiates a session by sending a clear-text XML message to a Transaction Engine (server). 
