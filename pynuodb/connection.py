@@ -1,10 +1,10 @@
-
 """A module for connecting to a NuoDB database.
 
 Exported Classes:
-
 Connection -- Class for establishing connection with host.
 
+Exported Functions:
+connect -- Creates a connection object.
 """
 
 __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]

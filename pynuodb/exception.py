@@ -1,3 +1,4 @@
+"""Classes containing the exceptions for reporting errors."""
 
 __all__ = [ 'Warning', 'Error', 'InterfaceError', 'DatabaseError', 'DataError',
             'OperationalError', 'IntegrityError', 'InternalError',

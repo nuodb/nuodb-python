@@ -1,82 +1,143 @@
+"""A module for housing the datatype classes.
+
+Exported Classes:
+Date -- Class for creating/stringifying a Date object.
+Time -- Class for creating/stringifying a Time object.
+Timestamp -- Class for creating/stringifying a Timestamp object.
+Binary -- Class for creating/stringifying a Binary object
+TypeObject -- 
+
+Exported Functions:
+DateFromTicks -- Converts ticks to a Date object.
+TimeFromTicks -- Converts ticks to a Time object.
+TimestampFromTicks -- Converts ticks to a Timestamp object.
+TypeObjectFromNuodb -- Converts a Nuodb column type name to a TypeObject variable.
+
+TypeObject Variables:
+STRING -- TypeObject(str)
+BINARY -- TypeObject(str)
+NUMBER -- TypeObject(int, decimal.Decimal)
+DATETIME -- TypeObject(datetime.datetime, datetime.date, datetime.time)
+ROWID -- TypeObject()
+"""
 
 __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
-			'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-			'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
+            'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
+            'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
 
 import datetime, decimal, time
 from exception import DataError
 
 
 class Date(object):
-	
-	def __init__(self, year, month, day):
-		self.year 	= year
-		self.month 	= month
-		self.day 	= day
-		
-	def __str__(self):
-		return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
+    
+    """Class for creating/stringifying a Date object.
+    
+    Private Functions:
+    __init__ -- Constructor for the Date class.
+    __str__ -- Stringifies the Date object.
+    """
+    
+    def __init__(self, year, month, day):
+        """Constructor for the Date class."""
+        self.year = year
+        self.month = month
+        self.day = day
+        
+    def __str__(self):
+        """Stringifies the Date object."""
+        return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
 
 class Time(object):
-	
-	def __init__(self, hour, minute, second):
-		self.hour 	= hour
-		self.minute = minute
-		self.second = second
+    
+    """Class for creating/stringifying a Time object.
+    
+    Private Functions:
+    __init__ -- Constructor for the Time class.
+    __str__ -- Stringifies the Time object.
+    """
+    
+    def __init__(self, hour, minute, second):
+        """Constructor for the Time class."""
+        self.hour     = hour
+        self.minute = minute
+        self.second = second
 
-	def __str__(self):
-		return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
+    def __str__(self):
+        """Stringifies the Time object."""
+        return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
 
 class Timestamp(object):
-	
-	def __init__(self, year, month, day, hour, minute, second):
-		self.year 	= year
-		self.month 	= month
-		self.day 	= day
-		self.hour 	= hour
-		self.minute = minute
-		self.second = second
-		
-	def __str__(self):
-		return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat()
-		
+    
+    """Class for creating/stringifying a Timestamp object.
+    
+    Private Functions:
+    __init__ -- Constructor for the Timestamp class.
+    __str__ -- Stringifies the Timestamp object.
+    """
+    
+    def __init__(self, year, month, day, hour, minute, second):
+        """Constructor for the Timestamp class."""
+        self.year     = year
+        self.month     = month
+        self.day     = day
+        self.hour     = hour
+        self.minute = minute
+        self.second = second
+        
+    def __str__(self):
+        """Stringifies the Timestamp object."""
+        return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat()
+        
 class Binary(object):
-	
-	def __init__(self, string):
-		self.string = string
-		
-	def __str__(self):
-		return "%s" % [ bin(ord(ch))[2:].zfill(8) for ch in self.string ]
-		
+    
+    """Class for creating/stringifying a Binary object.
+    
+    Private Functions:
+    __init__ -- Constructor for the Binary class.
+    __str__ -- Stringifies the Binary object.
+    """
+    
+    def __init__(self, string):
+        """Constructor for the Binary class."""
+        self.string = string
+        
+    def __str__(self):
+        """Stringifies the Binary object."""
+        return "%s" % [ bin(ord(ch))[2:].zfill(8) for ch in self.string ]
+        
 def DateFromTicks(ticks):
-	return Date(*time.localtime(ticks)[:3])
+    """Converts ticks to a Date object."""
+    return Date(*time.localtime(ticks)[:3])
 
 def TimeFromTicks(ticks):
-	return Time(*time.localtime(ticks)[3:6])
+    """Converts ticks to a Time object."""
+    return Time(*time.localtime(ticks)[3:6])
 
 def TimestampFromTicks(ticks):
-	return Timestamp(*time.localtime(ticks)[:6])
+    """Converts ticks to a Timestamp object."""
+    return Timestamp(*time.localtime(ticks)[:6])
 
 class TypeObject(object):
-	def __init__(self, *values):
-		self.values = values
-	def __cmp__(self, other):
-		if other in self.values:
-			return 0
-		if other < self.values:
-			return 1
-		return -1
+    def __init__(self, *values):
+        self.values = values
+    def __cmp__(self, other):
+        if other in self.values:
+            return 0
+        if other < self.values:
+            return 1
+        return -1
 
-STRING 		= TypeObject(str)
-BINARY 		= TypeObject(str)
-NUMBER 		= TypeObject(int, decimal.Decimal)
-DATETIME 	= TypeObject(datetime.datetime, datetime.date, datetime.time)
-ROWID 		= TypeObject()
+STRING         = TypeObject(str)
+BINARY         = TypeObject(str)
+NUMBER         = TypeObject(int, decimal.Decimal)
+DATETIME     = TypeObject(datetime.datetime, datetime.date, datetime.time)
+ROWID         = TypeObject()
 
 def TypeObjectFromNuodb(nuodb_type_name):
-    ''' returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
+    """Returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
     supplied NuoDB column type name
-    '''
+    """
     
     if nuodb_type_name == "<null>":
         return None

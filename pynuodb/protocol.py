@@ -1,3 +1,5 @@
+"""Contains the constants for sending the protocol to the server."""
+
 FAILURE                         = 0
 SUCCESS                         = 1
 SHUTDOWN                        = 2

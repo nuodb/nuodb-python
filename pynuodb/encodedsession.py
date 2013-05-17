@@ -1,3 +1,8 @@
+"""A module for housing the EncodedSession class.
+
+Exported Classes:
+EncodedSession -- Class for representing an encoded session with the database.
+"""
 
 __all__  = [ 'EncodedSession' ]
 
@@ -12,7 +17,54 @@ from exception import DataError, DatabaseError, EndOfStream
 
 class EncodedSession(Session):
 
+    """Class for representing an encoded session with the database.
+    
+    Public Functions:
+    putMessageId -- Start a message with the messageId.
+    putInt -- Appends an Integer value to the message.
+    putScaledInt -- Appends a Scaled Integer value to the message.
+    putString -- Appends a String to the message.
+    putBoolean -- Appends a Boolean value to the message.
+    putNull -- Appends a Null value to the message.
+    putUUID -- Appends a UUID to the message.
+    putOpaque -- Appends an Opaque data value to the message.
+    putDouble -- Appends a Double to the message.
+    putMsSinceEpoch -- Appends the MsSinceEpoch value to the message.
+    putNsSinceEpoch -- Appends the NsSinceEpoch value to the message.
+    putMsSinceMidnight -- Appends the MsSinceMidnight value to the message.
+    putBlob -- Appends the Blob(Binary Large OBject) value to the message.
+    putClob -- Appends the Clob(Character Large OBject) value to the message.
+    putScaledTime -- Currently not supported.
+    putScaledDate -- Currently not supported.
+    putValue -- Determines the probable type of the value and calls the supporting function.
+    getInt -- Read the next Integer value off the session.
+    getScaledInt -- Read the next Scaled Integer value off the session.
+    getString -- Read the next String off the session.
+    getBoolean -- Read the next Boolean value off the session.
+    getNull -- Read the next Null value off the session.
+    getDouble -- Read the next Double off the session.
+    getTime -- Read the next Time value off the session.
+    getOpaque -- Read the next Opaque value off the session.
+    getBlob -- Read the next Blob(Binary Large OBject) value off the session.
+    getClob -- Read the next Clob(Character Large OBject) value off the session.
+    getScaledTime -- Currently not supported.
+    getScaledDate -- Currently not supported.
+    getUUID -- Read the next UUID value off the session.
+    getValue -- Determine the datatype of the next value off the session, then call the
+                supporting function.
+    exchangeMessages -- Exchange the pending message for an optional response from the server.
+    setCiphers -- Re-sets the incoming and outgoing ciphers for the session.
+    
+    Private Functions:
+    __init__ -- Constructor for the EncodedSession class.
+    _peekTypeCode -- Looks at the next Type Code off the session. (Does not move inpos)
+    _getTypeCode -- Read the next Type Code off the session.
+    _takeBytes -- Gets the next length of bytes off the session.
+ 
+    """
+
     def __init__(self, host, port, service='SQL2'):
+        """Constructor for the EncodedSession class."""
         Session.__init__(self, host, port=port, service=service)
         self.doConnect()
 
@@ -25,6 +77,7 @@ class EncodedSession(Session):
     # Methods to put values into the next message
 
     def putMessageId(self, messageId):
+        """Start a message with the messageId."""
         if self.__output != None:
             raise SessionException('no')
         self.__output = ''
@@ -32,6 +85,7 @@ class EncodedSession(Session):
         return self
 
     def putInt(self, value):
+        """Appends an Integer value to the message."""
         if value < 32 and value > -11:
             packed = chr(20 + value)
         else:
@@ -41,6 +95,7 @@ class EncodedSession(Session):
         return self
 
     def putScaledInt(self, value, scale):
+        """Appends a Scaled Integer value to the message."""
         if scale is 0:
             self.putInt(value)
         elif value is 0:
@@ -52,6 +107,7 @@ class EncodedSession(Session):
         return self
 
     def putString(self, value):
+        """Appends a String to the message."""
         length = len(value)
         if length < 40:
             packed = chr(109 + length) + value
@@ -62,6 +118,7 @@ class EncodedSession(Session):
         return self
 
     def putBoolean(self, value):
+        """Appends a Boolean value to the message."""
         if value is True:
             self.__output += chr(2)
         else:
@@ -69,14 +126,17 @@ class EncodedSession(Session):
         return self
 
     def putNull(self):
+        """Appends a Null value to the message."""
         self.__output += chr(1)
         return self
 
     def putUUID(self, value):
+        """Appends a UUID to the message."""
         self.__output += chr(202) + str(value)
         return self
 
     def putOpaque(self, value):
+        """Appends an Opaque data value to the message."""
         length = len(value)
         if length < 40:
             packed = chr(150 + length) + value
@@ -87,30 +147,35 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
+        """Appends a Double to the message."""
         valueStr = struct.pack('d', value)
         packed = chr(77 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
     def putMsSinceEpoch(self, value):
+        """Appends the MsSinceEpoch value to the message."""
         valueStr = toByteString(value)
         packed = chr(86 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putNsSinceEpoch(self, value):
+        """Appends the NsSinceEpoch value to the message."""
         valueStr = toByteString(value)
         packed = chr(95 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putMsSinceMidnight(self, value):
+        """Appends the MsSinceMidnight value to the message."""
         valueStr = toByteString(value)
         packed = chr(104 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
     def putBlob(self, value):
+        """Appends the Blob(Binary Large OBject) value to the message."""
         length = len(value)
         if length is 0:
             packed = chr(191)
@@ -121,6 +186,7 @@ class EncodedSession(Session):
         return self
 
     def putClob(self, value):
+        """Appends the Clob(Character Large OBject) value to the message."""
         length = len(value)
         if length is 0:
             packed = chr(196)
@@ -131,12 +197,15 @@ class EncodedSession(Session):
         return self
         
     def putScaledTime(self, value, scale):
+        """Currently not supported."""
         pass
         
     def putScaledDate(self, value, scale):
+        """Currently not supported."""
         pass
 
     def putValue(self, value):
+        """Determines the probable type of the value and calls the supporting function."""
         if value == None:
             return self.putNull()
         elif value == True or value == False:
@@ -152,6 +221,7 @@ class EncodedSession(Session):
     # Methods to get values out of the last exchange
 
     def getInt(self):
+        """Read the next Integer value off the session."""
         typeCode = self._getTypeCode()
 
         if typeCode in range(10, 52):
@@ -163,6 +233,7 @@ class EncodedSession(Session):
         raise DataError('Not an integer')
 
     def getScaledInt(self):
+        """Read the next Scaled Integer value off the session."""
         typeCode = self._getTypeCode()
 
         if typeCode == 60:
@@ -175,6 +246,7 @@ class EncodedSession(Session):
         raise DataError('Not a scaled integer')
 
     def getString(self):
+        """Read the next String off the session."""
         typeCode = self._getTypeCode()
 
         if typeCode in range(109, 149):
@@ -187,6 +259,7 @@ class EncodedSession(Session):
         raise DataError('Not a string')
 
     def getBoolean(self):
+        """Read the next Boolean value off the session."""
         typeCode = self._getTypeCode()
 
         if typeCode == 2:
@@ -197,10 +270,12 @@ class EncodedSession(Session):
         raise DataError('Not a boolean')
 
     def getNull(self):
+        """Read the next Null value off the session."""
         if self._getTypeCode() != 1:
             raise DataError('Not null')
 
     def getDouble(self):
+        """Read the next Double off the session."""
         typeCode = self._getTypeCode()
         
         if typeCode in range(77, 86):
@@ -209,6 +284,7 @@ class EncodedSession(Session):
         raise DataError('Not a double')
 
     def getTime(self):
+        """Read the next Time value off the session."""
         typeCode = self._getTypeCode()
         
         if typeCode in range(86, 95):
@@ -223,6 +299,7 @@ class EncodedSession(Session):
         raise DataError('Not a time')
     
     def getOpaque(self):
+        """Read the next Opaque value off the session."""
         typeCode = self._getTypeCode()
 
         if typeCode in range(150, 190):
@@ -235,6 +312,7 @@ class EncodedSession(Session):
         raise DataError('Not an opaque value')
 
     def getBlob(self):
+        """Read the next Blob(Binary Large OBject) value off the session."""
         typeCode = self._getTypeCode()
         
         if typeCode == 191:
@@ -247,6 +325,7 @@ class EncodedSession(Session):
         raise DataError('Not a blob')
     
     def getClob(self):
+        """Read the next Clob(Character Large OBject) value off the session."""
         typeCode = self._getTypeCode()
         
         if typeCode == 196:
@@ -259,12 +338,15 @@ class EncodedSession(Session):
         raise DataError('Not a clob')
     
     def getScaledTime(self):
+        """Currently not supported."""
         raise NotImplementedError("not implemented")
     
     def getScaledDate(self):
+        """Currently not supported."""
         raise NotImplementedError("not implemented")
 
     def getUUID(self):
+        """Read the next UUID value off the session."""
         if self._getTypeCode() == 202:
             return uuid.UUID(self._takeBytes(16))
         if self._getTypeCode() == 201:
@@ -277,7 +359,9 @@ class EncodedSession(Session):
         raise DataError('Not a UUID')
 
     def getValue(self):
-
+        """Determine the datatype of the next value off the session, then call the
+        supporting function.
+        """
         typeCode = self._peekTypeCode()
         
         # get null type
@@ -331,8 +415,8 @@ class EncodedSession(Session):
         else:
             raise NotImplementedError("not implemented")
 
-    # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):
+        """Exchange the pending message for an optional response from the server."""
         try:
             # print "message to server: %s" %  (self.__output)
             self.send(self.__output)
@@ -350,16 +434,18 @@ class EncodedSession(Session):
             self.__input = None
             self.__inpos = 0
 
-    # Re-sets the incoming and outgoing ciphers for the session
     def setCiphers(self, cipherIn, cipherOut):
+        """Re-sets the incoming and outgoing ciphers for the session."""
         Session._setCiphers(self, cipherIn, cipherOut)
 
     # Protected utility routines
 
     def _peekTypeCode(self):
+        """Looks at the next Type Code off the session. (Does not move inpos)"""
         return ord(self.__input[self.__inpos])
 
     def _getTypeCode(self):
+        """Read the next Type Code off the session."""
         if self.__inpos >= len(self.__input):
             raise EndOfStream('end of stream reached')
             
@@ -369,6 +455,7 @@ class EncodedSession(Session):
             self.__inpos += 1
 
     def _takeBytes(self, length):
+        """Gets the next length of bytes off the session."""
         if self.__inpos >= len(self.__input):
             raise EndOfStream('end of stream reached')
                         
