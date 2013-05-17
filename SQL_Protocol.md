@@ -167,13 +167,13 @@ Integer (statement handle)   | None
 ### CommitTransaction (7)
 
 _Request_ | _Response_ 
---------- | ----------
+--------- | ------------------------------------------------------------------------------------
 None      | 64-bit Integer (transaction id), Integer (node id), 64-bit Integer (commit sequence) 
 
 ### CreateStatement (11)
 
 _Request_                    | _Response_ 
----------------------------  | ----------
+---------------------------  | --------------------------
 None                         | Integer (statement handle) 
 
 If auto-commit is true on this connection, then creating a new statement causes any existing transaction to commit.
@@ -181,7 +181,7 @@ If auto-commit is true on this connection, then creating a new statement causes 
 ### Execute (18)
 
 _Request_                                       | _Response_ 
-----------------------------------------------  | ----------
+----------------------------------------------  | ----------------------------------------------------------
 Integer (statement handle), String (statement)  | EXECUTE RESPONSE (1 if execution is finished, 0 otherwise) 
 
 Blocks pending commit
@@ -195,8 +195,18 @@ In the case of failed execution, this will return the specific error message:
 Integer (EXECUTE_FAILED = -3), Integer (SQL error code), String (error message)
 
 ### ExecuteBatchPreparedStatement (84)
+
+_Request_                                   | _Response_ 
+------------------------------------------  | -----------------------------
+Integer (prepared statement handle), COUNT  | COUNT Integers (update count)
+
+Block pending commit
+
+
 ### ExecuteKeys (91)
+
 ### ExecuteKeyIds (93)
+
 ### ExecuteKeyNames (92)
 ### ExecutePreparedStatement (22)
 ### ExecutePreparedQuery (23)
