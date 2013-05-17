@@ -245,5 +245,5 @@ Integer (EXECUTE_FAILED = -3), Integer (SQL error code), String (error message)
 ### SetTransactionIsolation (64)
 ### SetTraceFlags (72)
 ### StatementAnalyze (71)
-### SupportTransactionIsolcation (100)
+### SupportTransactionIsolation (100)
 
