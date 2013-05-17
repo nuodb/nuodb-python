@@ -25,7 +25,8 @@ def connect(database, host, user, password, port=48004, schema='user'):
     return Connection(database, host, user, password, port, schema)
 
 class Connection(object):
-
+    from exception import *
+    
     def __init__(self, dbName, broker, username, password, port, schema, description='nuosql', auto_commit=False):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
