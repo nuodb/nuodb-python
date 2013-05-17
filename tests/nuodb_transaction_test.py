@@ -9,7 +9,7 @@ class NuoDBTransactionTest(unittest.TestCase):
         pass
         
     def _connect(self):
-        return pynuodb.connect("test", "dba", "goalie", "localhost")
+        return pynuodb.connect("test", "localhost" "dba", "goalie", schema="hockey")
     
     def test_connection_isolation(self):
         

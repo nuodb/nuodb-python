@@ -21,14 +21,12 @@ apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
 
-def connect(database=None, user=None, password=None, host=None, port=48004):
-    # TODO: figure out which options to use, and use that to create the
-    # connection instance correctly
-    return Connection(host, database, user, password)
+def connect(database, host, user, password, port=48004, schema='user'):
+    return Connection(database, host, user, password, port, schema)
 
 class Connection(object):
 
-    def __init__(self, broker, dbName, username='dba', password='dba', description='nuosql', auto_commit=False):
+    def __init__(self, dbName, broker, username, password, port, schema, description='nuosql', auto_commit=False):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
         self._trans_id = None
@@ -37,7 +35,7 @@ class Connection(object):
 #         parameters = {'user' : username }
         
         # still need to do schema stuff
-        parameters = {'user' : username, 'schema' : 'user' }
+        parameters = {'user' : username, 'schema' : schema }
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
         for (k, v) in parameters.iteritems():
@@ -129,6 +127,7 @@ class Cursor(object):
     def __init__(self, session):
         self.session = session
         self.closed = False
+        self.arraysize = 1
         
         self._reset()
 
@@ -146,7 +145,6 @@ class Cursor(object):
         self.description = None
         self.rowcount = -1
         self.colcount = -1
-        self.arraysize = 1
         
         self._st_handle = None
         self._rs_handle = None
@@ -194,8 +192,12 @@ class Cursor(object):
             
                 try:
                     next_row = self.session.getInt()  
-                except:
+                except EndOfStream:
                     break
+                    
+            # the first chunk might be all of the data
+            if next_row == 0:
+                self._complete = True
                     
             # add description attribute
             self.session.putMessageId(protocol.GETMETADATA).putInt(self._rs_handle)
@@ -260,58 +262,50 @@ class Cursor(object):
 
     def fetchone(self):
         self._check_closed()
-        try:
-            if self._results_pos == len(self._results):
-                if not self._complete:
-                    self._get_next_results()
-                else:
-                    return None
-                    
-            res = self._results[self._results_pos]
-            self._results_pos += 1
-            return res
-            
-        except Exception, error:
-            print "NuoDB error: %s" % str(error)
+        if self._rs_handle == None:
+            raise Error("Previous execute did not produce any results or no call was issued yet")
+        
+        if self._results_pos == len(self._results):
+            if not self._complete:
+                self._get_next_results()
+            else:
+                return None
+                
+        res = self._results[self._results_pos]
+        self._results_pos += 1
+        return res
 
     def fetchmany(self, size=None):
         self._check_closed()
-        try:
-            if size == None:
-                size = self.arraysize
-                
-            fetched_rows = []
-            num_fetched_rows = 0
-            while num_fetched_rows < size:
-                row = self.fetchone()
-                if row == None:
-                    break
-                else:
-                    fetched_rows.append(row)
-                    num_fetched_rows += 1
-            
-            return fetched_rows
         
+        if size == None:
+            size = self.arraysize
             
-        except Exception, error:
-            print "NuoDB error: %s" % str(error)
+        fetched_rows = []
+        num_fetched_rows = 0
+        while num_fetched_rows < size:
+            row = self.fetchone()
+            if row == None:
+                break
+            else:
+                fetched_rows.append(row)
+                num_fetched_rows += 1
+        
+        return fetched_rows
 
     def fetchall(self):
         self._check_closed()
-        try:
-            fetched_rows = []
-            while True:
-                row = self.fetchone()
-                if row == None:
-                    break
-                else:
-                    fetched_rows.append(row)
-                    
-            return fetched_rows   
-                    
+
+        fetched_rows = []
+        while True:
+            row = self.fetchone()
+            if row == None:
+                break
+            else:
+                fetched_rows.append(row)
                 
-        except Exception, error:
-            print "NuoDB error: %s" % str(error)
+        return fetched_rows   
+
 
     def nextset(self):
         raise NotSupportedError
@@ -342,9 +336,10 @@ class Cursor(object):
             self._results.append(tuple(row))
             
             try:
-                next_row = self.session.getInt()
-            except:
+                next_row = self.session.getInt()  
+            except EndOfStream:
                 break
+            
         
         self._results_pos = 0
         

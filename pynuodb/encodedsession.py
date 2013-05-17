@@ -5,7 +5,7 @@ from nuodb.crypt import toByteString, fromByteString
 from nuodb.session import Session, SessionException
 
 import uuid
-from exception import DataError, DatabaseError
+from exception import DataError, DatabaseError, EndOfStream
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -157,7 +157,7 @@ class EncodedSession(Session):
         if typeCode in range(10, 52):
             return typeCode - 20
 
-        if typeCode in range(52, 60):
+        elif typeCode in range(52, 60):
             return fromByteString(self._takeBytes(typeCode - 51))
 
         raise DataError('Not an integer')
@@ -334,7 +334,7 @@ class EncodedSession(Session):
     # Exchange the pending message for an optional response from the server
     def exchangeMessages(self, getResponse=True):
         try:
-#             print "message to server: %s" % self.__output
+            # print "message to server: %s" %  (self.__output)
             self.send(self.__output)
         finally:
             self.__output = None
@@ -348,6 +348,7 @@ class EncodedSession(Session):
                 raise DatabaseError('Non-zero status: %s' % self.getString())
         else:
             self.__input = None
+            self.__inpos = 0
 
     # Re-sets the incoming and outgoing ciphers for the session
     def setCiphers(self, cipherIn, cipherOut):
@@ -359,12 +360,18 @@ class EncodedSession(Session):
         return ord(self.__input[self.__inpos])
 
     def _getTypeCode(self):
+        if self.__inpos >= len(self.__input):
+            raise EndOfStream('end of stream reached')
+            
         try:
             return ord(self.__input[self.__inpos])
         finally:
             self.__inpos += 1
 
     def _takeBytes(self, length):
+        if self.__inpos >= len(self.__input):
+            raise EndOfStream('end of stream reached')
+                        
         try:
             return self.__input[self.__inpos:self.__inpos + length]
         finally:
