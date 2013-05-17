@@ -32,7 +32,7 @@ all:
 	make install
 	make test
 
-install:
+install:	
 	python setup.py
 
 test:

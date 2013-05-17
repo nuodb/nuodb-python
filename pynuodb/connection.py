@@ -16,15 +16,15 @@ apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
 
-def connect(database, host, user, password, port=48004, schema='user'):
-    return Connection(database, host, user, password, port, schema)
+def connect(database, host, user, password, port=48004, schema='user', auto_commit=False):
+    return Connection(database, host, user, password, port, schema, auto_commit)
 
 class Connection(object):
     from exception import Warning, Error, InterfaceError, DatabaseError, DataError, \
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
     
-    def __init__(self, dbName, broker, username, password, port, schema, description='nuosql', auto_commit=False):
+    def __init__(self, dbName, broker, username, password, port, schema, auto_commit, description='nuosql'):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
         self._trans_id = None
