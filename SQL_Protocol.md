@@ -46,5 +46,151 @@ For some common values the initial identifier encodes both the type and the valu
 
 Here are the data types, and their associated encoding. Because there is more than one way to encode a given type, they are broken into the groups are used in the Protocol Messages section. For instance, when a Protocol Message specifies that it uses an Integer, that field and value can be encoded using any of the forms described below for Integers.
 
+#### Unique Types
+
+
+Field Header | Field Type & Format
+------------ | --------------------
+1            | Null                  
+2            | Boolean with value `True`      
+3            | Boolean with value `False`      
+202          | 32-byte UUID      
+201          | Fixed point integer with scale  
+227          | Fixed point integer with scale      
+
+#### Integer Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+10-19        | The Integer values `-10` to `-1` (respectively)                  
+20-51        | The Integer values `0` to `31` (respectively)      
+52-59        | A signed integer value encoded using the next 1 to 8 bytes (respectively)    
+
+E.g., a field that starts with the identifier 21 represents the Integer value 1, and has no further payload. A field that starts with 52 is followed by a single byte that encodes an 8-bit signed integer value.
+
+#### Scaled Integer Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+60-68        | A scaled integer value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled integer value.
+
+#### Double Precision Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+77-85        | IEEE double-precision floating point value of length 0 to length 8 bytes (respectively)
+
+#### String (UTF8) Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+69-72        | A string where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the string value                 
+109-148      | A string of length 0 to 39 bytes (respectively)     
+149          | A string of length 39 bytes (constant for the longest known-length string)
+
+All strings are UTF-8 encoded lengths of bytes, with a header that specifies the number of bytes in the string. For instance, a field starting with the identifier 70 will be followed by two bytes that encode a 16-bit integer value. That value is the length of string. A field starting with 112 will be followed by a UTF-8 string three bytes long.
+
+#### Opaque Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+73-76        | An opaque value where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the value                
+150-189      | An opaque value of length 0 to 39 bytes (respectively)   
+190          | An opaque value of length 39 bytes (constant for the longest known-length opaque value)
+
+#### BLOB/CLOB Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+191-195      | A BLOB (Binary Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the binary value                
+196 - 200    | A CLOB (Character Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the character string 
+
+#### Time Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+86-94        | Milliseconds since the epoch of length 0 to length 8 bytes (respectively)                
+95-103       | Nanoseconds since the epoch of length 0 to length 8 bytes (respectively) 
+104-108      | Milliseconds since midnight of length 0 to length 4 bytes (respectively)
+
+#### Scaled Time Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+211-218      | A scaled time value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled time value.               
+219-226      | A scaled timestamp value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled timestamp value.
+
+#### Scaled Date Types
+
+Field Header | Field Type & Format
+------------ | --------------------
+203-210      | A scaled date value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled date value.
 
 ## Protocol Messages
+
+Each of the messages below is broken into the expected, valid input and the resulting response message, or no specific response if the default response is all that’s expected. The responses shown below are for the valid cases only. Error responses are described in the previous section on general formatting.
+
+For each message the name of the message is followed by the identifier for that message. The message identifier will always be encoded as the first byte in any any request from a client to a server.
+
+### Analyze (70)
+### Authentication (86)
+### CloseConnection (5)
+### CloseResultSet (28)
+### CloseStatement (15)
+### CommitTransaction (7)
+### CreateStatement (11)
+### Execute (18)
+### ExecuteBatchStatement (83)
+### ExecuteBatchPreparedStatement (84)
+### ExecuteKeys (91)
+### ExecuteKeyIds (93)
+### ExecuteKeyNames (92)
+### ExecutePreparedStatement (22)
+### ExecutePreparedQuery (23)
+### ExecutePreparedUpdate (24)
+### ExecuteQuery (19)
+### ExecuteUpdate (20)
+### ExecuteUpdateKeys (94)
+### ExecuteUpdateKeyIds (96)
+### ExecuteUpdateKeyNames (95)
+### GetAutoCommit (59)
+### GetCatalog (101)
+### GetCatalogs (34)
+### GetColumns (102)
+### GetCurrentSchema (102)
+### GetDatabaseMetaData (33)
+### GetGenerateKeys (87)
+### GetImportedKeys (41)
+### GetIndexInfo (43)
+### GetMetaData (26)
+### GetParameterMetaData (85)
+### GetTriggers (57)
+### GetTypeInfo (45)
+### GetPrimaryKeys (40)
+### GetMoreResults (46)
+### GetTables (36)
+### GetTableTypes (44)
+### GetResultSet (13)
+### GetSchemas (35)
+### GetTransactionIsolation (63)
+### GetUpdateCount (47)
+### IsReadOnly (61)
+### Next (27)
+### OpenDatabase (3)
+### Ping (48)
+### PrepareStatement (9)
+### PrepareStatementKeys (88)
+### PrepareStatementKeysIds (90)
+### PrepareStatementKeyNames (89)
+### ReleaseSavePoint (98)
+### RollbackToSavePoint (99)
+### RollbackTransaction (8)
+### SetAutoCommit (60)
+### SetCursorName (21)
+### SetReadOnly (62)
+### SetSavePoint (97)
+### SetTransactionIsolation (64)
+### SetTraceFlags (72)
+### StatementAnalyze (71)
+### SupportTransactionIsolcation (100)
+
