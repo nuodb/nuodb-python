@@ -168,7 +168,9 @@ Integer (statement handle)   | None
 
 _Request_ | _Response_ 
 --------- | ------------------------------------------------------------------------------------
-None      | 64-bit Integer (transaction id), Integer (node id), 64-bit Integer (commit sequence) 
+None      | 64-bit Integer (transaction id)
+          | Integer (node id)
+          | 64-bit Integer (commit sequence) 
 
 ### CreateStatement (11)
 
@@ -180,9 +182,10 @@ If auto-commit is true on this connection, then creating a new statement causes 
 
 ### Execute (18)
 
-_Request_                                       | _Response_ 
-----------------------------------------------  | ----------------------------------------------------------
-Integer (statement handle), String (statement)  | EXECUTE RESPONSE (1 if execution is finished, 0 otherwise) 
+_Request_                  | _Response_ 
+-------------------------- | ----------------------------------------------------------
+Integer (statement handle) | EXECUTE RESPONSE (1 if execution is finished, 0 otherwise) 
+String (statement)         |
 
 Blocks pending commit
 
@@ -204,71 +207,87 @@ Block pending commit
 
 ### ExecuteKeys (91)
 
-_Request_                                                                                                  | _Response_ 
----------------------------------------------------------------------------------------------------------- | ------------------
-Integer (1 == return keys, 2 == don't return keys), Integer (statement handle), String (execute statement) | ExecuteResponse(0) 
+_Request_                                          | _Response_ 
+---------------------------------------------------| ------------------
+Integer (1 == return keys, 2 == don't return keys) | ExecuteResponse(0) 
+Integer (statement handle)                         | 
+String (execute statement)                         |
 
 ### ExecuteKeyIds (93)
 
-_Request_                                                                     | _Response_ 
-----------------------------------------------------------------------------  | ------------------
-Integer (key id count), Integer (statment handle), String (execute statement) | ExecuteResponse(0)
+_Request_                  | _Response_ 
+-------------------------- | ------------------
+Integer (key id count)     | ExecuteResponse(0)
+Integer (statment handle)  | 
+String (execute statement) |
 
 ### ExecuteKeyNames (92)
 
-_Request_                                                                       | _Response_ 
-------------------------------------------------------------------------------- | ------------------
-Integer (key name count), Integer (statment handle), String (execute statement) | ExecuteResponse(0)
+_Request_                  | _Response_ 
+-------------------------- | ------------------
+Integer (key name count)   | ExecuteResponse(0)
+Integer (statment handle)  | 
+String (execute statement) |
 
 
 ### ExecutePreparedStatement (22)
 
-_Request_                                                      | _Response_ 
--------------------------------------------------------------- | ----------------------------------------
-Integer (prepared statement handle), Integer (parameter count) | ExecuteResponse(result, true, proto > 1)
-
+_Request_                           | _Response_ 
+----------------------------------- | ----------------------------------------
+Integer (prepared statement handle) | ExecuteResponse(result, true, proto > 1)
+Integer (parameter count)           |
 
 ### ExecutePreparedQuery (23)
 
-_Request_                                                      | _Response_ 
--------------------------------------------------------------- | -----------------
-Integer (prepared statement handle), Integer (parameter count) | ResultSet(result)
+_Request_                           | _Response_ 
+----------------------------------- | -----------------
+Integer (prepared statement handle) | ResultSet(result)
+Integer (parameter count)           | 
 
 ### ExecutePreparedUpdate (24)
 
-_Request_                                                      | _Response_ 
--------------------------------------------------------------- | -----------------
-Integer (prepared statement handle), Integer (parameter count) | ResultSet(result)
+_Request_                           | _Response_ 
+----------------------------------- | -----------------
+Integer (prepared statement handle) | ResultSet(result)
+Integer (parameter count)           | 
 
 ### ExecuteQuery (19)
 
-_Request_                                  | _Response_ 
------------------------------------------- | -----------------------
-Integer (statement handle), String (query) | ResultSet(query-result)
+_Request_                  | _Response_ 
+-------------------------- | -----------------------
+Integer (statement handle) | ResultSet(query-result)
+String (query)             |
 
 ### ExecuteUpdate (20)
 
-_Request_                                          | _Response_ 
--------------------------------------------------- | -------------------------
-Integer (statement handle), String (update string) | ExecuteResponse(0, false)
+_Request_                  | _Response_ 
+-------------------------- | -------------------------
+Integer (statement handle) | ExecuteResponse(0, false)
+String (update string)     |
 
 ### ExecuteUpdateKeys (94)
 
-_Request_                                                                                              | _Response_ 
------------------------------------------------------------------------------------------------------- | -------------------------
-Integer (1 == return keys, 2 == don't return keys), Integer (statement handle), String (update string) | ExecuteResponse(0, false)
+_Request_                                          | _Response_ 
+-------------------------------------------------- | -------------------------
+Integer (1 == return keys, 2 == don't return keys) | ExecuteResponse(0, false)
+Integer (statement handle)                         | 
+String (update string)                             |
 
 ### ExecuteUpdateKeyIds (96)
 
-_Request_                                                                     | _Response_ 
-----------------------------------------------------------------------------  | -------------------------
-Integer (key id count), Integer (statment handle), String (update statement)  | ExecuteResponse(0, false)
+_Request_                 | _Response_ 
+------------------------- | -------------------------
+Integer (key id count)    | ExecuteResponse(0, false)
+Integer (statment handle) | 
+String (update statement) |
 
 ### ExecuteUpdateKeyNames (95)
 
-_Request_                                                                      | _Response_ 
------------------------------------------------------------------------------- | -------------------------
-Integer (key name count), Integer (statment handle), String (update statement) | ExecuteResponse(0, false)
+_Request_                 | _Response_ 
+------------------------- | -------------------------
+Integer (key name count)  | ExecuteResponse(0, false)
+Integer (statment handle) | 
+String (update statement) |
 
 ### GetAutoCommit (59)
 
@@ -290,9 +309,12 @@ _Request_ | _Response_
 
 ### GetColumns (38)
 
-_Request_                                                                                          | _Response_ 
--------------------------------------------------------------------------------------------------- | --------------------------------
-String (catalog pattern), String (schema pattern), String (table pattern), String (column pattern) | ResultSet(matching column names)
+_Request_                | _Response_ 
+------------------------ | --------------------------------
+String (catalog pattern) | ResultSet(matching column names)
+String (schema pattern)  | 
+String (table pattern)   |
+String (column pattern)  |
 
 
 ### GetCurrentSchema (102)
@@ -304,8 +326,17 @@ _Request_ | _Response_
 ### GetDatabaseMetaData (33)
 
 _Request_ | _Response_ 
---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-          | Integer (1), String (product name), Integer (2), String (product version), Integer (4), String (database major version), Integer (3), String (database minor version), Integer (5), String (default transaction isolation)
+--------- | ---------------------------------------
+          | Integer (1)
+          | String (product name) 
+          | Integer (2)
+          | String (product version)
+          | Integer (4)
+          | String (database major version)
+          | Integer (3)
+          | String (database minor version)
+          | Integer (5)
+          | String (default transaction isolation)
 
 ### GetGenerateKeys (87)
 

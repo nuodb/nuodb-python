@@ -20,6 +20,11 @@ class NuoDBTransactionTest(unittest.TestCase):
         cursor1 = con1.cursor()
         cursor2 = con2.cursor()
         
+    def test_rollback(self):
+        pass
+    
+    def test_rollback_savepoint(self):
+        pass
         
 if __name__ == '__main__':
     unittest.main()
