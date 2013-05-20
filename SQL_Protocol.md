@@ -202,28 +202,121 @@ Integer (prepared statement handle), COUNT  | COUNT Integers (update count)
 
 Block pending commit
 
-
 ### ExecuteKeys (91)
+
+_Request_                                                                                                  | _Response_ 
+---------------------------------------------------------------------------------------------------------- | ------------------
+Integer (1 == return keys, 2 == don't return keys), Integer (statement handle), String (execute statement) | ExecuteResponse(0) 
 
 ### ExecuteKeyIds (93)
 
+_Request_                                                                     | _Response_ 
+----------------------------------------------------------------------------  | ------------------
+Integer (key id count), Integer (statment handle), String (execute statement) | ExecuteResponse(0)
+
 ### ExecuteKeyNames (92)
+
+_Request_                                                                       | _Response_ 
+------------------------------------------------------------------------------- | ------------------
+Integer (key name count), Integer (statment handle), String (execute statement) | ExecuteResponse(0)
+
+
 ### ExecutePreparedStatement (22)
+
+_Request_                                                      | _Response_ 
+-------------------------------------------------------------- | ----------------------------------------
+Integer (prepared statement handle), Integer (parameter count) | ExecuteResponse(result, true, proto > 1)
+
+
 ### ExecutePreparedQuery (23)
+
+_Request_                                                      | _Response_ 
+-------------------------------------------------------------- | -----------------
+Integer (prepared statement handle), Integer (parameter count) | ResultSet(result)
+
 ### ExecutePreparedUpdate (24)
+
+_Request_                                                      | _Response_ 
+-------------------------------------------------------------- | -----------------
+Integer (prepared statement handle), Integer (parameter count) | ResultSet(result)
+
 ### ExecuteQuery (19)
+
+_Request_                                  | _Response_ 
+------------------------------------------ | -----------------------
+Integer (statement handle), String (query) | ResultSet(query-result)
+
 ### ExecuteUpdate (20)
+
+_Request_                                          | _Response_ 
+-------------------------------------------------- | -------------------------
+Integer (statement handle), String (update string) | ExecuteResponse(0, false)
+
 ### ExecuteUpdateKeys (94)
+
+_Request_                                                                                              | _Response_ 
+------------------------------------------------------------------------------------------------------ | -------------------------
+Integer (1 == return keys, 2 == don't return keys), Integer (statement handle), String (update string) | ExecuteResponse(0, false)
+
 ### ExecuteUpdateKeyIds (96)
+
+_Request_                                                                     | _Response_ 
+----------------------------------------------------------------------------  | -------------------------
+Integer (key id count), Integer (statment handle), String (update statement)  | ExecuteResponse(0, false)
+
 ### ExecuteUpdateKeyNames (95)
+
+_Request_                                                                      | _Response_ 
+------------------------------------------------------------------------------ | -------------------------
+Integer (key name count), Integer (statment handle), String (update statement) | ExecuteResponse(0, false)
+
 ### GetAutoCommit (59)
+
+_Request_ | _Response_ 
+--------- | -------------------------------------
+          | 0 if not aut-commit, 1 if auto-commit
+
 ### GetCatalog (101)
+
+_Request_ | _Response_ 
+--------- | -------------------------------------
+          | String (null)	
+
 ### GetCatalogs (34)
-### GetColumns (102)
+
+_Request_ | _Response_ 
+--------- | -------------------------------------
+          | ResultSet(database metadata catalogs)
+
+### GetColumns (38)
+
+_Request_                                                                                          | _Response_ 
+-------------------------------------------------------------------------------------------------- | --------------------------------
+String (catalog pattern), String (schema pattern), String (table pattern), String (column pattern) | ResultSet(matching column names)
+
+
 ### GetCurrentSchema (102)
+
+_Request_ | _Response_ 
+--------- | --------------------
+          | String (schema name)
+
 ### GetDatabaseMetaData (33)
+
+_Request_ | _Response_ 
+--------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+          | Integer (1), String (product name), Integer (2), String (product version), Integer (4), String (database major version), Integer (3), String (database minor version), Integer (5), String (default transaction isolation)
+
 ### GetGenerateKeys (87)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (statement handle) | ResultSet (statement generated keys)
+
 ### GetImportedKeys (41)
+
+
+
 ### GetIndexInfo (43)
 ### GetMetaData (26)
 ### GetParameterMetaData (85)
@@ -233,10 +326,35 @@ Block pending commit
 ### GetMoreResults (46)
 ### GetTables (36)
 ### GetTableTypes (44)
+
+_Request_ | _Response_ 
+--------- | --------------------
+          | ResultSet (metadata table types)
+
 ### GetResultSet (13)
+
+_Request_                 | _Response_ 
+------------------------- | ------------------------------------------
+Integer (statment handle) | ResultSet (statement's current result set)
+
 ### GetSchemas (35)
+
+_Request_ | _Response_ 
+--------- | --------------------
+          | ResultSet (database metadata schemas)
+
 ### GetTransactionIsolation (63)
+
+_Request_ | _Response_ 
+--------- | --------------------
+          | Integer (transaction isolation level)
+
 ### GetUpdateCount (47)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (statement handle) | Integer (update count)
+
 ### IsReadOnly (61)
 ### Next (27)
 ### OpenDatabase (3)
