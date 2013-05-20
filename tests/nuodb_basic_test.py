@@ -1,13 +1,16 @@
 
-import unittest
 import pynuodb
+import unittest
 
-class NuoDBBasicTest(unittest.TestCase):
+from nuodb_base import NuoBase
+
+class NuoDBBasicTest(NuoBase):
+    
     def setUp(self):
-        pass
+        NuoBase.setUp(self)
 
     def tearDown(self):
-        pass
+        NuoBase.tearDown(self)
         
     def _connect(self):
         return pynuodb.connect("test", "localhost", "dba", "goalie", schema="hockey")

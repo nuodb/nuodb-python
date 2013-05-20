@@ -1,18 +1,22 @@
-import unittest
-import pynuodb
+#!/usr/bin/env python
 
-class NuoDBTransactionTest(unittest.TestCase):
+import pynuodb
+import unittest
+
+from nuodb_base import NuoBase
+
+class NuoDBTransactionTest(NuoBase):
+    
     def setUp(self):
-        pass
+        NuoBase.setUp(self)
 
     def tearDown(self):
-        pass
+        NuoBase.tearDown(self)
         
     def _connect(self):
         return pynuodb.connect("test", "localhost", "dba", "goalie", schema="hockey")
     
     def test_connection_isolation(self):
-        
         
         con1 = self._connect()
         con2 = self._connect()
