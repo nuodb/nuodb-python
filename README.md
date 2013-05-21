@@ -1,9 +1,34 @@
-nuodb-python
-============
+# NuoDB - Python
 
-Pure-python SQL driver implementation.
+[![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-To use the driver you will need access to the python management module, which
-is currently in the internal source tree. Add this to you PYTHONPATH:
+This is the official Python pip package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
 
-  Management/src/main/python
+
+### Install
+
+1. If you haven't already, {Download and Install NuoDB}[http://nuodb.com/download-nuodb/]
+
+2. Install the pip package
+
+	$ pip install db-nuodb
+
+
+### Example
+
+```python
+""" This assumes that you have the quickstart database running (test@localhost).
+If you don't, you can start it by running /opt/nuodb/run-quickstart
+"""
+import pynuodb
+
+connection = pynuodb.connect("test", "localhost", "dba", "goalie", schema='hockey')
+cursor = connection.cursor()
+cursor.arraysize = 3
+cursor.execute("select * from hockey")
+print cursor.fetchone()
+```
+
+### License
+
+[NuoDB License](https://github.com/nuodb/nuodb-drivers/blob/master/LICENSE)
