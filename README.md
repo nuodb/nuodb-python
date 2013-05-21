@@ -7,7 +7,7 @@ This is the official Python pip package for [NuoDB](http://www.nuodb.com). It im
 
 ### Install
 
-1. If you haven't already, {Download and Install NuoDB}[http://nuodb.com/download-nuodb/]
+1. If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/)
 
 2. Install the pip package
 
