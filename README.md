@@ -4,15 +4,13 @@
 
 This is the official Python pip package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
 
+### Requirements
+
+If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/)
 
 ### Install
 
-1. If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/)
-
-2. Install the pip package
-
-	$ pip install db-nuodb
-
+	$ pip install pynuodb
 
 ### Example
 
