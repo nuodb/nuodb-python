@@ -11,6 +11,7 @@ from session import Session, SessionException
 
 import uuid
 import struct
+import protocol
 from exception import DataError, DatabaseError, EndOfStream
 
 # from nuodb.util import getCloudEntry
@@ -88,10 +89,10 @@ class EncodedSession(Session):
     def putInt(self, value):
         """Appends an Integer value to the message."""
         if value < 32 and value > -11:
-            packed = chr(20 + value)
+            packed = chr(protocol.INT0 + value)
         else:
             valueStr = toByteString(value)
-            packed = chr(51 + len(valueStr)) + valueStr
+            packed = chr(protocol.INTLEN1 - 1 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
@@ -100,10 +101,10 @@ class EncodedSession(Session):
         if scale is 0:
             self.putInt(value)
         elif value is 0:
-            packed = chr(60) + chr(scale)
+            packed = chr(protocol.SCALEDLEN0) + chr(scale)
         else:
             valueStr = toByteString(value)
-            packed = chr(60 + len(valueStr)) + chr(scale) + valueStr
+            packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
 
@@ -111,29 +112,29 @@ class EncodedSession(Session):
         """Appends a String to the message."""
         length = len(value)
         if length < 40:
-            packed = chr(109 + length) + value
+            packed = chr(protocol.UTF8LEN0 + length) + value
         else:
             lengthStr = toByteString(length)
-            packed = chr(68 + len(lengthStr)) + lengthStr + value
+            packed = chr(protocol.UTF8COUNT1 - 1 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
 
     def putBoolean(self, value):
         """Appends a Boolean value to the message."""
         if value is True:
-            self.__output += chr(2)
+            self.__output += chr(protocol.TRUE)
         else:
-            self.__output += chr(3)
+            self.__output += chr(protocol.FALSE)
         return self
 
     def putNull(self):
         """Appends a Null value to the message."""
-        self.__output += chr(1)
+        self.__output += chr(protocol.NULL)
         return self
 
     def putUUID(self, value):
         """Appends a UUID to the message."""
-        self.__output += chr(202) + str(value)
+        self.__output += chr(protocol.UUID) + str(value)
         return self
 
     def putOpaque(self, value):

@@ -1,5 +1,52 @@
 """Contains the constants for sending the protocol to the server."""
 
+
+# Data Types Encoding Rules
+NULL                            = 1
+TRUE                            = 2
+FALSE                           = 3
+UUID                            = 202
+PREVER11FIXEDPOINTINT           = 201
+VER11FIXEDPOINTINT              = 227
+INTMINUS10                      = 10
+INTMINUS1                       = 19
+INT0                            = 20
+INT31                           = 51
+INTLEN1                         = 52
+INTLEN8                         = 59
+SCALEDLEN0                      = 60
+SCALEDLEN8                      = 68
+DOUBLELEN0                      = 77
+DOUBLELEN8                      = 85
+UTF8COUNT1                      = 69
+UTF8COUNT4                      = 72
+UTF8LEN0                        = 109
+UTF8LEN39                       = 148
+UTF8LENMAX                      = 149
+OPAQUECOUNT1                    = 73
+OPAQUECOUNT4                    = 76
+OPAQUELEN0                      = 150
+OPAQUELEN39                     = 189
+OPAQUELENMAX                    = 190
+BLOBLEN0                        = 191
+BLOBLEN4                        = 195
+CLOBLEN0                        = 196
+CLOBLEN4                        = 200
+MILLISECLEN0                    = 86     # milliseconds since January 1, 1970
+MILLISECLEN8                    = 94
+NANOSECLEN0                     = 95     # nanoseconds since January 1, 1970
+NANOSECLEN8                     = 103
+TIMELEN0                        = 104    # milliseconds since midnight 
+TIMELEN4                        = 108
+SCALEDTIMELEN1                  = 211
+SCALEDTIMELEN8                  = 218
+SCALEDTIMESTAMPLEN1             = 219
+SCALEDTIMESTAMPLEN8             = 226
+SCALEDDATELEN1                  = 203
+SCALEDDATELEN8                  = 210
+
+
+# Protocol Messages
 FAILURE                         = 0
 SUCCESS                         = 1
 SHUTDOWN                        = 2
