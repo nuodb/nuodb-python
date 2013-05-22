@@ -22,8 +22,6 @@ __all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
 import hashlib
 import random
 import string
-import struct
-
 
 def toHex(bigInt):
     hexStr = (hex(bigInt)[2:])[:-1]

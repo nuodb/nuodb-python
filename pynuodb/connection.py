@@ -12,7 +12,6 @@ __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
 from cursor import Cursor
 from encodedsession import EncodedSession
 from crypt import ClientPassword, RC4Cipher
-from session import SessionException
 from util import getCloudEntry
 
 import string
@@ -72,9 +71,7 @@ class Connection(object):
         self._trans_id = None
 
         cp = ClientPassword()
-#         parameters = {'user' : username }
         
-        # still need to do schema stuff
         parameters = {'user' : username, 'schema' : schema }
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))

@@ -10,6 +10,7 @@ from crypt import toByteString, fromByteString
 from session import Session, SessionException
 
 import uuid
+import struct
 from exception import DataError, DatabaseError, EndOfStream
 
 # from nuodb.util import getCloudEntry
