@@ -191,6 +191,13 @@ Blocks pending commit
 
 ### ExecuteBatchStatement (83)
 
+_Request_                  | _Response_ 
+-------------------------- | ----------------------------------------------------------
+Integer (statement handle) | COUNT Integers (update count) 
+Integer (count)            | 64-bit Integer (transaction id)
+COUNT Strings (statement)  | Integer (node id)
+                           | 64-bit Integer (commit sequence)
+
 Blocks pending commit
 
 In the case of failed execution, this will return the specific error message:
@@ -199,9 +206,10 @@ Integer (EXECUTE_FAILED = -3), Integer (SQL error code), String (error message)
 
 ### ExecuteBatchPreparedStatement (84)
 
-_Request_                                   | _Response_ 
-------------------------------------------  | -----------------------------
-Integer (prepared statement handle), COUNT  | COUNT Integers (update count)
+_Request_                              | _Response_ 
+-------------------------------------  | -----------------------------
+Integer (prepared statement handle)    | COUNT Integers (update count)
+COUNT                                  |
 
 Block pending commit
 
@@ -293,19 +301,19 @@ String (update statement) |
 
 _Request_ | _Response_ 
 --------- | -------------------------------------
-          | 0 if not aut-commit, 1 if auto-commit
+None      | 0 if not auto-commit, 1 if auto-commit
 
 ### GetCatalog (101)
 
 _Request_ | _Response_ 
 --------- | -------------------------------------
-          | String (null)	
+None      | String (null)	
 
 ### GetCatalogs (34)
 
 _Request_ | _Response_ 
 --------- | -------------------------------------
-          | ResultSet(database metadata catalogs)
+None      | ResultSet(database metadata catalogs)
 
 ### GetColumns (38)
 
@@ -321,13 +329,13 @@ String (column pattern)  |
 
 _Request_ | _Response_ 
 --------- | --------------------
-          | String (schema name)
+None      | String (schema name)
 
 ### GetDatabaseMetaData (33)
 
 _Request_ | _Response_ 
 --------- | ---------------------------------------
-          | Integer (1)
+None      | Integer (1)
           | String (product name) 
           | Integer (2)
           | String (product version)
@@ -337,8 +345,9 @@ _Request_ | _Response_
           | String (database minor version)
           | Integer (5)
           | String (default transaction isolation)
+          | Integer (0)
 
-### GetGenerateKeys (87)
+### GetGeneratedKeys (87)
 
 _Request_                  | _Response_ 
 -------------------------- | --------------------
@@ -346,21 +355,112 @@ Integer (statement handle) | ResultSet (statement generated keys)
 
 ### GetImportedKeys (41)
 
-
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+String (catalog pattern)   | ResultSet (matching imported keys)
+String (schema pattern)    |
+String (table pattern)     |
 
 ### GetIndexInfo (43)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+String (catalog pattern)   | ResultSet (matched index info)
+String (schema pattern)    |
+String (table pattern)     |
+Integer (unique flag)      |
+Integer (approximate flag) |
+
+If the unique flag is non-zero then the index is unique.
+
+If the approximate flag is non-zero then the index is approximate.
+
 ### GetMetaData (26)
+
+_Request_                   | _Response_ 
+--------------------------- | --------------------
+Integer (result set handle) | Integer (column count)
+                            | *Column Response*
+                            
+For each column in column count the column response is as follows:
+
+* String (catalog name)
+* String (schema name)
+* String (table name)
+* String (column name)
+* String (column label)
+* String (collation sequence)
+* String (column type name)
+* Integer (column type)
+* Integer (column display size)
+* Integer (precision)
+* Integer (scale)
+* Integer (flags: bit-wise or of any RSMD flags)
+
 ### GetParameterMetaData (85)
+
+_Request_                           | _Response_ 
+----------------------------------- | --------------------
+Integer (prepared statement handle) | Integer (parameter count)
+                                    | *Parameter Response*
+                                    
+For each parameter in parameter count the parameter response is as follows:
+
+* Integer (is nullable)
+* Integer (scale)
+* Integer (precision)
+* Integer (type)
+
 ### GetTriggers (57)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+String (catalog pattern)   | ResultSet (matched triggers)
+String (schema pattern)    | 
+String (table pattern)     | 
+String (trigger pattern)   |
+
 ### GetTypeInfo (45)
+
+_Request_     | _Response_ 
+------------- | --------------------
+None          | ResultSet (database metadata type info)
+
 ### GetPrimaryKeys (40)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+String (catalog pattern)   | ResultSet (matching primary keys)
+String (schema pattern)    | 
+String (table pattern)     |
+
 ### GetMoreResults (46)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (statement handle) | Integer (more results flag)
+
+If the more results flag is set to 1 then there are more results to get.
+
 ### GetTables (36)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+String (catalog pattern)   | ResultSet (matching tables)
+String (schema pattern)    |
+String (table pattern)     |
+Integer (type count)       |
+*Type Request*             |
+
+For each type in type count the type request is as follows:
+
+* String (matching type)
+
 ### GetTableTypes (44)
 
 _Request_ | _Response_ 
 --------- | --------------------
-          | ResultSet (metadata table types)
+None      | ResultSet (metadata table types)
 
 ### GetResultSet (13)
 
@@ -372,13 +472,13 @@ Integer (statment handle) | ResultSet (statement's current result set)
 
 _Request_ | _Response_ 
 --------- | --------------------
-          | ResultSet (database metadata schemas)
+None      | ResultSet (database metadata schemas)
 
 ### GetTransactionIsolation (63)
 
 _Request_ | _Response_ 
 --------- | --------------------
-          | Integer (transaction isolation level)
+None      | Integer (transaction isolation level)
 
 ### GetUpdateCount (47)
 
@@ -387,22 +487,166 @@ _Request_                  | _Response_
 Integer (statement handle) | Integer (update count)
 
 ### IsReadOnly (61)
+
+_Request_ | _Response_ 
+--------- | --------------------
+None      | Integer (read-only flag)
+
+If the read-only flag is set to 1 then it is read-only.
+
 ### Next (27)
+
+_Request_                   | _Response_ 
+--------------------------- | --------------------
+Integer (result set handle) | Integer (next flag)
+                            | *Field Response*
+                            
+If the next flag is set to 1 then there are still more rows and the message size isn't at max.  
+If the next flag is set to 0 then the last row was encoded.
+                            
+For each column in column count the field response is as follows:
+
+* TYPE (field value)
+
+> NOTE: If this is a cursor, then the while loop executes at most once.
+
+
 ### OpenDatabase (3)
+
+_Request_                      | _Response_ 
+------------------------------ | --------------------
+Integer (protocol version)     | Integer (version)
+String (database name)         | String (server srp public key)
+Integer (parameter count)      | String (server srp salt)
+*Parameter Request*            | 
+Integer (txn id)               |
+String (client srp public key) |
+
+For each parameter in parameter count the parameter request is as follows:
+
+* String (param name)
+* String (param value)
+
 ### Ping (48)
+
+_Request_ | _Response_ 
+--------- | --------------------
+None      | None
+
 ### PrepareStatement (9)
+
+_Request_          | _Response_ 
+------------------ | --------------------
+String (statement) | Integer (prepared statement handle)
+                   | Integer (parameter count)
+
 ### PrepareStatementKeys (88)
+
+_Request_                    | _Response_ 
+---------------------------- | --------------------
+Integer (generate keys flag) | Integer (prepared statement handle)
+String (statement)           | Integer (parameter count)
+
+If the generate keys flag is set to 0 then keys will not be generated.  
+
 ### PrepareStatementKeysIds (90)
+
+_Request_               | _Response_ 
+----------------------- | --------------------
+Integer (key ids count) | Integer (prepared statement handle)
+*Key IDs Request*       | Integer (parameter count)
+String (statement)      | 
+
+For each key id in key id count the key ids request is as follows:
+
+* Integer (key id)
+
 ### PrepareStatementKeyNames (89)
+
+_Request_                 | _Response_ 
+------------------------- | --------------------
+Integer (key names count) | Integer (prepared statement handle)
+*Key Names Request*       | Integer (parameter count)
+
+For each key name in key names count the key names request is as follows:
+
+* String (key name)
+
 ### ReleaseSavePoint (98)
+
+_Request_              | _Response_ 
+---------------------- | --------------------
+Integer (savepoint id) | None
+
 ### RollbackToSavePoint (99)
+
+_Request_              | _Response_ 
+---------------------- | --------------------
+Integer (savepoint id) | None
+
 ### RollbackTransaction (8)
+
+_Request_  | _Response_ 
+---------- | --------------------
+None       | None
+
 ### SetAutoCommit (60)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (auto-commit flag) | None
+
+If the auto-commit flag is set to non-zero then auto-commit will be turned on. 
+
 ### SetCursorName (21)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (statement handle) | String (cursor name)
+String (cursor name)       |
+
 ### SetReadOnly (62)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (read-only flag)   | None
+
+If the read-only flag is set to non-zero then read-only will be turned on. 
+
 ### SetSavePoint (97)
+
+_Request_  | _Response_ 
+---------- | --------------------
+None       | Integer (savepoint id)
+
 ### SetTransactionIsolation (64)
+
+_Request_                             | _Response_ 
+------------------------------------- | --------------------
+Integer (transaction isolation level) | None
+
 ### SetTraceFlags (72)
+
+_Request_      | _Response_ 
+-------------- | --------------------
+Integer (mask) | Integer (result)
+
 ### StatementAnalyze (71)
+
+_Request_                  | _Response_ 
+-------------------------- | --------------------
+Integer (statement handle) | String (result)
+Integer (mask)             |
+
 ### SupportTransactionIsolation (100)
+
+_Request_                             | _Response_ 
+------------------------------------- | --------------------
+Integer (transaction isolation level) | Integer (supported level flag)
+
+##### Supported level flag
+_Value_   | _Meaning_
+--------- | ------------------------
+1         | The transaction isolation level is supported.  
+0         | The transaction isolation level is unsupported.
 
