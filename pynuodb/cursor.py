@@ -8,7 +8,7 @@ Cursor -- Class for representing a database cursor.
 
 import protocol
 from datatype import TypeObjectFromNuodb
-from exception import *
+from exception import Error, NotSupportedError, EndOfStream, OperationalError
 
 class Cursor(object):
 
