@@ -11,9 +11,9 @@ __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
 
 from cursor import Cursor
 from encodedsession import EncodedSession
-from nuodb.crypt import ClientPassword, RC4Cipher
-from nuodb.session import SessionException
-from nuodb.util import getCloudEntry
+from crypt import ClientPassword, RC4Cipher
+from session import SessionException
+from util import getCloudEntry
 
 import string
 import protocol

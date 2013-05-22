@@ -6,8 +6,8 @@ EncodedSession -- Class for representing an encoded session with the database.
 
 __all__  = [ 'EncodedSession' ]
 
-from nuodb.crypt import toByteString, fromByteString
-from nuodb.session import Session, SessionException
+from crypt import toByteString, fromByteString
+from session import Session, SessionException
 
 import uuid
 from exception import DataError, DatabaseError, EndOfStream
@@ -424,7 +424,7 @@ class EncodedSession(Session):
             self.__output = None
 
         if getResponse is True:
-            self.__input = self.recv()
+            self.__input = self.recv(False)
             self.__inpos = 0
 
             # TODO: include the actual error message, and use a different type
