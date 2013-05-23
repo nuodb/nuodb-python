@@ -353,10 +353,10 @@ class Peer:
     def isBroker(self):
         return self.__isBroker
 
-    def startTransactionEngine(self, database, options=None, waitSeconds=None):
-        return self.__startProcess(database, options, waitSeconds)
+    def startTransactionEngine(self, db_name, options=None, waitSeconds=None):
+        return self.__startProcess(db_name, options, waitSeconds)
 
-    def startStorageManager(self, database, archive, initialize, options=None, waitSeconds=None):
+    def startStorageManager(self, db_name, archive, initialize, options=None, waitSeconds=None):
         if not options:
             options = []
 
@@ -366,19 +366,19 @@ class Peer:
             options.append(("--initialize", None))
             options.append(("--force", None))
 
-        return self.__startProcess(database, options, waitSeconds)
+        return self.__startProcess(db_name, options, waitSeconds)
 
 
-    def __startProcess(self, database, options, waitSeconds):
+    def __startProcess(self, db_name, options, waitSeconds):
         if waitSeconds == None:
-            startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), database, options)
+            startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), db_name, options)
             return
 
         e = Event()
         # acquire the lock to avoid _notifyStartId reading the __startIdSlots map before we put the event inside it
         self.__lock.acquire()
         try:
-            startResponse = startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), database, options)
+            startResponse = startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), db_name, options)
 
             startId = ElementTree.fromstring(startResponse).get("StartId")
             if not startId:
@@ -420,20 +420,20 @@ class Peer:
         finally:
             self.__lock.release()
 
-    def getLocalProcesses(self, chorus=None):
-        if chorus == None:
+    def getLocalProcesses(self, db_name=None):
+        if db_name == None:
             return self.__processes.values()
 
         processes = []
         for process in self.__processes.values():
-            if process.getDatabase().getName() == chorus:
+            if process.getDatabase().getName() == db_name:
                 processes.append(process)
 
         return processes
     
     @deprecated
-    def getLocalNodes(self, chorus=None):
-        return self.getLocalProcesses(chorus)
+    def getLocalNodes(self, db_name=None):
+        return self.getLocalProcesses(db_name)
 
     def _getProcess(self, pid):
         return self.__processes.get(pid)
