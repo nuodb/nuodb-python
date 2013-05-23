@@ -1,44 +1,69 @@
 
-__all__ = [ "Domain", "Peer", "Database", "Node" ]
+__all__ = [ "Domain", "Peer", "Database", "Process" ]
 
-# This module provides basic "entity" support, similar to what's available
-# in the com.nuodb.entity Java package. A Domain instance provides entry into
-# a domain, and optionally a hook for getting called back when domain-level
-# events happen. The Domain provides access to Peers, Databases and Nodes.
+""" This module provides basic "entity" support, similar to what's available
+in the com.nuodb.entity Java package. A Domain instance provides entry into
+a domain, and optionally a hook for getting called back when domain-level
+events happen. The Domain provides access to Peers, Databases and Processes.
+"""
 
 from session import BaseListener, Session, SessionMonitor, SessionException
 from util import ChorusAction, startProcess, killProcess, doChorusAction, queryEngine
 
 import time
+import warnings
 
 from threading import Event, Lock
 import xml.etree.ElementTree as ElementTree
 
 
-# To create a Domain 'connection' you need to give a broker address (a string
-# which may end in ':PORT') and domain password. You can also supply a class
-# to notify on domain events. That class may implement any of the methods:
-#
-#   [peer|node|database][Joined|Left], nodeFailed, nodeStatusChanged, closed
-#
-# For instance, a valid listener could be formed like this:
-#
-# class MyListener():
-#     def databaseJoined(self, database):
-#         pass
-#     def close(self):
-#         pass
-#
-# It would then get used when joining a domain:
-#
-#  domain = Domain('localhost:48004', 'admin', 'bird', MyListener())
-#
-# When finished with a Domain, all users must call disconnect() to ensure that
-# connections are closed and that the listening thread shuts down.
-#
-# TODO: This class doesn't handle entry broker failure by trying to connect
-# to another broker. Either this should be added, or some clear exception
-# should be raised to help the caller make this happen.
+""" To create a Domain 'connection' you need to give a broker address (a string
+which may end in ':PORT') and domain password. You can also supply a class
+to notify on domain events. That class may implement any of the methods:
+   
+    peerJoined(self, peer)
+    peerLeft(self, peer)
+    processJoined(self, process)
+    processLeft(self, process)
+    processFailed(self, peer, reason)
+    processStatusChanged(self, process, status)
+    databaseJoined(self, database)
+    databaseLeft(self, database)
+    closed(self)
+    
+The following methods may be used for backwards compatibility, but are 
+deprecated. They are identical to the process*() methods. A node*() method
+will not be called if it's process*() counterpart is defined. 
+    
+    nodeJoined(self, node)
+    nodeLeft(self, node)
+    nodeFailed(self, peer, reason)
+    nodeStatusChanged(self, node, status)
+    
+
+For instance, a valid listener could be formed like this:
+
+class MyListener():
+    def databaseJoined(self, database):
+        pass
+    def closed(self):
+        pass
+
+It would then get used when joining a domain:
+
+ domain = Domain('localhost:48004', 'admin', 'bird', MyListener())
+
+When finished with a Domain, all users must call disconnect() to ensure that
+connections are closed and that the listening thread shuts down.
+
+TODO: This class doesn't handle entry broker failure by trying to connect
+to another broker. Either this should be added, or some clear exception
+should be raised to help the caller make this happen.
+"""
+
+def deprecated(func):
+    warnings.warn("Function %s is deprecated" % (func.__name__), DeprecationWarning, 2)
+    return func
 
 
 class Domain(BaseListener):
@@ -114,11 +139,11 @@ class Domain(BaseListener):
             elif eventType == "StatusChanged":
                 status = root.get("Status")
 
-                nodeElement = root.find("Process")
-                db = self.__databases[nodeElement.get("Database")]
-                node = Node.fromMessage(db, nodeElement)
+                processElement = root.find("Process")
+                db = self.__databases[processElement.get("Database")]
+                process = Process.fromMessage(db, processElement)
 
-                self.__nodeStatusChanged(node, status)
+                self.__processStatusChanged(process, status)
             elif eventType == "ProcessFailed":
                 peer = Peer.fromMessage(self, root.find("Broker"))
                 peer = self.getPeer(peer.getId())
@@ -126,10 +151,10 @@ class Domain(BaseListener):
                 reason = root.get("Reason")
                 startId = root.get("StartId")
 
-                self.__nodeFailed(peer, startId, reason)
+                self.__processFailed(peer, startId, reason)
             elif eventType == "NewProcess" or eventType == "ProcessExit":
-                nodeElement = root.find("Process")
-                dbName = nodeElement.get("Database")
+                processElement = root.find("Process")
+                dbName = processElement.get("Database")
 
                 if dbName not in self.__databases:
                     self.__databases[dbName] = Database(self, dbName)
@@ -140,12 +165,12 @@ class Domain(BaseListener):
                             pass
 
                 if eventType == "NewProcess":
-                    startId = nodeElement.get("StartId")
-                    self.__nodeJoined(Node.fromMessage(self.__databases[dbName],
-                                                       nodeElement), startId)
+                    startId = processElement.get("StartId")
+                    self.__processJoined(Process.fromMessage(self.__databases[dbName],
+                                                       processElement), startId)
                 else:
-                    self.__nodeLeft(Node.fromMessage(self.__databases[dbName],
-                                                     nodeElement))
+                    self.__processLeft(Process.fromMessage(self.__databases[dbName],
+                                                     processElement))
 
     def closed(self):
         if self.__listener:
@@ -184,7 +209,7 @@ class Domain(BaseListener):
 
                 for processElement in list(child):
                     if processElement.tag == "Process":
-                        self.__nodeJoined(Node.fromMessage(self.__databases[name],
+                        self.__processJoined(Process.fromMessage(self.__databases[name],
                                                            processElement), None)
 
     def __peerJoined(self, peer):
@@ -203,26 +228,32 @@ class Domain(BaseListener):
             except:
                 pass
 
-    def __nodeJoined(self, node, startId):
-        node.getDatabase()._addNode(node)
-        node.getPeer()._notifyStartId(startId, node)
+    def __processJoined(self, process, startId):
+        process.getDatabase()._addProcess(process)
+        process.getPeer()._notifyStartId(startId, process)
         if self.__listener:
             try:
-                self.__listener.nodeJoined(node)
+                self.__listener.processJoined(process)
             except:
-                pass
+                try:
+                    self.__listener.nodeJoined(process)
+                except:
+                    pass
     
-    def __nodeLeft(self, node):
-        database = node.getDatabase()
-        database._removeNode(node)
-        node.getPeer()._removeNode(node)
+    def __processLeft(self, process):
+        database = process.getDatabase()
+        database._removeProcess(process)
+        process.getPeer()._removeProcess(process)
         if self.__listener:
             try:
-                self.__listener.nodeLeft(node)
+                self.__listener.processLeft(process)
             except:
-                pass
+                try:
+                    self.__listener.nodeLeft(process)
+                except:
+                    pass
 
-        if database.getNodeCount() == 0:
+        if database.getProcessCount() == 0:
             del self.__databases[database.getName()]
             if self.__listener:
                 try:
@@ -230,29 +261,35 @@ class Domain(BaseListener):
                 except:
                     pass
 
-    def __nodeFailed(self, peer, startId, reason):
+    def __processFailed(self, peer, startId, reason):
         peer._notifyStartId(startId, reason)
         if self.__listener:
             try:
-                self.__listener.nodeFailed(peer, reason)
+                self.__listener.processFailed(peer, reason)
             except:
-                pass
+                try:
+                    self.__listener.nodeFailed(peer, reason)
+                except:
+                    pass
 
-    def __nodeStatusChanged(self, node, status):
-        node._setStatus(status)
+    def __processStatusChanged(self, process, status):
+        process._setStatus(status)
         if self.__listener:
             try:
-                self.__listener.nodeStatusChanged(node, status)
+                self.__listener.processStatusChanged(process, status)
             except:
-                pass
+                try:
+                    self.__listener.nodeStatusChanged(process, status)
+                except:
+                    pass
 
     # an initial verison only to support the shutdown routine that doesn't
     # need to watch for return messages ... right now this module is only
     # supporting the tests, which don't need the other management routines
     # at this point, so we'll flesh this out (as in the Java implementation)
     # in the second round when other utilites get updated as well
-    def _sendManagementMessage(self, message, peer, node):
-        root = ElementTree.fromstring("<ManagementRequest AgentId=\"%s\" ProcessId=\"%i\"/>" % (peer.getId(), node.getPid()))
+    def _sendManagementMessage(self, message, peer, process):
+        root = ElementTree.fromstring("<ManagementRequest AgentId=\"%s\" ProcessId=\"%i\"/>" % (peer.getId(), process.getPid()))
         root.append(message)
 
         self.__session.send(ElementTree.tostring(root))
@@ -267,7 +304,7 @@ class Peer:
         self.__port = port
         self.__hostname = hostname
         self.__lock = Lock()
-        self.__nodes = dict()
+        self.__processes = dict()
         self.__version = version
         self.__startIdSlots = dict()
 
@@ -316,10 +353,10 @@ class Peer:
     def isBroker(self):
         return self.__isBroker
 
-    def startTransactionEngine(self, chorus, options=None, waitSeconds=None):
-        return self.__startNode(chorus, options, waitSeconds)
+    def startTransactionEngine(self, database, options=None, waitSeconds=None):
+        return self.__startProcess(database, options, waitSeconds)
 
-    def startStorageManager(self, chorus, archive, initialize, options=None, waitSeconds=None):
+    def startStorageManager(self, database, archive, initialize, options=None, waitSeconds=None):
         if not options:
             options = []
 
@@ -329,19 +366,19 @@ class Peer:
             options.append(("--initialize", None))
             options.append(("--force", None))
 
-        return self.__startNode(chorus, options, waitSeconds)
+        return self.__startProcess(database, options, waitSeconds)
 
 
-    def __startNode(self, chorus, options, waitSeconds):
+    def __startProcess(self, database, options, waitSeconds):
         if waitSeconds == None:
-            startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), chorus, options)
+            startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), database, options)
             return
 
         e = Event()
         # acquire the lock to avoid _notifyStartId reading the __startIdSlots map before we put the event inside it
         self.__lock.acquire()
         try:
-            startResponse = startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), chorus, options)
+            startResponse = startProcess(self.getConnectStr(), self.__domain.getUser(), self.__domain.getPassword(), database, options)
 
             startId = ElementTree.fromstring(startResponse).get("StartId")
             if not startId:
@@ -364,13 +401,13 @@ class Peer:
         del self.__startIdSlots[startId]
 
         # if the process failed to start in some known way then what's in the
-        # "slot"  will be some meaningful error message, not a node instance
-        if not isinstance(result, Node):
+        # "slot"  will be some meaningful error message, not a process instance
+        if not isinstance(result, Process):
             raise SessionException(str(result))
 
         return result
 
-    # NOTE: the "result" parameter should be an instance of Node or, in the
+    # NOTE: the "result" parameter should be an instance of Process or, in the
     # case that startup failed, anything that can be evaluated as str(result)
     # where the string is a meaningful description of the failure
     def _notifyStartId(self, startId, result):
@@ -383,26 +420,30 @@ class Peer:
         finally:
             self.__lock.release()
 
-    def getLocalNodes(self, chorus=None):
+    def getLocalProcesses(self, chorus=None):
         if chorus == None:
-            return self.__nodes.values()
+            return self.__processes.values()
 
-        nodes = []
-        for node in self.__nodes.values():
-            if node.getDatabase().getName() == chorus:
-                nodes.append(node)
+        processes = []
+        for process in self.__processes.values():
+            if process.getDatabase().getName() == chorus:
+                processes.append(process)
 
-        return nodes
+        return processes
+    
+    @deprecated
+    def getLocalNodes(self, chorus=None):
+        return self.getLocalProcesses(chorus)
 
-    def _getNode(self, pid):
-        return self.__nodes.get(pid)
+    def _getProcess(self, pid):
+        return self.__processes.get(pid)
 
-    def _addNode(self, node):
-        self.__nodes[node.getPid()] = node
+    def _addProcess(self, process):
+        self.__processes[process.getPid()] = process
 
-    def _removeNode(self, node):
+    def _removeProcess(self, process):
         try:
-            del self.__nodes[node.getPid()]
+            del self.__processes[process.getPid()]
         except:
             pass
 
@@ -413,7 +454,7 @@ class Database:
         self.__domain = domain
         self.__name = name
 
-        self.__nodes = dict()
+        self.__processes = dict()
 
     def __hash__(self):
         return self.__name.hash()
@@ -435,51 +476,59 @@ class Database:
     def getName(self):
         return self.__name
 
-    def _addNode(self, node):
-        self.__nodes[self.__nodeId(node)] = node
+    def _addProcess(self, process):
+        self.__processes[self.__processId(process)] = process
 
-    def _removeNode(self, node):
-        del self.__nodes[self.__nodeId(node)]
+    def _removeProcess(self, process):
+        del self.__processes[self.__processId(process)]
 
+    def getProcesses(self):
+        return self.__processes.itervalues()
+
+    def getProcessCount(self):
+        return len(self.__processes)
+    
+    @deprecated    
     def getNodes(self):
-        return self.__nodes.itervalues()
+        return self.getProcesses()
 
+    @deprecated
     def getNodeCount(self):
-        return len(self.__nodes)
+        return self.getProcessCount()
 
-    def __nodeId(self, node):
-        return node.getPeer().getId() + ":" + str(node.getPid())
+    def __processId(self, process):
+        return process.getPeer().getId() + ":" + str(process.getPid())
 
     def shutdown(self, graceful=True):
-        if len(self.__nodes) == 0:
+        if len(self.__processes) == 0:
             return
 
         if graceful:
             self.quiesce()
 
-        nodes = self.__nodes.items()
+        processes = self.__processes.items()
         failureCount = 0
         failureText = ""
 
-        for (nodeId, node) in self.__nodes.items():
-            if node.isTransactional():
+        for (processId, process) in self.__processes.items():
+            if process.isTransactional():
                 try:
                     if graceful:
-                        node.shutdown()
+                        process.shutdown()
                     else:
-                        node.kill()
-                    #del nodes[nodeId]
+                        process.kill()
+                    #del processes[processId]
                 except Exception, e:
                     failureCount = failureCount + 1
                     failureText = failureText + str(e) + "\n"
 
-        for (nodeId, node) in self.__nodes.items():
-            if not node.isTransactional():
+        for (processId, process) in self.__processes.items():
+            if not process.isTransactional():
                 try:
                     if graceful:
-                        node.shutdown()
+                        process.shutdown()
                     else:
-                        node.kill()
+                        process.kill()
                 except Exception, e:
                     failureCount = failureCount + 1
                     failureText = failureText + str(e) + "\n"
@@ -516,14 +565,14 @@ class Database:
                        child=optionElement)
 
     def __waitForStatus(self, status, waitSeconds):
-        remainingNodes = list(self.__nodes.values())
+        remainingProcesses = list(self.__processes.values())
 
         while waitSeconds >= 0:
-            for node in remainingNodes:
-                if node.getStatus() == status:
-                    remainingNodes.remove(node)
+            for process in remainingProcesses:
+                if process.getStatus() == status:
+                    remainingProcesses.remove(process)
 
-            if len(remainingNodes) == 0:
+            if len(remainingProcesses) == 0:
                 return True
 
             if waitSeconds > 0:
@@ -532,7 +581,7 @@ class Database:
 
         return False
 
-class Node:
+class Process:
 
     def __init__(self, peer, database, port, pid, transactional, status, hostname=None, version=None):
         self.__peer = peer
@@ -542,26 +591,26 @@ class Node:
         self.__transactional = transactional
         self.__hostname = hostname
         self.__version = version
-        peer._addNode(self)
+        peer._addProcess(self)
         if status != None:
             self.__status = status
         else:
             self.__status = "UNKNOWN"
 
     @staticmethod
-    def fromMessage(database, nodeElement):
-        peer = database.getDomain().getPeer(nodeElement.get("AgentId"))
+    def fromMessage(database, processElement):
+        peer = database.getDomain().getPeer(processElement.get("AgentId"))
         if peer == None:
-            raise Exception("Node is for an unknown peer")
+            raise Exception("Process is for an unknown peer")
 
-        pid = int(nodeElement.get("ProcessId"))
-        node = peer._getNode(pid)
-        if node != None:
-            return node
+        pid = int(processElement.get("ProcessId"))
+        process = peer._getProcess(pid)
+        if process != None:
+            return process
 
-        return Node(peer, database, int(nodeElement.get("Port")),
-                    pid, int(nodeElement.get("NodeType")) == 1,
-                     nodeElement.get("State"), nodeElement.get("Hostname"), nodeElement.get("Version"))
+        return Process(peer, database, int(processElement.get("Port")),
+                    pid, int(processElement.get("NodeType")) == 1,
+                     processElement.get("State"), processElement.get("Hostname"), processElement.get("Version"))
 
     def __hash__(self):
         return self.__pid
@@ -575,8 +624,8 @@ class Node:
         return self.__eq__(other) != True
 
     def __str__(self):
-        nodeType = "(Engine)" if self.isTransactional() else "(Archive)"
-        return self.getAddress() + ":" + str(self.getPort()) + " [pid=" + str(self.getPid())+ "] " + nodeType
+        processType = "(TE)" if self.isTransactional() else "(SM)"
+        return self.getAddress() + ":" + str(self.getPort()) + " [pid=" + str(self.getPid())+ "] " + processType
 
     def getPeer(self):
         return self.__peer
@@ -648,3 +697,4 @@ class Node:
         pwd = pwdXml.find("Password").text.strip()
 
         return queryEngine(self.getAddress(), self.getPort(), type, pwd, msgBody)
+    

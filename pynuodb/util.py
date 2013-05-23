@@ -78,11 +78,11 @@ def getLicense(broker, user, password):
 
     return s.doRequest(attributes={ "Action" : "GetCurrentLicense" })
 
-def setLicense(broker, user, password, license):
+def setLicense(broker, user, password, licenseText):
     s = Session(broker, service="License")
     s.authorize(user, password)
 
-    s.doRequest(attributes={ "Action" : "ApplyLicense" }, text=license)
+    s.doRequest(attributes={ "Action" : "ApplyLicense" }, text=licenseText)
 
 def getIdentity(agent):
     s = Session(agent, service="Identity")

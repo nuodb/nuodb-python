@@ -2,6 +2,7 @@ import unittest
 import tempfile
 import time
 from pynuodb.entity import Domain
+import warnings
 
 BROKER_HOST = 'localhost'
 DOMAIN_USER = 'domain'
@@ -220,28 +221,6 @@ class NuoDBEntityTest(unittest.TestCase):
         finally:
             self._cleanup(domain)
                 
-    def test_existingDatabase(self):
-        domain = None
-        database = None
-        try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
-            
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
-            self.assertIsNotNone(database)
-            domain.disconnect()
-            time.sleep(1)
-            
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
-            database = domain.getDatabase(TEST_DB_NAME)
-            self.assertIsNotNone(database)
-            
-            self.assertEqual(database.getNodeCount(), 2)
-            
-        finally:
-            self._cleanup(domain)
                 
     def test_twoDatabase(self):
         domain = None
@@ -401,4 +380,5 @@ class TestListener(object):
 
 
 if __name__ == '__main__':
+    warnings.simplefilter("always")
     unittest.main()
