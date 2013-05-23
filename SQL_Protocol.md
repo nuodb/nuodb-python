@@ -54,17 +54,17 @@ Field Header | Field Type & Format
 1            | Null                  
 2            | Boolean with value `True`      
 3            | Boolean with value `False`      
-202          | 32-byte UUID      
-201          | Fixed point integer with scale  
-227          | Fixed point integer with scale      
+200          | 32-byte UUID      
+199          | Fixed point integer with scale  
+225          | Fixed point integer with scale      
 
 #### Integer Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-10-19        | The Integer values `-10` to `-1` (respectively)                  
-20-51        | The Integer values `0` to `31` (respectively)      
-52-59        | A signed integer value encoded using the next 1 to 8 bytes (respectively)    
+10 - 19      | The Integer values `-10` to `-1` (respectively)                  
+20 - 51      | The Integer values `0` to `31` (respectively)      
+52 - 59      | A signed integer value encoded using the next 1 to 8 bytes (respectively)    
 
 E.g., a field that starts with the identifier 21 represents the Integer value 1, and has no further payload. A field that starts with 52 is followed by a single byte that encodes an 8-bit signed integer value.
 
@@ -72,21 +72,20 @@ E.g., a field that starts with the identifier 21 represents the Integer value 1,
 
 Field Header | Field Type & Format
 ------------ | --------------------
-60-68        | A scaled integer value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled integer value.
+60 - 68      | A scaled integer value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled integer value.
 
 #### Double Precision Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-77-85        | IEEE double-precision floating point value of length 0 to length 8 bytes (respectively)
+77 - 85      | IEEE double-precision floating point value of length 0 to length 8 bytes (respectively)
 
 #### String (UTF8) Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-69-72        | A string where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the string value                 
-109-148      | A string of length 0 to 39 bytes (respectively)     
-149          | A string of length 39 bytes (constant for the longest known-length string)
+69 - 72      | A string where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the string value                 
+109 - 148    | A string of length 0 to 39 bytes (respectively)     
 
 All strings are UTF-8 encoded lengths of bytes, with a header that specifies the number of bytes in the string. For instance, a field starting with the identifier 70 will be followed by two bytes that encode a 16-bit integer value. That value is the length of string. A field starting with 112 will be followed by a UTF-8 string three bytes long.
 
@@ -94,37 +93,36 @@ All strings are UTF-8 encoded lengths of bytes, with a header that specifies the
 
 Field Header | Field Type & Format
 ------------ | --------------------
-73-76        | An opaque value where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the value                
-150-189      | An opaque value of length 0 to 39 bytes (respectively)   
-190          | An opaque value of length 39 bytes (constant for the longest known-length opaque value)
+73 - 76      | An opaque value where the first 1 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the value                
+149 - 188    | An opaque value of length 0 to 39 bytes (respectively)   
 
 #### BLOB/CLOB Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-191-195      | A BLOB (Binary Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the binary value                
-196 - 200    | A CLOB (Character Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the character string 
+189 - 193    | A BLOB (Binary Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the binary value                
+194 - 198    | A CLOB (Character Large OBject) value where the first 0 to 4 bytes (respectively) encode an integer that is the number of bytes that follow as the character string 
 
 #### Time Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-86-94        | Milliseconds since the epoch of length 0 to length 8 bytes (respectively)                
-95-103       | Nanoseconds since the epoch of length 0 to length 8 bytes (respectively) 
-104-108      | Milliseconds since midnight of length 0 to length 4 bytes (respectively)
+86 - 94      | Milliseconds since the epoch of length 0 to length 8 bytes (respectively)                
+95 - 103     | Nanoseconds since the epoch of length 0 to length 8 bytes (respectively) 
+104 - 108    | Milliseconds since midnight of length 0 to length 4 bytes (respectively)
 
 #### Scaled Time Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-211-218      | A scaled time value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled time value.               
-219-226      | A scaled timestamp value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled timestamp value.
+209 - 216    | A scaled time value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled time value.               
+217 - 224    | A scaled timestamp value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled timestamp value.
 
 #### Scaled Date Types
 
 Field Header | Field Type & Format
 ------------ | --------------------
-203-210      | A scaled date value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled date value.
+201 - 208    | A scaled date value of length 0 to length 8 bytes (respectively). The format is one byte giving the scale followed by 0 to 8 bytes with the scaled date value.
 
 ## Protocol Messages
 

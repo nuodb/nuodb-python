@@ -100,8 +100,6 @@ class EncodedSession(Session):
         """Appends a Scaled Integer value to the message."""
         if scale is 0:
             self.putInt(value)
-        elif value is 0:
-            packed = chr(protocol.SCALEDLEN0) + chr(scale)
         else:
             valueStr = toByteString(value)
             packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
@@ -141,60 +139,54 @@ class EncodedSession(Session):
         """Appends an Opaque data value to the message."""
         length = len(value)
         if length < 40:
-            packed = chr(150 + length) + value
+            packed = chr(protocol.OPAQUELEN0 + length) + value
         else:
             lengthStr = self.toByteSting(length)
-            packed = chr(72 + len(lengthStr)) + lengthStr + value
+            packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
 
     def putDouble(self, value):
         """Appends a Double to the message."""
         valueStr = struct.pack('d', value)
-        packed = chr(77 + len(valueStr)) + valueStr
+        packed = chr(protocol.DOUBLELEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
     def putMsSinceEpoch(self, value):
         """Appends the MsSinceEpoch value to the message."""
         valueStr = toByteString(value)
-        packed = chr(86 + len(valueStr)) + valueStr
+        packed = chr(protocol.MILLISECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putNsSinceEpoch(self, value):
         """Appends the NsSinceEpoch value to the message."""
         valueStr = toByteString(value)
-        packed = chr(95 + len(valueStr)) + valueStr
+        packed = chr(protocol.NANOSECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putMsSinceMidnight(self, value):
         """Appends the MsSinceMidnight value to the message."""
         valueStr = toByteString(value)
-        packed = chr(104 + len(valueStr)) + valueStr
+        packed = chr(protocol.TIMELEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
     def putBlob(self, value):
         """Appends the Blob(Binary Large OBject) value to the message."""
         length = len(value)
-        if length is 0:
-            packed = chr(191)
-        else:
-            lengthStr = self.toByteSting(length)
-            packed = chr(191 + len(lengthStr)) + lengthStr + value
+        lengthStr = self.toByteSting(length)
+        packed = chr(protocol.BLOBLEN0 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
 
     def putClob(self, value):
         """Appends the Clob(Character Large OBject) value to the message."""
         length = len(value)
-        if length is 0:
-            packed = chr(196)
-        else:
-            lengthStr = self.toByteSting(length)
-            packed = chr(196 + len(lengthStr)) + lengthStr + value
+        lengthStr = self.toByteSting(length)
+        packed = chr(protocol.CLOBLEN0 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
         
@@ -226,10 +218,10 @@ class EncodedSession(Session):
         """Read the next Integer value off the session."""
         typeCode = self._getTypeCode()
 
-        if typeCode in range(10, 52):
+        if typeCode in range(protocol.INTMINUS10, protocol.INT31 + 1):
             return typeCode - 20
 
-        elif typeCode in range(52, 60):
+        elif typeCode in range(protocol.INTLEN1, protocol.INTLEN8 + 1):
             return fromByteString(self._takeBytes(typeCode - 51))
 
         raise DataError('Not an integer')
@@ -238,10 +230,7 @@ class EncodedSession(Session):
         """Read the next Scaled Integer value off the session."""
         typeCode = self._getTypeCode()
 
-        if typeCode == 60:
-            return (0, self.__takeBytes(1))
-
-        if typeCode in range(61, 69):
+        if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             scale = self.__takeBytes(1)
             return (fromByteString(self.__takeBytes(typeCode - 60)), scale)
 
@@ -251,10 +240,10 @@ class EncodedSession(Session):
         """Read the next String off the session."""
         typeCode = self._getTypeCode()
 
-        if typeCode in range(109, 149):
+        if typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
             return self._takeBytes(typeCode - 109)
 
-        if typeCode in range(69, 73):
+        if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 68))
             return self._takeBytes(strLength)
 
@@ -264,23 +253,23 @@ class EncodedSession(Session):
         """Read the next Boolean value off the session."""
         typeCode = self._getTypeCode()
 
-        if typeCode == 2:
+        if typeCode == protocol.TRUE:
             return True
-        if typeCode == 3:
+        if typeCode == protocol.FALSE:
             return False
 
         raise DataError('Not a boolean')
 
     def getNull(self):
         """Read the next Null value off the session."""
-        if self._getTypeCode() != 1:
+        if self._getTypeCode() != protocol.NULL:
             raise DataError('Not null')
 
     def getDouble(self):
         """Read the next Double off the session."""
         typeCode = self._getTypeCode()
         
-        if typeCode in range(77, 86):
+        if typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
             return struct.unpack('d', self.__takeBytes(typeCode - 77))[0]
             
         raise DataError('Not a double')
@@ -289,13 +278,13 @@ class EncodedSession(Session):
         """Read the next Time value off the session."""
         typeCode = self._getTypeCode()
         
-        if typeCode in range(86, 95):
+        if typeCode in range(protocol.MILLISECLEN0, protocol.MILLISECLEN8 + 1):
             return fromByteString(self._takeBytes(typeCode - 86))
             
-        if typeCode in range(95, 104):
+        if typeCode in range(protocol.NANOSECLEN0, protocol.NANOSECLEN8 + 1):
             return fromByteString(self._takeBytes(typeCode - 95))
             
-        if typeCode in range(104, 109):
+        if typeCode in range(protocol.TIMELEN0, protocol.TIMELEN4 + 1):
             return fromByteString(self._takeBytes(typeCode - 104))
             
         raise DataError('Not a time')
@@ -304,10 +293,10 @@ class EncodedSession(Session):
         """Read the next Opaque value off the session."""
         typeCode = self._getTypeCode()
 
-        if typeCode in range(150, 190):
-            return self._takeBytes(typeCode - 150)
+        if typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
+            return self._takeBytes(typeCode - 149)
 
-        if typeCode in range(73, 77):
+        if typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 72))
             return self._takeBytes(strLength)
 
@@ -317,11 +306,8 @@ class EncodedSession(Session):
         """Read the next Blob(Binary Large OBject) value off the session."""
         typeCode = self._getTypeCode()
         
-        if typeCode == 191:
-            return None
-        
-        if typeCode in range(192, 196):
-            strLength = fromByteString(self._takeBytes(typeCode - 191))
+        if typeCode in range(protocol.BLOBLEN0, protocol.BLOBLEN4 + 1):
+            strLength = fromByteString(self._takeBytes(typeCode - 189))
             return self._takeBytes(strLength)
 
         raise DataError('Not a blob')
@@ -330,11 +316,8 @@ class EncodedSession(Session):
         """Read the next Clob(Character Large OBject) value off the session."""
         typeCode = self._getTypeCode()
         
-        if typeCode == 196:
-            return None
-        
-        if typeCode in range(197, 201):
-            strLength = fromByteString(self._takeBytes(typeCode - 196))
+        if typeCode in range(protocol.CLOBLEN0, protocol.CLOBLEN4 + 1):
+            strLength = fromByteString(self._takeBytes(typeCode - 194))
             return self._takeBytes(strLength)
 
         raise DataError('Not a clob')
@@ -349,12 +332,12 @@ class EncodedSession(Session):
 
     def getUUID(self):
         """Read the next UUID value off the session."""
-        if self._getTypeCode() == 202:
+        if self._getTypeCode() == protocol.UUID:
             return uuid.UUID(self._takeBytes(16))
-        if self._getTypeCode() == 201:
+        if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
             pass
-        if self._getTypeCode() == 227:
+        if self._getTypeCode() == protocol.SCALEDCOUNT2:
             # version 11 and later
             pass
 
@@ -367,51 +350,53 @@ class EncodedSession(Session):
         typeCode = self._peekTypeCode()
         
         # get null type
-        if typeCode is 1:
+        if typeCode is protocol.NULL:
             return self.getNull()
         
         # get boolean type
-        elif typeCode in [2, 3]:
+        elif typeCode in [protocol.TRUE, protocol.FALSE]:
             return self.getBoolean()
         
         # get uuid type
-        elif typeCode in [202, 201, 227]:
+        elif typeCode in [protocol.UUID, protocol.SCALEDCOUNT1, protocol.SCALEDCOUNT2]:
             return self.getUUID()
         
         # get integer type
-        elif typeCode in range(10, 60):
+        elif typeCode in range(protocol.INTMINUS10, protocol.INTLEN8 + 1):
             return self.getInt()
         
         # get scaled int type
-        elif typeCode in range(60, 69):
+        elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
         
         # get double precision type
-        elif typeCode in range(77, 86):
+        elif typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
             return self.getDouble()
         
         # get string type
-        elif typeCode in range(69, 73) or typeCode in range(109, 150):
+        elif typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1) or \
+             typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
             return self.getString()
         
-        # get opague type
-        elif typeCode in range(73, 77) or typeCode in range(150, 191):
+        # get opaque type
+        elif typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1) or \
+             typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
             return self.getOpaque()
         
         # get blob/clob type
-        elif typeCode in range(191, 201):
+        elif typeCode in range(protocol.BLOBLEN0, protocol.CLOBLEN4 + 1):
             return self.getBlob()
         
         # get time type
-        elif typeCode in range(86, 109):
+        elif typeCode in range(protocol.MILLISECLEN0, protocol.TIMELEN4 + 1):
             return self.getTime()
         
         # get scaled time
-        elif typeCode in range(211, 227):
+        elif typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             return self.getScaledTime()
         
         # get scaled date
-        elif typeCode in range(203, 211):
+        elif typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             return self.getScaledDate()
         
         else:
