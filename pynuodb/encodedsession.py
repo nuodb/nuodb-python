@@ -36,8 +36,9 @@ class EncodedSession(Session):
     putMsSinceMidnight -- Appends the MsSinceMidnight value to the message.
     putBlob -- Appends the Blob(Binary Large OBject) value to the message.
     putClob -- Appends the Clob(Character Large OBject) value to the message.
-    putScaledTime -- Currently not supported.
-    putScaledDate -- Currently not supported.
+    putScaledTime -- Appends a Scaled Time value to the message.
+    putScaledTimestamp -- Appends a Scaled Timestamp value to the message.    
+    putScaledDate -- Appends a Scaled Date value to the message.
     putValue -- Determines the probable type of the value and calls the supporting function.
     getInt -- Read the next Integer value off the session.
     getScaledInt -- Read the next Scaled Integer value off the session.
@@ -49,8 +50,9 @@ class EncodedSession(Session):
     getOpaque -- Read the next Opaque value off the session.
     getBlob -- Read the next Blob(Binary Large OBject) value off the session.
     getClob -- Read the next Clob(Character Large OBject) value off the session.
-    getScaledTime -- Currently not supported.
-    getScaledDate -- Currently not supported.
+    getScaledTime -- Read the next Scaled Time value off the session.
+    getScaledTimestamp -- Read the next Scaled Timestamp value off the session.
+    getScaledDate -- Read the next Scaled Date value off the session.
     getUUID -- Read the next UUID value off the session.
     getValue -- Determine the datatype of the next value off the session, then call the
                 supporting function.
@@ -191,12 +193,40 @@ class EncodedSession(Session):
         return self
         
     def putScaledTime(self, value, scale):
-        """Currently not supported."""
-        pass
+        """Appends a Scaled Time value to the message."""
+        if scale is 0:
+            self.putInt(value)
+        else:
+            valueStr = toByteString(value)
+            if len(valueStr) == 0:
+                raise DataError('Can\'t put 0 length scaled time.')
+            packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        self.__output += packed
+        return self
+    
+    def putScaledTimestamp(self, value, scale):
+        """Appends a Scaled Timestamp value to the message."""
+        if scale is 0:
+            self.putInt(value)
+        else:
+            valueStr = toByteString(value)
+            if len(valueStr) == 0:
+                raise DataError('Can\'t put 0 length scaled timestamp.')
+            packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        self.__output += packed
+        return self
         
     def putScaledDate(self, value, scale):
-        """Currently not supported."""
-        pass
+        """Appends a Scaled Date value to the message."""
+        if scale is 0:
+            self.putInt(value)
+        else:
+            valueStr = toByteString(value)
+            if len(valueStr) == 0:
+                raise DataError('Can\'t put 0 length scaled date.')
+            packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        self.__output += packed
+        return self
 
     def putValue(self, value):
         """Determines the probable type of the value and calls the supporting function."""
@@ -323,12 +353,34 @@ class EncodedSession(Session):
         raise DataError('Not a clob')
     
     def getScaledTime(self):
-        """Currently not supported."""
-        raise NotImplementedError("not implemented")
+        """Read the next Scaled Time value off the session."""
+        typeCode = self._getTypeCode()
+
+        if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
+            scale = self.__takeBytes(1)
+            return (fromByteString(self.__takeBytes(typeCode - 208)), scale)
+
+        raise DataError('Not a scaled time')
+    
+    def getScaledTimestamp(self):
+        """Read the next Scaled Timestamp value off the session."""
+        typeCode = self._getTypeCode()
+
+        if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
+            scale = self.__takeBytes(1)
+            return (fromByteString(self.__takeBytes(typeCode - 216)), scale)
+
+        raise DataError('Not a scaled timestamp')
     
     def getScaledDate(self):
-        """Currently not supported."""
-        raise NotImplementedError("not implemented")
+        """Read the next Scaled Date value off the session."""
+        typeCode = self._getTypeCode()
+
+        if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
+            scale = self.__takeBytes(1)
+            return (fromByteString(self.__takeBytes(typeCode - 200)), scale)
+
+        raise DataError('Not a scaled date')
 
     def getUUID(self):
         """Read the next UUID value off the session."""
@@ -392,8 +444,12 @@ class EncodedSession(Session):
             return self.getTime()
         
         # get scaled time
-        elif typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
+        elif typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             return self.getScaledTime()
+        
+        # get scaled timestamp
+        elif typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
+            return self.getScaledTimestamp()
         
         # get scaled date
         elif typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
