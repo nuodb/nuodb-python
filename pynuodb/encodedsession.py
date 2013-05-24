@@ -261,8 +261,8 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
-            scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(typeCode - 60)), scale)
+            scale = self._takeBytes(1)
+            return (fromByteString(self._takeBytes(typeCode - 60)), scale)
 
         raise DataError('Not a scaled integer')
 
@@ -300,7 +300,7 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
         
         if typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
-            return struct.unpack('d', self.__takeBytes(typeCode - 77))[0]
+            return struct.unpack('d', self._takeBytes(typeCode - 77))[0]
             
         raise DataError('Not a double')
 
@@ -357,8 +357,8 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
-            scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(typeCode - 208)), scale)
+            scale = self._takeBytes(1)
+            return (fromByteString(self._takeBytes(typeCode - 208)), scale)
 
         raise DataError('Not a scaled time')
     
@@ -367,8 +367,8 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
-            scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(typeCode - 216)), scale)
+            scale = self._takeBytes(1)
+            return (fromByteString(self._takeBytes(typeCode - 216)), scale)
 
         raise DataError('Not a scaled timestamp')
     
@@ -377,8 +377,8 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
-            scale = self.__takeBytes(1)
-            return (fromByteString(self.__takeBytes(typeCode - 200)), scale)
+            scale = self._takeBytes(1)
+            return (fromByteString(self._takeBytes(typeCode - 200)), scale)
 
         raise DataError('Not a scaled date')
 
