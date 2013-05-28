@@ -87,7 +87,7 @@ class Timestamp(object):
         
     def __str__(self):
         """Stringifies the Timestamp object."""
-        return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat()
+        return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat(' ')
         
 class Binary(object):
     
