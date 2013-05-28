@@ -10,6 +10,8 @@ To create it run /opt/nuodb/run-quickstart or use the web console.
 import pynuodb
 import unittest
 import decimal
+import time
+import os
 
 from nuodb_base import NuoBase
 
@@ -52,6 +54,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_param_numeric_types(self):
         con = self._connect()
@@ -73,6 +76,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
             
     def test_string_types(self):
@@ -95,6 +99,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_param_string_types(self):
         con = self._connect()
@@ -118,6 +123,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_utf8_string_types(self):
         con = self._connect()
@@ -141,6 +147,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_date_types(self):
         con = self._connect()
@@ -178,6 +185,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_param_date_types(self):
         con = self._connect()
@@ -215,6 +223,7 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_other_types(self):
         con = self._connect()
@@ -235,6 +244,7 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], test_vals[i-1])
         finally:
             cursor.execute("drop table typetest if exists")
+            con.close()
             
     def test_param_other_types(self):
         con = self._connect()
@@ -255,7 +265,42 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], test_vals[i-1])
         finally:
             cursor.execute("drop table typetest if exists")
-        
+            con.close()
+            
+    def test_timezones(self):
+        try:
+            os.environ['TZ'] = 'EST+05EDT,M4.1.0,M10.5.0'
+            time.tzset()
+            
+            con = self._connect()
+            cursor = con.cursor()
+            cursor.execute("drop table typetest if exists")    
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, timestamp_col timestamp)")
+            vals = (pynuodb.Timestamp(2013, 05, 24, 0, 0, 1),)
+            cursor.execute("insert into typetest (timestamp_col) values (?)", vals)
+            con.commit()
+            con.close()
+            
+            
+            os.environ['TZ'] = 'PST+08PDT,M4.1.0,M10.5.0'
+            time.tzset()
+            con = self._connect()
+            cursor = con.cursor()
+            row = cursor.execute("select * from typetest")
+            
+            self.assertEqual(vals[0].year, row[1].year)
+            self.assertEqual(vals[0].month, row[1].month)
+            self.assertEqual(vals[0].day, row[1].day + 1)
+            
+            cursor.execute("drop table typetest if exists")
+            con.close()
+            
+        finally:
+            try:
+                os.environ.pop('TZ')
+            except:
+                pass
+            
 
 if __name__ == '__main__':
     unittest.main()
