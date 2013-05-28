@@ -1,3 +1,11 @@
+""" These tests require a broker to be running on the local host with default 
+credentials. Update the variables below to run in an alternate configuration.
+
+Note that these tests include shutting down the domain and all databases 
+inside, so DO NOT run these tests against a production domain. 
+
+"""
+
 import unittest
 import tempfile
 import time

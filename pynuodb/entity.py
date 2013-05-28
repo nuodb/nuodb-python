@@ -194,8 +194,7 @@ class Domain(BaseListener):
                     if processElement.tag == "Process":
                         if name not in self.__databases:
                             self.__databases[name] = Database(self, name)
-                        self.__processJoined(Process.fromMessage(self.__databases[name],
-                                                           processElement), None)
+                        self.__processJoined(Process.fromMessage(self.__databases[name], processElement), None)
 
     def __peerJoined(self, peer):
         self.__peers[peer.getId()] = peer
