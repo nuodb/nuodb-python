@@ -1,0 +1,27 @@
+language: node_js
+
+node_js:
+  - "0.10"
+  - "0.8"
+  - "0.6"
+
+env:
+  - NUODB_ROOT=/opt/nuodb NUODB_INCLUDE_DIR=/opt/nuodb/include NUODB_LIB_DIR=/opt/nuodb/lib64 NODE_PATH=/usr/local/bin NUODB_VERSION=1.0.2
+  - NUODB_ROOT=/opt/nuodb NUODB_INCLUDE_DIR=/opt/nuodb/include NUODB_LIB_DIR=/opt/nuodb/lib64 NODE_PATH=/usr/local/bin NUODB_VERSION=1.0.1
+
+notifications:
+  recipients:
+    - buck.robert.j@gmail.com
+    - rbuck@nuodb.com
+
+before_install:
+  - wget http://www.nuodb.com/latest/releases/nuodb-${NUODB_VERSION}.linux.x64.deb --output-document=/var/tmp/nuodb.deb
+  - sudo dpkg -i /var/tmp/nuodb.deb
+  - sleep 2
+  - ${NUODB_ROOT}/bin/nuodb --chorus test --password bar --dba-user dba --dba-password user --verbose debug --archive /var/tmp/nuodb --initialize --force &
+  - sleep 2
+  - ${NUODB_ROOT}/bin/nuodb --chorus test --password bar --dba-user dba --dba-password user &
+  - sleep 2
+
+after_script:
+  - sudo dpkg -r nuodb
