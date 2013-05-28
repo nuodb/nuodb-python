@@ -11,8 +11,6 @@ from session import BaseListener, Session, SessionMonitor, SessionException
 from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
 
 import time
-import warnings
-
 from threading import Event, Lock
 import xml.etree.ElementTree as ElementTree
 
@@ -72,9 +70,9 @@ class Domain(BaseListener):
         try:
             self.__session.doConnect()
             self.__handleStatus(self.__session.recv())
-        except Exception as x:
+        except Exception:
             self.__monitor.close()
-            raise x
+            raise
 
         self.__monitor.start()
 
@@ -186,7 +184,6 @@ class Domain(BaseListener):
         for child in list(root):
             if child.tag == "Database":
                 name = child.get("Name")
-                self.__databases[name] = Database(self, name)
                 if self.__listener:
                     try:
                         self.__listener.databaseJoined(self.__databases[name])
@@ -195,6 +192,8 @@ class Domain(BaseListener):
 
                 for processElement in list(child):
                     if processElement.tag == "Process":
+                        if name not in self.__databases:
+                            self.__databases[name] = Database(self, name)
                         self.__processJoined(Process.fromMessage(self.__databases[name],
                                                            processElement), None)
 
