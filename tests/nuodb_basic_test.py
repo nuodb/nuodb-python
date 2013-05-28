@@ -215,6 +215,46 @@ class NuoDBBasicTest(NuoBase):
             
         finally:
             cursor.execute("drop table typetest if exists")
+            
+    def test_other_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, bool_col boolean, " +
+                           "binary_col binary)")
+
+            test_vals = (False, pynuodb.Binary("other binary"))
+            cursor.execute("insert into typetest (bool_col, binary_col) " +
+                           "values (" + str(test_vals[0]) + ", " + str(test_vals[1]) + ")")
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+                   
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], test_vals[i-1])
+        finally:
+            cursor.execute("drop table typetest if exists")
+            
+    def test_param_other_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, bool_col boolean, " +
+                           "binary_col binary)")
+
+            test_vals = (True, pynuodb.Binary("binary"))
+            cursor.execute("insert into typetest (bool_col, binary_col) " +
+                           "values (?, ?)", test_vals)
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+                   
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], test_vals[i-1])
+        finally:
+            cursor.execute("drop table typetest if exists")
         
 
 if __name__ == '__main__':
