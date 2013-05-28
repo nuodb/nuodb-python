@@ -8,7 +8,7 @@ events happen. The Domain provides access to Peers, Databases and Processes.
 """
 
 from session import BaseListener, Session, SessionMonitor, SessionException
-from util import ChorusAction, startProcess, killProcess, doChorusAction, queryEngine
+from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
 
 import time
 import warnings
@@ -31,15 +31,6 @@ to notify on domain events. That class may implement any of the methods:
     databaseLeft(self, database)
     closed(self)
     
-The following methods may be used for backwards compatibility, but are 
-deprecated. They are identical to the process*() methods. A node*() method
-will not be called if it's process*() counterpart is defined. 
-    
-    nodeJoined(self, node)
-    nodeLeft(self, node)
-    nodeFailed(self, peer, reason)
-    nodeStatusChanged(self, node, status)
-    
 
 For instance, a valid listener could be formed like this:
 
@@ -60,11 +51,6 @@ TODO: This class doesn't handle entry broker failure by trying to connect
 to another broker. Either this should be added, or some clear exception
 should be raised to help the caller make this happen.
 """
-
-def deprecated(func):
-    warnings.warn("Function %s is deprecated" % (func.__name__), DeprecationWarning, 2)
-    return func
-
 
 class Domain(BaseListener):
 
@@ -235,10 +221,7 @@ class Domain(BaseListener):
             try:
                 self.__listener.processJoined(process)
             except:
-                try:
-                    self.__listener.nodeJoined(process)
-                except:
-                    pass
+                pass
     
     def __processLeft(self, process):
         database = process.getDatabase()
@@ -248,10 +231,7 @@ class Domain(BaseListener):
             try:
                 self.__listener.processLeft(process)
             except:
-                try:
-                    self.__listener.nodeLeft(process)
-                except:
-                    pass
+                pass
 
         if database.getProcessCount() == 0:
             del self.__databases[database.getName()]
@@ -267,10 +247,7 @@ class Domain(BaseListener):
             try:
                 self.__listener.processFailed(peer, reason)
             except:
-                try:
-                    self.__listener.nodeFailed(peer, reason)
-                except:
-                    pass
+                pass
 
     def __processStatusChanged(self, process, status):
         process._setStatus(status)
@@ -278,10 +255,7 @@ class Domain(BaseListener):
             try:
                 self.__listener.processStatusChanged(process, status)
             except:
-                try:
-                    self.__listener.nodeStatusChanged(process, status)
-                except:
-                    pass
+                pass
 
     # an initial verison only to support the shutdown routine that doesn't
     # need to watch for return messages ... right now this module is only
@@ -430,10 +404,6 @@ class Peer:
                 processes.append(process)
 
         return processes
-    
-    @deprecated
-    def getLocalNodes(self, db_name=None):
-        return self.getLocalProcesses(db_name)
 
     def _getProcess(self, pid):
         return self.__processes.get(pid)
@@ -487,14 +457,6 @@ class Database:
 
     def getProcessCount(self):
         return len(self.__processes)
-    
-    @deprecated    
-    def getNodes(self):
-        return self.getProcesses()
-
-    @deprecated
-    def getNodeCount(self):
-        return self.getProcessCount()
 
     def __processId(self, process):
         return process.getPeer().getId() + ":" + str(process.getPid())
@@ -537,9 +499,9 @@ class Database:
             raise SessionException("Failed to shutdown " + str(failureCount) + " process(es)\n" + failureText)
 
     def quiesce(self, waitSeconds=0):
-        doChorusAction(self.__domain.getEntryPeer().getConnectStr(),
+        doDatabaseAction(self.__domain.getEntryPeer().getConnectStr(),
                        self.__domain.getUser(), self.__domain.getPassword(),
-                       self.__name, ChorusAction.Quiesce)
+                       self.__name, DatabaseAction.Quiesce)
         if waitSeconds == 0:
             return
 
@@ -547,9 +509,9 @@ class Database:
             raise SessionException("Timed out waiting to quiesce database")
 
     def unquiesce(self, waitSeconds=0):
-        doChorusAction(self.__domain.getEntryPeer().getConnectStr(),
+        doDatabaseAction(self.__domain.getEntryPeer().getConnectStr(),
                        self.__domain.getUser(), self.__domain.getPassword(),
-                       self.__name, ChorusAction.Unquiesce)
+                       self.__name, DatabaseAction.Unquiesce)
         if waitSeconds == 0:
             return
 
@@ -559,9 +521,9 @@ class Database:
     def updateConfiguration(self, name, value=None):
         optionElement = ElementTree.fromstring("<Option Name=\"%s\">%s</Option>" %
                                                (name, value if value is not None else ""))
-        doChorusAction(self.__domain.getEntryPeer().getConnectStr(),
+        doDatabaseAction(self.__domain.getEntryPeer().getConnectStr(),
                        self.__domain.getUser(), self.__domain.getPassword(),
-                       self.__name, ChorusAction.UpdateConfiguration,
+                       self.__name, DatabaseAction.UpdateConfiguration,
                        child=optionElement)
 
     def __waitForStatus(self, status, waitSeconds):

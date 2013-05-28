@@ -1,7 +1,7 @@
 
-__all__ = [ "ChorusAction", "EngineMonitor",
+__all__ = [ "DatabaseAction", "EngineMonitor",
             "getLicense", "setLicense", "getIdentity", "getState",
-            "doChorusAction", "startProcess", "stopProcess", "killProcess",
+            "doDatabaseAction", "startProcess", "stopProcess", "killProcess",
             "monitorDomainStats", "monitorEngine",
             "getCloudEntry" ]
 
@@ -37,13 +37,13 @@ from session import Session, SessionMonitor, SessionException, checkForError, Ba
 from xml.etree import ElementTree
 
 
-class _ChorusActions(set):
+class _DatabaseActions(set):
     def __getattr__(self, name):
         if name in self:
             return name
         raise AttributeError
 
-ChorusAction = _ChorusActions(["Quiesce", "Unquiesce", "Validate",
+DatabaseAction = _DatabaseActions(["Quiesce", "Unquiesce", "Validate",
                                "UpdateConfiguration"])
 
 
@@ -95,13 +95,13 @@ def getState(broker, user, password):
     
     return s.doRequest()
 
-def doChorusAction(broker, user, password, chorus, action, child=None):
+def doDatabaseAction(broker, user, password, db_name, action, child=None):
     s = Session(broker, service="ChorusManagement")
     s.authorize(user, password)
 
     if child is not None:
         child = [ child ]
-    s.doConnect(attributes={"Database" : chorus, "Action" : action}, children=child)
+    s.doConnect(attributes={"Database" : db_name, "Action" : action}, children=child)
     response = s.recv()
     checkForError(response)
 
@@ -109,14 +109,14 @@ def doChorusAction(broker, user, password, chorus, action, child=None):
 
     return response
 
-def startProcess(agent, user, password, chorus, options=None):
+def startProcess(agent, user, password, db_name, options=None):
     s = Session(agent, service="ProcessStart")
     s.authorize(user, password)
 
     if not options:
         options = []
 
-    options.append(("--database", chorus))
+    options.append(("--database", db_name))
 
     opts = []
     for (k,v) in options:
@@ -198,10 +198,10 @@ def queryEngine(address, port, target, dbPassword, msgBody=None):
 
     return response
 
-def getCloudEntry(broker, chorus, attrs=None):
+def getCloudEntry(broker, db_name, attrs=None):
     if not attrs:
         attrs = dict()
-    attrs["Database"] = chorus
+    attrs["Database"] = db_name
 
     s = Session(broker, service="SQL2")
 
