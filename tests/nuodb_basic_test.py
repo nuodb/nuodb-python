@@ -44,8 +44,8 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
             
-            for num in row:
-                self.assertEqual(num, 0);
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], 0);
                 
                 
             # param test
@@ -56,11 +56,12 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
             
-            for i in xrange(0, len(row)):
-                self.assertEqual(row[i], test_vals[i]);
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], test_vals[i - 1]);
             
         finally:
             cursor.execute("drop table typetest if exists")
         
+
 if __name__ == '__main__':
     unittest.main()
