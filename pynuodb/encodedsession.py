@@ -104,7 +104,7 @@ class EncodedSession(Session):
     def putScaledInt(self, value):
         """Appends a Scaled Integer value to the message."""
         scale = abs(value.as_tuple()[2])
-        valueStr = toByteString(value * 10**scale)
+        valueStr = toByteString(int(value * 10**scale))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
