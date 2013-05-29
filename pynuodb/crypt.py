@@ -36,10 +36,10 @@ def fromHex(hexStr):
 
 def toByteString(bigInt):
     resultBytes = []
-    if bigInt == -1:
+    if bigInt == -1 or bigInt == 0:
         resultBytes.append(chr(bigInt & 0xFF))
-        return resultBytes
-        
+        return ''.join(resultBytes)
+
     while bigInt != 0 and bigInt != -1:
         resultBytes.append(chr(bigInt & 0xFF))
         bigInt >>= 8

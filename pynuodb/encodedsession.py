@@ -182,7 +182,8 @@ class EncodedSession(Session):
         data = value.string
         length = len(data)
         lengthStr = toByteString(length)
-        packed = chr(protocol.BLOBLEN0 + len(lengthStr)) + lengthStr + data
+        lenlengthstr = len(lengthStr)
+        packed = chr(protocol.BLOBLEN0 + lenlengthstr) + lengthStr + data
         self.__output += packed
         return self
 
@@ -196,22 +197,34 @@ class EncodedSession(Session):
         
     def putScaledTime(self, value):
         """Appends a Scaled Time value to the message."""
-        valueStr = toByteString(datatype.TimeToTicks(value))
-        packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+        ticks = datatype.TimeToTicks(value)
+        valueStr = toByteString(ticks)
+        if len(valueStr) == 0:
+            packed = chr(protocol.SCALEDTIMELEN1) + chr(0) + chr(0)
+        else:
+            packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
     
     def putScaledTimestamp(self, value):
         """Appends a Scaled Timestamp value to the message."""
-        valueStr = toByteString(datatype.TimestampToTicks(value))
-        packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+        ticks = datatype.TimestampToTicks(value)
+        valueStr = toByteString(ticks)
+        if len(valueStr) == 0:
+            packed = chr(protocol.SCALEDTIMESTAMPLEN1) + chr(0) + chr(0)
+        else:
+            packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
         
     def putScaledDate(self, value):
         """Appends a Scaled Date value to the message."""
-        valueStr = toByteString(datatype.DateToTicks(value))
-        packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+        ticks = datatype.DateToTicks(value)
+        valueStr = toByteString(ticks)
+        if len(valueStr) == 0:
+            packed = chr(protocol.SCALEDDATELEN1) + chr(0) + chr(0)
+        else:  
+            packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
 

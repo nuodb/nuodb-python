@@ -235,9 +235,10 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
                            "time_col time, timestamp_col timestamp)")
 
-            test_vals = (pynuodb.Date(1, 1, 1), pynuodb.Time(0, 0, 0), pynuodb.Timestamp(1970, 1, 1, 0, 0, 0))
+            test_vals = (pynuodb.Date(1970, 1, 1), pynuodb.Time(0, 0, 0), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0))
             cursor.execute("insert into typetest (date_col, time_col, timestamp_col) " +
                            "values (?, ?, ?)", test_vals)
+            con.commit()
             
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
