@@ -241,7 +241,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
                    
             for i in xrange(1, len(row)):
-                self.assertEqual(row[i], test_vals[i-1])
+                self.assertEqual(str(row[i]), str(test_vals[i-1]))
         finally:
             cursor.execute("drop table typetest if exists")
             con.close()
@@ -286,7 +286,8 @@ class NuoDBBasicTest(NuoBase):
             time.tzset()
             con = self._connect()
             cursor = con.cursor()
-            row = cursor.execute("select * from typetest")
+            cursor.execute("select * from typetest")
+            row = cursor.fetchone()
             
             self.assertEqual(vals[0].year, row[1].year)
             self.assertEqual(vals[0].month, row[1].month)

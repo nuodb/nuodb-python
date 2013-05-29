@@ -324,11 +324,11 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
-            return self._takeBytes(typeCode - 149)
+            return datatype.Binary(self._takeBytes(typeCode - 149))
 
         if typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 72))
-            return self._takeBytes(strLength)
+            return datatype.Binary(self._takeBytes(strLength))
 
         raise DataError('Not an opaque value')
 
