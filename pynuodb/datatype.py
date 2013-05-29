@@ -136,7 +136,7 @@ def DateToTicks(value):
 def TimeToTicks(value):
     """Converts a Time object to ticks."""
     timeStruct = datetime.timedelta(hours = value.hour, minutes = value.minute, seconds = value.second)
-    return int(timeStruct.total_seconds())
+    return int(timeStruct.total_seconds() + time.timezone)
 
 def TimestampToTicks(value):
     """Converts a Timestamp object to ticks."""

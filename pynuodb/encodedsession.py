@@ -140,12 +140,13 @@ class EncodedSession(Session):
 
     def putOpaque(self, value):
         """Appends an Opaque data value to the message."""
-        length = len(value)
+        data = value.string
+        length = len(data)
         if length < 40:
-            packed = chr(protocol.OPAQUELEN0 + length) + value
+            packed = chr(protocol.OPAQUELEN0 + length) + data
         else:
             lengthStr = toByteString(length)
-            packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + value
+            packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + data
         self.__output += packed
         return self
 
@@ -247,7 +248,7 @@ class EncodedSession(Session):
         elif isinstance(value, datatype.Timestamp):
             return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Binary):
-            return self.putBlob(value)
+            return self.putOpaque(value)
         else:
             return self.putString(str(value))
         

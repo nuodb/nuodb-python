@@ -14,6 +14,7 @@ from encodedsession import EncodedSession
 from crypt import ClientPassword, RC4Cipher
 from util import getCloudEntry
 
+import time
 import string
 import protocol
 
@@ -72,7 +73,7 @@ class Connection(object):
 
         cp = ClientPassword()
         
-        parameters = {'user' : username, 'schema' : schema }
+        parameters = {'user' : username, 'schema' : schema , 'timezone' : time.strftime('%Z')}
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
         for (k, v) in parameters.iteritems():
