@@ -53,8 +53,10 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], 0);
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_param_numeric_types(self):
         con = self._connect()
@@ -75,8 +77,10 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], test_vals[i - 1]);
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
             
     def test_string_types(self):
@@ -85,11 +89,11 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, string_col string, " +
-                           "varchar_col varchar(10), char_col char(10))")
+                           "varchar_col varchar(10), char_col char(10), clob_col clob)")
             
             # basic
-            cursor.execute("insert into typetest (string_col, varchar_col, char_col) " +
-                           "values ('', '', '')")
+            cursor.execute("insert into typetest (string_col, varchar_col, char_col, clob_col) " +
+                           "values ('', '', '', '')")
             
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -98,8 +102,10 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], '');
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_param_string_types(self):
         con = self._connect()
@@ -107,13 +113,13 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, string_col string, " +
-                           "varchar_col varchar(10), char_col char(10))")
+                           "varchar_col varchar(10), char_col char(10), clob_col clob)")
             
             
             # param    
-            test_vals = ("The quick brown fox jumpped over the lazy dog.", "The", "Quick")   
-            cursor.execute("insert into typetest (string_col, varchar_col, char_col) " +
-                           "values (?, ?, ?)", test_vals)
+            test_vals = ("The quick brown fox jumpped over the lazy dog.", "The", "Quick", "The quick brown fox jumpped over the lazy dog2.")   
+            cursor.execute("insert into typetest (string_col, varchar_col, char_col, clob_col) " +
+                           "values (?, ?, ?, ?)", test_vals)
             
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -122,8 +128,37 @@ class NuoDBBasicTest(NuoBase):
                 self.assertEqual(row[i], test_vals[i-1])
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+    def test_long_string_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, string_col string, " +
+                           "clob_col clob)")
+            
+            # param
+            f = open("holmes.txt", "r")
+            text = f.read()    
+            test_vals = (text, text)   
+            cursor.execute("insert into typetest (string_col, clob_col) " +
+                           "values (?, ?)", test_vals)
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], test_vals[i-1])
+            
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_utf8_string_types(self):
         con = self._connect()
@@ -146,8 +181,10 @@ class NuoDBBasicTest(NuoBase):
             
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_date_types(self):
         con = self._connect()
@@ -184,8 +221,10 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].second, test_vals[2].second)      
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_param_date_types(self):
         con = self._connect()
@@ -222,8 +261,10 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].second, test_vals[2].second)            
             
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_other_types(self):
         con = self._connect()
@@ -243,8 +284,10 @@ class NuoDBBasicTest(NuoBase):
             for i in xrange(1, len(row)):
                 self.assertEqual(str(row[i]), str(test_vals[i-1]))
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_param_other_types(self):
         con = self._connect()
@@ -264,8 +307,10 @@ class NuoDBBasicTest(NuoBase):
             for i in xrange(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
         finally:
-            cursor.execute("drop table typetest if exists")
-            con.close()
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
     def test_timezones(self):
         try:
