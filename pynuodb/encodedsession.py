@@ -178,6 +178,7 @@ class EncodedSession(Session):
         self.__output += packed
         return self
 
+    # Not currently used by NuoDB
     def putBlob(self, value):
         """Appends the Blob(Binary Large OBject) value to the message."""
         data = value.string
@@ -347,6 +348,7 @@ class EncodedSession(Session):
 
         raise DataError('Not an opaque value')
 
+    # Not currently used by NuoDB
     def getBlob(self):
         """Read the next Blob(Binary Large OBject) value off the session."""
         typeCode = self._getTypeCode()
