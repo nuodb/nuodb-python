@@ -143,7 +143,8 @@ class NuoDBBasicTest(NuoBase):
             
             # param
             f = open("holmes.txt", "r")
-            text = f.read()    
+            text = f.read()
+            f.close()
             test_vals = (text, text)   
             cursor.execute("insert into typetest (string_col, clob_col) " +
                            "values (?, ?)", test_vals)
@@ -306,6 +307,34 @@ class NuoDBBasicTest(NuoBase):
                    
             for i in xrange(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+                
+    def test_param_binary_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary)")
+
+            f = open("640px-Starling.JPG", "rb")
+            data = f.read()
+            f.close()
+            
+            test_vals = (pynuodb.Binary(data),)
+            cursor.execute("insert into typetest (binary_col) " +
+                           "values (?)", test_vals)
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            
+            self.assertIsInstance(row[1], pynuodb.Binary)
+            self.assertEqual(row[1], pynuodb.Binary(data))
+            
         finally:
             try:
                 cursor.execute("drop table typetest if exists")

@@ -144,7 +144,7 @@ class EncodedSession(Session):
         if length < 40:
             packed = chr(protocol.OPAQUELEN0 + length) + value
         else:
-            lengthStr = self.toByteSting(length)
+            lengthStr = toByteString(length)
             packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
@@ -179,16 +179,17 @@ class EncodedSession(Session):
 
     def putBlob(self, value):
         """Appends the Blob(Binary Large OBject) value to the message."""
-        length = len(value)
-        lengthStr = self.toByteSting(length)
-        packed = chr(protocol.BLOBLEN0 + len(lengthStr)) + lengthStr + value
+        data = value.string
+        length = len(data)
+        lengthStr = toByteString(length)
+        packed = chr(protocol.BLOBLEN0 + len(lengthStr)) + lengthStr + data
         self.__output += packed
         return self
 
     def putClob(self, value):
         """Appends the Clob(Character Large OBject) value to the message."""
         length = len(value)
-        lengthStr = self.toByteSting(length)
+        lengthStr = toByteString(length)
         packed = chr(protocol.CLOBLEN0 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
