@@ -1,11 +1,10 @@
 """A module for housing the datatype classes.
 
 Exported Classes:
-Date -- Class for creating/stringifying a Date object.
-Time -- Class for creating/stringifying a Time object.
-Timestamp -- Class for creating/stringifying a Timestamp object.
-Binary -- Class for creating/stringifying a Binary object
-TypeObject -- 
+Date -- Class for a Date object.
+Time -- Class for a Time object.
+Timestamp -- Class for a Timestamp object.
+Binary -- Class for a Binary object
 
 Exported Functions:
 DateFromTicks -- Converts ticks to a Date object.
@@ -34,7 +33,7 @@ from exception import DataError
 
 class Date(object):
     
-    """Class for creating/stringifying a Date object.
+    """Class for a Date object.
     
     Private Functions:
     __init__ -- Constructor for the Date class.
@@ -53,7 +52,7 @@ class Date(object):
 
 class Time(object):
     
-    """Class for creating/stringifying a Time object.
+    """Class for a Time object.
     
     Private Functions:
     __init__ -- Constructor for the Time class.
@@ -72,7 +71,7 @@ class Time(object):
 
 class Timestamp(object):
     
-    """Class for creating/stringifying a Timestamp object.
+    """Class for a Timestamp object.
     
     Private Functions:
     __init__ -- Constructor for the Timestamp class.
@@ -94,11 +93,12 @@ class Timestamp(object):
         
 class Binary(object):
     
-    """Class for creating/stringifying a Binary object.
+    """Class for a Binary object.
     
     Private Functions:
     __init__ -- Constructor for the Binary class.
     __str__ -- Stringifies the Binary object.
+    __eq__ -- Checks equality of two Binary objects.
     """
     
     def __init__(self, string):
@@ -108,6 +108,13 @@ class Binary(object):
     def __str__(self):
         """Stringifies the Binary object."""
         return self.string
+    
+    def __eq__(self, other):
+        """Checks equality of two Binary objects."""
+        if isinstance(other, Binary):
+            return self.string == other.string
+        else:
+            return False
         
 def DateFromTicks(ticks):
     """Converts ticks to a Date object."""
