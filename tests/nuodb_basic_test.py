@@ -241,7 +241,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
                    
             for i in xrange(1, len(row)):
-                self.assertEqual(str(row[i]), str(test_vals[i-1]))
+                self.assertEqual(row[i], test_vals[i-1])
         finally:
             cursor.execute("drop table typetest if exists")
             con.close()
