@@ -11,6 +11,9 @@ Exported Functions:
 DateFromTicks -- Converts ticks to a Date object.
 TimeFromTicks -- Converts ticks to a Time object.
 TimestampFromTicks -- Converts ticks to a Timestamp object.
+DateToTicks -- Converts a Date object to ticks.
+TimeToTicks -- Converts a Time object to ticks.
+TimestampToTicks -- Converts a Timestamp object to ticks.
 TypeObjectFromNuodb -- Converts a Nuodb column type name to a TypeObject variable.
 
 TypeObject Variables:
@@ -22,8 +25,8 @@ ROWID -- TypeObject()
 """
 
 __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
-            'TimestampFromTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-            'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
+            'TimestampFromTicks', 'DateToTicks', 'TimeToTicks', 'TimestampToTicks',
+            'Binary', 'STRING', 'BINARY', 'NUMBER', 'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
 
 import datetime, decimal, time
 from exception import DataError
@@ -104,7 +107,7 @@ class Binary(object):
         
     def __str__(self):
         """Stringifies the Binary object."""
-        return "%s" % [ bin(ord(ch))[2:].zfill(8) for ch in self.string ]
+        return self.string
         
 def DateFromTicks(ticks):
     """Converts ticks to a Date object."""
@@ -117,6 +120,21 @@ def TimeFromTicks(ticks):
 def TimestampFromTicks(ticks):
     """Converts ticks to a Timestamp object."""
     return Timestamp(*time.localtime(ticks)[:6])
+
+def DateToTicks(value):
+    """Converts a Date object to ticks."""
+    timeStruct = datetime.date(value.year, value.month, value.day).timetuple()
+    return int(time.mktime(timeStruct))
+
+def TimeToTicks(value):
+    """Converts a Time object to ticks."""
+    timeStruct = datetime.timedelta(hours = value.hour, minutes = value.minute, seconds = value.second)
+    return int(timeStruct.total_seconds())
+
+def TimestampToTicks(value):
+    """Converts a Timestamp object to ticks."""
+    timeStruct = datetime.datetime(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
+    return int(time.mktime(timeStruct))
 
 class TypeObject(object):
     def __init__(self, *values):

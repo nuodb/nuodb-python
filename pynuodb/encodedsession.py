@@ -12,6 +12,9 @@ from session import Session, SessionException
 import uuid
 import struct
 import protocol
+import datatype
+import time
+import decimal
 from exception import DataError, DatabaseError, EndOfStream
 
 # from nuodb.util import getCloudEntry
@@ -98,13 +101,11 @@ class EncodedSession(Session):
         self.__output += packed
         return self
 
-    def putScaledInt(self, value, scale):
+    def putScaledInt(self, value):
         """Appends a Scaled Integer value to the message."""
-        if scale is 0:
-            self.putInt(value)
-        else:
-            valueStr = toByteString(value)
-            packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
+        scale = abs(value.as_tuple()[2])
+        valueStr = toByteString(value * 10**scale)
+        packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
 
@@ -192,39 +193,24 @@ class EncodedSession(Session):
         self.__output += packed
         return self
         
-    def putScaledTime(self, value, scale):
+    def putScaledTime(self, value):
         """Appends a Scaled Time value to the message."""
-        if scale is 0:
-            self.putInt(value)
-        else:
-            valueStr = toByteString(value)
-            if len(valueStr) == 0:
-                raise DataError('Can\'t put 0 length scaled time.')
-            packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        valueStr = toByteString(datatype.TimeToTicks(value))
+        packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
     
-    def putScaledTimestamp(self, value, scale):
+    def putScaledTimestamp(self, value):
         """Appends a Scaled Timestamp value to the message."""
-        if scale is 0:
-            self.putInt(value)
-        else:
-            valueStr = toByteString(value)
-            if len(valueStr) == 0:
-                raise DataError('Can\'t put 0 length scaled timestamp.')
-            packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        valueStr = toByteString(datatype.TimestampToTicks(value))
+        packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
         
-    def putScaledDate(self, value, scale):
+    def putScaledDate(self, value):
         """Appends a Scaled Date value to the message."""
-        if scale is 0:
-            self.putInt(value)
-        else:
-            valueStr = toByteString(value)
-            if len(valueStr) == 0:
-                raise DataError('Can\'t put 0 length scaled date.')
-            packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
+        valueStr = toByteString(datatype.DateToTicks(value))
+        packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
 
@@ -238,8 +224,18 @@ class EncodedSession(Session):
             return self.putInt(value)
         elif type(value) == float:
             return self.putDouble(value)
+        elif isinstance(value, decimal.Decimal):
+            return self.putScaledInt(value)
+        elif isinstance(value, datatype.Date):
+            return self.putScaledDate(value)
+        elif isinstance(value, datatype.Time):
+            return self.putScaledTime(value)
+        elif isinstance(value, datatype.Timestamp):
+            return self.putScaledTimestamp(value)
+        elif isinstance(value, datatype.Binary):
+            return self.putBlob(value)
         else:
-            return self.putString(value)
+            return self.putString(str(value))
         
     #
     # Methods to get values out of the last exchange
@@ -261,8 +257,9 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
-            scale = self._takeBytes(1)
-            return (fromByteString(self._takeBytes(typeCode - 60)), scale)
+            scale = fromByteString(self._takeBytes(1))
+            value = fromByteString(self._takeBytes(typeCode - 60))
+            return value / 10.0**scale
 
         raise DataError('Not a scaled integer')
 
@@ -299,7 +296,10 @@ class EncodedSession(Session):
         """Read the next Double off the session."""
         typeCode = self._getTypeCode()
         
-        if typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
+        if typeCode == protocol.DOUBLELEN0:
+            return 0.0
+        
+        if typeCode in range(protocol.DOUBLELEN0 + 1, protocol.DOUBLELEN8 + 1):
             return struct.unpack('d', self._takeBytes(typeCode - 77))[0]
             
         raise DataError('Not a double')
@@ -338,7 +338,7 @@ class EncodedSession(Session):
         
         if typeCode in range(protocol.BLOBLEN0, protocol.BLOBLEN4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 189))
-            return self._takeBytes(strLength)
+            return datatype.Binary(self._takeBytes(strLength))
 
         raise DataError('Not a blob')
     
@@ -357,8 +357,9 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
-            scale = self._takeBytes(1)
-            return (fromByteString(self._takeBytes(typeCode - 208)), scale)
+            scale = fromByteString(self._takeBytes(1))
+            time = fromByteString(self._takeBytes(typeCode - 208))
+            return datatype.TimeFromTicks(round(time/10.0**scale))
 
         raise DataError('Not a scaled time')
     
@@ -367,8 +368,9 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
-            scale = self._takeBytes(1)
-            return (fromByteString(self._takeBytes(typeCode - 216)), scale)
+            scale = fromByteString(self._takeBytes(1))
+            timestamp = fromByteString(self._takeBytes(typeCode - 216))
+            return datatype.TimestampFromTicks(round(timestamp/10.0**scale))
 
         raise DataError('Not a scaled timestamp')
     
@@ -377,8 +379,9 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
-            scale = self._takeBytes(1)
-            return (fromByteString(self._takeBytes(typeCode - 200)), scale)
+            scale = fromByteString(self._takeBytes(1))
+            date = fromByteString(self._takeBytes(typeCode - 200))
+            return datatype.DateFromTicks(round(date/10.0**scale))
 
         raise DataError('Not a scaled date')
 
