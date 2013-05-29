@@ -34,6 +34,37 @@ def toHex(bigInt):
 def fromHex(hexStr):
     return int(hexStr, 16)
 
+def toSignedByteString(value):
+    if value == 0 or value == -1:
+        return chr(value & 0xFF)
+    
+    resultBytes = []
+    while value != 0 and value != -1:
+        resultBytes.append(chr(value & 0xFF))
+        value >>= 8
+            
+        # Zero pad if positive
+    if value == 0 and (ord(resultBytes[-1]) & 0x80) == 0x80:
+        resultBytes.append(chr(0x00))
+    elif value == -1 and (ord(resultBytes[-1]) & 0x80) == 0x00:
+        resultBytes.append(chr(0xFF))
+    
+    resultBytes.reverse();
+    result = ''.join(resultBytes)
+    
+    return result
+
+
+def fromSignedByteString(byteStr):
+    is_neg = (ord(byteStr[0]) & 0x80) >> 7
+    result = 0
+    shiftCount = 0
+    for b in reversed(byteStr):
+        result = result | (((ord(b) & 0xFF) ^ (is_neg * 0xFF)) << shiftCount)
+        shiftCount = shiftCount + 8
+
+    return ((-1)**is_neg) * (result + is_neg)
+
 def toByteString(bigInt):
     resultBytes = []
     if bigInt == -1 or bigInt == 0:
@@ -52,7 +83,6 @@ def toByteString(bigInt):
 def fromByteString(byteStr):
     result = 0
     shiftCount = 0
-
     for b in reversed(byteStr):
         result = result | ((ord(b) & 0xff) << shiftCount)
         shiftCount = shiftCount + 8

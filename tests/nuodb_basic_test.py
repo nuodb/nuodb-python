@@ -314,6 +314,7 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
                 
+    
                 
     def test_param_binary_types(self):
         con = self._connect()
