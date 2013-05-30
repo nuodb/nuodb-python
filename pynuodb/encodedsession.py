@@ -237,8 +237,6 @@ class EncodedSession(Session):
         """Determines the probable type of the value and calls the supporting function."""
         if value == None:
             return self.putNull()
-        elif value == True or value == False:
-            return self.putBoolean(value)
         elif type(value) == int:
             return self.putInt(value)
         elif type(value) == float:
@@ -253,6 +251,8 @@ class EncodedSession(Session):
             return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Binary):
             return self.putOpaque(value)
+        elif value == True or value == False:
+            return self.putBoolean(value)
         else:
             return self.putString(str(value))
         
