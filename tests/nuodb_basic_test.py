@@ -75,7 +75,21 @@ class NuoDBBasicTest(NuoBase):
             
             for i in xrange(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1]);
-            
+                        
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+ 
+    def test_param_numeric_types_pos(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")      
+                 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'), decimal.Decimal('34524584057.3434234'), 10000.999)
             cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) " +
                            "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
@@ -86,6 +100,19 @@ class NuoDBBasicTest(NuoBase):
             for i in xrange(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1]);
                 
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+ 
+    def test_param_numeric_types_neg(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")     
                 
             test_vals = (-13546, -156465465, -3135135132132104354, decimal.Decimal('-354564.12'), decimal.Decimal('-77788864.6'), decimal.Decimal('-46543213.01324654'), -999.999999)
             cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) " +
@@ -143,17 +170,91 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("insert into typetest (bigint_col,) " +
                                "values (?)", test_vals)
                 
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+                
+    def test_int_into_decimal(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                
             test_vals = (1,)
-            cursor.execute("insert into typetest (numeric_col) " +
+            cursor.execute("insert into typetest (decimal_col) " +
                            "values (?)", test_vals)
-            cursor.execute("select numeric_col from typetest order by id desc limit 1")
+            cursor.execute("select decimal_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
             
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+                
+    def test_float_into_number(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+            
             test_vals = (1.215,)
-            cursor.execute("insert into typetest (numeric_col) " +
+            cursor.execute("insert into typetest (number_col) " +
                            "values (?)", test_vals)
-            cursor.execute("select numeric_col from typetest order by id desc limit 1")
+            cursor.execute("select number_col from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
+
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+                
+    def test_string_into_decimal(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+
+            test_vals = ('91.56',)
+            cursor.execute("insert into typetest (decimal_col) " +
+                           "values (?)", test_vals)
+            cursor.execute("select decimal_col from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
+            
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+                
+                
+    def test_string_into_number(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+            
+            test_vals = ('54.4978',)
+            cursor.execute("insert into typetest (number_col) " +
+                           "values (?)", test_vals)
+            cursor.execute("select number_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
             
@@ -172,7 +273,6 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, string_col string, " +
                            "varchar_col varchar(10), char_col char(10), clob_col clob)")
             
-            # basic
             cursor.execute("insert into typetest (string_col, varchar_col, char_col, clob_col) " +
                            "values ('', '', '', '')")
             
