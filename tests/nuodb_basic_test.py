@@ -147,16 +147,15 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("insert into typetest (numeric_col) " +
                            "values (?)", test_vals)
             cursor.execute("select numeric_col from typetest order by id desc limit 1")
-            con.commit()
             row = cursor.fetchone()
             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
             
-#            test_vals = (0, 0, 0, decimal.Decimal(0), 1.21, decimal.Decimal(0), 0.0)
-#            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) " +
-#                           "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
-#            cursor.execute("select * from typetest order by id desc limit 1")
-#            row = cursor.fetchone()
-#            self.assertEqual(row[4], decimal.Decimal(1))
+            test_vals = (1.215,)
+            cursor.execute("insert into typetest (numeric_col) " +
+                           "values (?)", test_vals)
+            cursor.execute("select numeric_col from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
             
         finally:
             try:
