@@ -102,6 +102,67 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
+                
+                
+    def test_overflow_numeric_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+            
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (10**99,)
+                cursor.execute("insert into typetest (smallint_col) " +
+                               "values (?)", test_vals)
+                
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (10**99,)
+                cursor.execute("insert into typetest (integer_col) " +
+                               "values (?)", test_vals)
+                
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (10**99,)
+                cursor.execute("insert into typetest (bigint_col,) " +
+                               "values (?)", test_vals)
+                
+                
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (-(10**99),)
+                cursor.execute("insert into typetest (smallint_col) " +
+                               "values (?)", test_vals)
+                
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (-(10**99),)
+                cursor.execute("insert into typetest (integer_col) " +
+                               "values (?)", test_vals)
+                
+            with self.assertRaises(pynuodb.DatabaseError):
+                test_vals = (-(10**99),)
+                cursor.execute("insert into typetest (bigint_col,) " +
+                               "values (?)", test_vals)
+                
+            test_vals = (1,)
+            cursor.execute("insert into typetest (numeric_col) " +
+                           "values (?)", test_vals)
+            cursor.execute("select numeric_col from typetest order by id desc limit 1")
+            con.commit()
+            row = cursor.fetchone()
+            self.assertEqual(row[0], decimal.Decimal(1))
+            
+#            test_vals = (0, 0, 0, decimal.Decimal(0), 1.21, decimal.Decimal(0), 0.0)
+#            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) " +
+#                           "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
+#            cursor.execute("select * from typetest order by id desc limit 1")
+#            row = cursor.fetchone()
+#            self.assertEqual(row[4], decimal.Decimal(1))
+            
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
             
             
     def test_string_types(self):
