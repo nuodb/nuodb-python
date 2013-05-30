@@ -389,6 +389,25 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(vals[0].year, row[1].year)
             self.assertEqual(vals[0].month, row[1].month)
             self.assertEqual(vals[0].day, row[1].day + 1)
+            self.assertEqual(vals[0].hour, (row[1].hour + 3) % 24)
+            self.assertEqual(vals[0].minute, row[1].minute)
+            self.assertEqual(vals[0].second, row[1].second)
+            con.close()
+            
+            
+            os.environ['TZ'] = 'CET-01CEST,M4.1.0,M10.5.0'
+            time.tzset()
+            con = self._connect()
+            cursor = con.cursor()
+            cursor.execute("select * from typetest")
+            row = cursor.fetchone()
+            
+            self.assertEqual(vals[0].year, row[1].year)
+            self.assertEqual(vals[0].month, row[1].month)
+            self.assertEqual(vals[0].day, row[1].day)
+            self.assertEqual(vals[0].hour, (row[1].hour - 6) % 24)
+            self.assertEqual(vals[0].minute, row[1].minute)
+            self.assertEqual(vals[0].second, row[1].second)
             
             cursor.execute("drop table typetest if exists")
             con.close()
