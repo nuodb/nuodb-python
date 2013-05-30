@@ -56,7 +56,10 @@ def toSignedByteString(value):
 
 
 def fromSignedByteString(byteStr):
-    is_neg = (ord(byteStr[0]) & 0x80) >> 7
+    if byteStr:
+        is_neg = (ord(byteStr[0]) & 0x80) >> 7
+    else:
+        is_neg = 0
     result = 0
     shiftCount = 0
     for b in reversed(byteStr):

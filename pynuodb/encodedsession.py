@@ -107,7 +107,7 @@ class EncodedSession(Session):
     def putScaledInt(self, value):
         """Appends a Scaled Integer value to the message."""
         scale = abs(value.as_tuple()[2])
-        valueStr = toByteString(int(value * 10**scale))
+        valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
@@ -277,7 +277,7 @@ class EncodedSession(Session):
 
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
-            value = fromByteString(self._takeBytes(typeCode - 60))
+            value = fromSignedByteString(self._takeBytes(typeCode - 60))
             return decimal.Decimal(value) / decimal.Decimal(10**scale)
 
         raise DataError('Not a scaled integer')
