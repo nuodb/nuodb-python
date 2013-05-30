@@ -155,7 +155,7 @@ class EncodedSession(Session):
 
     def putDouble(self, value):
         """Appends a Double to the message."""
-        valueStr = struct.pack('d', value)
+        valueStr = struct.pack('!d', value)
         packed = chr(protocol.DOUBLELEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
@@ -319,7 +319,7 @@ class EncodedSession(Session):
             return 0.0
         
         if typeCode in range(protocol.DOUBLELEN0 + 1, protocol.DOUBLELEN8 + 1):
-            return struct.unpack('d', self._takeBytes(typeCode - 77))[0]
+            return struct.unpack('!d', self._takeBytes(typeCode - 77))[0]
             
         raise DataError('Not a double')
 
