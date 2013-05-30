@@ -251,7 +251,7 @@ class EncodedSession(Session):
             return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Binary):
             return self.putOpaque(value)
-        elif value == True or value == False:
+        elif value is True or value is False:
             return self.putBoolean(value)
         else:
             return self.putString(str(value))
