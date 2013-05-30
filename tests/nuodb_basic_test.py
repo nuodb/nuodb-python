@@ -18,10 +18,10 @@ from nuodb_base import NuoBase
 class NuoDBBasicTest(NuoBase):
     
     def setUp(self):
-        NuoBase.setUp(self)
+        pass
 
     def tearDown(self):
-        NuoBase.tearDown(self)
+        pass
         
     def _connect(self):
         return pynuodb.connect("test", "localhost", "dba", "goalie", schema="hockey")
