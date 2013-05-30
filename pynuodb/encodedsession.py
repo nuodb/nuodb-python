@@ -6,7 +6,7 @@ EncodedSession -- Class for representing an encoded session with the database.
 
 __all__  = [ 'EncodedSession' ]
 
-from crypt import toByteString, fromByteString
+from crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
 from session import Session, SessionException
 
 import uuid
@@ -88,15 +88,18 @@ class EncodedSession(Session):
         if self.__output != None:
             raise SessionException('no')
         self.__output = ''
-        self.putInt(messageId)
+        self.putInt(messageId, isMessageId = True)
         return self
 
-    def putInt(self, value):
+    def putInt(self, value, isMessageId = False):
         """Appends an Integer value to the message."""
         if value < 32 and value > -11:
             packed = chr(protocol.INT0 + value)
         else:
-            valueStr = toByteString(value)
+            if isMessageId:
+                valueStr = toByteString(value)
+            else:
+                valueStr = toSignedByteString(value)
             packed = chr(protocol.INTLEN1 - 1 + len(valueStr)) + valueStr
         self.__output += packed
         return self
@@ -159,14 +162,14 @@ class EncodedSession(Session):
 
     def putMsSinceEpoch(self, value):
         """Appends the MsSinceEpoch value to the message."""
-        valueStr = toByteString(value)
+        valueStr = toSignedByteString(value)
         packed = chr(protocol.MILLISECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putNsSinceEpoch(self, value):
         """Appends the NsSinceEpoch value to the message."""
-        valueStr = toByteString(value)
+        valueStr = toSignedByteString(value)
         packed = chr(protocol.NANOSECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
@@ -211,7 +214,7 @@ class EncodedSession(Session):
     def putScaledTimestamp(self, value):
         """Appends a Scaled Timestamp value to the message."""
         ticks = datatype.TimestampToTicks(value)
-        valueStr = toByteString(ticks)
+        valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDTIMESTAMPLEN1) + chr(0) + chr(0)
         else:
@@ -222,7 +225,7 @@ class EncodedSession(Session):
     def putScaledDate(self, value):
         """Appends a Scaled Date value to the message."""
         ticks = datatype.DateToTicks(value)
-        valueStr = toByteString(ticks)
+        valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDDATELEN1) + chr(0) + chr(0)
         else:  
@@ -264,7 +267,7 @@ class EncodedSession(Session):
             return typeCode - 20
 
         elif typeCode in range(protocol.INTLEN1, protocol.INTLEN8 + 1):
-            return fromByteString(self._takeBytes(typeCode - 51))
+            return fromSignedByteString(self._takeBytes(typeCode - 51))
 
         raise DataError('Not an integer')
 
@@ -275,7 +278,7 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             value = fromByteString(self._takeBytes(typeCode - 60))
-            return value / 10.0**scale
+            return decimal.Decimal(value) / decimal.Decimal(10**scale)
 
         raise DataError('Not a scaled integer')
 
@@ -325,10 +328,10 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
         
         if typeCode in range(protocol.MILLISECLEN0, protocol.MILLISECLEN8 + 1):
-            return fromByteString(self._takeBytes(typeCode - 86))
+            return fromSignedByteString(self._takeBytes(typeCode - 86))
             
         if typeCode in range(protocol.NANOSECLEN0, protocol.NANOSECLEN8 + 1):
-            return fromByteString(self._takeBytes(typeCode - 95))
+            return fromSignedByteString(self._takeBytes(typeCode - 95))
             
         if typeCode in range(protocol.TIMELEN0, protocol.TIMELEN4 + 1):
             return fromByteString(self._takeBytes(typeCode - 104))
@@ -386,7 +389,7 @@ class EncodedSession(Session):
 
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
-            timestamp = fromByteString(self._takeBytes(typeCode - 216))
+            timestamp = fromSignedByteString(self._takeBytes(typeCode - 216))
             return datatype.TimestampFromTicks(round(timestamp/10.0**scale))
 
         raise DataError('Not a scaled timestamp')
@@ -397,7 +400,7 @@ class EncodedSession(Session):
 
         if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
-            date = fromByteString(self._takeBytes(typeCode - 200))
+            date = fromSignedByteString(self._takeBytes(typeCode - 200))
             return datatype.DateFromTicks(round(date/10.0**scale))
 
         raise DataError('Not a scaled date')
