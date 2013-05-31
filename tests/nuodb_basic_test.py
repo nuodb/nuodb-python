@@ -577,7 +577,74 @@ class NuoDBBasicTest(NuoBase):
                 os.environ.pop('TZ')
             except:
                 pass
+        
+    def test_all_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary, " +
+                           "bool_col boolean, timestamp_col timestamp, time_col time, date_col date, string_col string, " +
+                           "varchar_col varchar(10), char_col char(10), smallint_col smallint, integer_col integer, bigint_col bigint, " +
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double, clob_col clob, blob_col blob)")
             
+            vals = (
+                        pynuodb.Binary("binary"),
+                        True,
+                        pynuodb.Timestamp(1960, 12, 31, 19, 0, 0),
+                        pynuodb.Time(10, 30, 44),
+                        pynuodb.Date(1968, 1, 1),
+                        "this",
+                        "is a",
+                        "test",
+                        -13546, 
+                        156465465, 
+                        -3135135132132104354, 
+                        decimal.Decimal('-354564.12'), 
+                        decimal.Decimal('77788864.6'), 
+                        decimal.Decimal('-46543213.01324654'), 
+                        -999.999999,
+                        "The test",
+                        pynuodb.Binary("test"),
+                   )
+            cursor.execute("insert into typetest (binary_col, bool_col, timestamp_col, time_col, date_col, string_col, " +
+                           "varchar_col, char_col, smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " +
+                           "number_col, double_col, clob_col, blob_col) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", vals)
+            con.commit()
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            
+            for i in xrange(1, 3):
+                self.assertEqual(row[i], vals[i - 1]);
+            
+            self.assertIsInstance(row[3], pynuodb.Timestamp)
+            self.assertIsInstance(row[4], pynuodb.Time)
+            self.assertIsInstance(row[5], pynuodb.Date)
+            
+            self.assertEqual(row[3].year, vals[2].year)
+            self.assertEqual(row[3].month, vals[2].month)
+            self.assertEqual(row[3].day, vals[2].day)
+            self.assertEqual(row[3].hour, vals[2].hour)
+            self.assertEqual(row[3].minute, vals[2].minute)
+            self.assertEqual(row[3].second, vals[2].second)  
+            
+            self.assertEqual(row[4].hour, vals[3].hour)
+            self.assertEqual(row[4].minute, vals[3].minute)
+            self.assertEqual(row[4].second, vals[3].second)
+            
+            self.assertEqual(row[5].year, vals[4].year)
+            self.assertEqual(row[5].month, vals[4].month)
+            self.assertEqual(row[5].day, vals[4].day)
+            
+            for i in xrange(6, len(row)):
+                self.assertEqual(row[i], vals[i - 1]);
+
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()            
 
 if __name__ == '__main__':
     unittest.main()
