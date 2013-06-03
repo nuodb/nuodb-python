@@ -379,8 +379,8 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             time = fromByteString(self._takeBytes(typeCode - 208))
-            ticks = time/10.0**scale
-            return datatype.TimeFromTicks(round(ticks), int((decimal.Decimal(str(ticks)) % 1) * decimal.Decimal(1000000)))
+            ticks = decimal.Decimal(str(time)) / decimal.Decimal(10**scale)
+            return datatype.TimeFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled time')
     
@@ -391,8 +391,8 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             timestamp = fromSignedByteString(self._takeBytes(typeCode - 216))
-            ticks = timestamp/10.0**scale
-            return datatype.TimestampFromTicks(round(ticks), int((decimal.Decimal(str(ticks)) % 1) * decimal.Decimal(1000000)))
+            ticks = decimal.Decimal(str(timestamp)) / decimal.Decimal(10**scale)
+            return datatype.TimestampFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled timestamp')
     

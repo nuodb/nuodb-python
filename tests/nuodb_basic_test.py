@@ -376,7 +376,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
                            "time_col time, timestamp_col timestamp)")
             
-            test_vals = (pynuodb.Date(2013, 5, 28), pynuodb.Time(8, 13, 34), pynuodb.Timestamp(2013, 3, 24, 12, 3, 26))
+            test_vals = (pynuodb.Date(1971, 1, 1), pynuodb.Time(8, 13, 34), pynuodb.Timestamp(2013, 3, 24, 12, 3, 26))
             cursor.execute("insert into typetest (date_col, time_col, timestamp_col) " +
                            "values ('" + str(test_vals[0]) + "','" + str(test_vals[1]) + "','" + str(test_vals[2]) + "')")
             
@@ -585,7 +585,7 @@ class NuoDBBasicTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, time_col time, timestamp_col timestamp)")
 
-            test_vals = (pynuodb.Time(5, 8, 20, 1200), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0, 1400))
+            test_vals = (pynuodb.Time(5, 8, 20, 12), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0, 1400))
             cursor.execute("insert into typetest (time_col, timestamp_col) " +
                            "values (?, ?)", test_vals)
             con.commit()
