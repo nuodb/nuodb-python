@@ -31,8 +31,8 @@ import datetime, decimal, time
 from exception import DataError
 
 
-class Date(object):
-    
+class Date(datetime.date):
+    pass
     """Class for a Date object.
     
     Private Functions:
@@ -40,18 +40,18 @@ class Date(object):
     __str__ -- Stringifies the Date object.
     """
     
-    def __init__(self, year, month, day):
-        """Constructor for the Date class."""
-        self.year = year
-        self.month = month
-        self.day = day
-        
-    def __str__(self):
-        """Stringifies the Date object."""
-        return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
+#     def __init__(self, year, month, day):
+#         """Constructor for the Date class."""
+#         self.year = year
+#         self.month = month
+#         self.day = day
+#         
+#     def __str__(self):
+#         """Stringifies the Date object."""
+#         return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
 
-class Time(object):
-    
+class Time(datetime.time):
+    pass
     """Class for a Time object.
     
     Private Functions:
@@ -59,18 +59,21 @@ class Time(object):
     __str__ -- Stringifies the Time object.
     """
     
-    def __init__(self, hour, minute, second):
-        """Constructor for the Time class."""
-        self.hour     = hour
-        self.minute = minute
-        self.second = second
+#     def __init__(self, hour, minute, second):
+#         """Constructor for the Time class."""
+#         self.hour     = hour
+#         self.minute = minute
+#         self.second = second
+# 
+#     def __str__(self):
+#         """Stringifies the Time object."""
+#         return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
+#     
+#     def __repr__(self):
+#         return repr(datetime.time(self.hour, self.minute, self.second))
 
-    def __str__(self):
-        """Stringifies the Time object."""
-        return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
-
-class Timestamp(object):
-    
+class Timestamp(datetime.datetime):
+    pass
     """Class for a Timestamp object.
     
     Private Functions:
@@ -78,18 +81,21 @@ class Timestamp(object):
     __str__ -- Stringifies the Timestamp object.
     """
     
-    def __init__(self, year, month, day, hour, minute, second):
-        """Constructor for the Timestamp class."""
-        self.year     = year
-        self.month     = month
-        self.day     = day
-        self.hour     = hour
-        self.minute = minute
-        self.second = second
-        
-    def __str__(self):
-        """Stringifies the Timestamp object."""
-        return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat(' ')
+#     def __init__(self, year, month, day, hour, minute, second):
+#         """Constructor for the Timestamp class."""
+#         self.year     = year
+#         self.month     = month
+#         self.day     = day
+#         self.hour     = hour
+#         self.minute = minute
+#         self.second = second
+#         
+#     def __str__(self):
+#         """Stringifies the Timestamp object."""
+#         return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat(' ')
+#     
+#     def __repr__(self):
+#         return repr(datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second))
         
 class Binary(object):
     
