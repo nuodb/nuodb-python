@@ -130,10 +130,6 @@ class Connection(object):
         fieldValue = self.__session.getInt()
         r2 = self.__session.getInt()
 
-        print "count: " + str(count)
-        print "name: " + colname
-        print "value: " + str(fieldValue)
-
     @property
     def auto_commit(self):
         """Gets the value of auto_commit from the database."""
