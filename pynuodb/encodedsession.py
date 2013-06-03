@@ -202,23 +202,23 @@ class EncodedSession(Session):
         
     def putScaledTime(self, value):
         """Appends a Scaled Time value to the message."""
-        ticks = datatype.TimeToTicks(value)
+        (ticks, scale) = datatype.TimeToTicks(value)
         valueStr = toByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDTIMELEN1) + chr(0) + chr(0)
         else:
-            packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+            packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
     
     def putScaledTimestamp(self, value):
         """Appends a Scaled Timestamp value to the message."""
-        ticks = datatype.TimestampToTicks(value)
+        (ticks, scale) = datatype.TimestampToTicks(value)
         valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDTIMESTAMPLEN1) + chr(0) + chr(0)
         else:
-            packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+            packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
         
@@ -379,7 +379,8 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             time = fromByteString(self._takeBytes(typeCode - 208))
-            return datatype.TimeFromTicks(round(time/10.0**scale))
+            ticks = time/10.0**scale
+            return datatype.TimeFromTicks(round(ticks), int((decimal.Decimal(str(ticks)) % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled time')
     
@@ -390,7 +391,8 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             timestamp = fromSignedByteString(self._takeBytes(typeCode - 216))
-            return datatype.TimestampFromTicks(round(timestamp/10.0**scale))
+            ticks = timestamp/10.0**scale
+            return datatype.TimestampFromTicks(round(ticks), int((decimal.Decimal(str(ticks)) % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled timestamp')
     

@@ -577,6 +577,43 @@ class NuoDBBasicTest(NuoBase):
                 os.environ.pop('TZ')
             except:
                 pass
+            
+    def test_param_time_micro_types(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, time_col time, timestamp_col timestamp)")
+
+            test_vals = (pynuodb.Time(5, 8, 20, 1200), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0, 1400))
+            cursor.execute("insert into typetest (time_col, timestamp_col) " +
+                           "values (?, ?)", test_vals)
+            con.commit()
+            
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            
+            self.assertIsInstance(row[1], pynuodb.Time)
+            self.assertIsInstance(row[2], pynuodb.Timestamp)
+            
+            self.assertEqual(row[1].hour, test_vals[0].hour)
+            self.assertEqual(row[1].minute, test_vals[0].minute)
+            self.assertEqual(row[1].second, test_vals[0].second)
+            self.assertEqual(row[1].microsecond, test_vals[0].microsecond)
+            
+            self.assertEqual(row[2].year, test_vals[1].year)
+            self.assertEqual(row[2].month, test_vals[1].month)
+            self.assertEqual(row[2].day, test_vals[1].day)
+            self.assertEqual(row[2].hour, test_vals[1].hour)
+            self.assertEqual(row[2].minute, test_vals[1].minute)
+            self.assertEqual(row[2].second, test_vals[1].second)
+            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)            
+            
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
         
     def test_all_types(self):
         con = self._connect()
