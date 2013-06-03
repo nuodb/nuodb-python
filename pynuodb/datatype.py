@@ -48,8 +48,8 @@ class Date(datetime.date):
 #         """Stringifies the Date object."""
 #         return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
 #     
-#     def __repr__(self):
-#         return repr(datetime.date(self.year, self.month, self.day))
+    def __repr__(self):
+        return repr(datetime.date(self.year, self.month, self.day))
 
 class Time(datetime.time):
     """Class for a Time object.
@@ -67,8 +67,8 @@ class Time(datetime.time):
 #         """Stringifies the Time object."""
 #         return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
 #      
-#     def __repr__(self):
-#         return repr(datetime.time(self.hour, self.minute, self.second))
+    def __repr__(self):
+        return repr(datetime.time(self.hour, self.minute, self.second))
 
 class Timestamp(datetime.datetime):
     """Class for a Timestamp object.
@@ -86,8 +86,8 @@ class Timestamp(datetime.datetime):
 #         """Stringifies the Timestamp object."""
 #         return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat(' ')
 #        
-#     def __repr__(self):
-#         return repr(datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second))
+    def __repr__(self):
+        return repr(datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second))
         
 class Binary(object):
     
