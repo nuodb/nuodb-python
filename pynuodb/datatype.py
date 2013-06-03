@@ -126,13 +126,13 @@ def DateFromTicks(ticks):
     """Converts ticks to a Date object."""
     return Date(*time.localtime(ticks)[:3])
 
-def TimeFromTicks(ticks):
+def TimeFromTicks(ticks, micro = 0):
     """Converts ticks to a Time object."""
-    return Time(*time.localtime(ticks)[3:6])
+    return Time(*time.localtime(ticks)[3:6] + (micro,))
 
-def TimestampFromTicks(ticks):
+def TimestampFromTicks(ticks, micro = 0):
     """Converts ticks to a Timestamp object."""
-    return Timestamp(*time.localtime(ticks)[:6])
+    return Timestamp(*time.localtime(ticks)[:6] + (micro,))
 
 def DateToTicks(value):
     """Converts a Date object to ticks."""
@@ -141,13 +141,15 @@ def DateToTicks(value):
 
 def TimeToTicks(value):
     """Converts a Time object to ticks."""
-    timeStruct = datetime.timedelta(hours = value.hour, minutes = value.minute, seconds = value.second)
-    return int(timeStruct.total_seconds() + time.timezone)
+    timeStruct = datetime.timedelta(hours = value.hour, minutes = value.minute, seconds = value.second, microseconds = value.microsecond)
+    timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
+    return (int((timeDec + time.timezone) * 10**abs(timeDec.as_tuple()[2])), abs(timeDec.as_tuple()[2]))
 
 def TimestampToTicks(value):
     """Converts a Timestamp object to ticks."""
     timeStruct = datetime.datetime(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
-    return int(time.mktime(timeStruct))
+    micro = value.microsecond/1000000.0
+    return (int((time.mktime(timeStruct) + micro) * 10**(len(str(micro)) - 2)), len(str(micro)) - 2)
 
 class TypeObject(object):
     def __init__(self, *values):
