@@ -1,9 +1,6 @@
 """A module for housing the datatype classes.
 
 Exported Classes:
-Date -- Class for a Date object.
-Time -- Class for a Time object.
-Timestamp -- Class for a Timestamp object.
 Binary -- Class for a Binary object
 
 Exported Functions:
@@ -27,68 +24,10 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
             'TimestampFromTicks', 'DateToTicks', 'TimeToTicks', 'TimestampToTicks',
             'Binary', 'STRING', 'BINARY', 'NUMBER', 'DATETIME', 'ROWID', 'TypeObjectFromNuodb' ]
 
-import datetime, decimal, time
+from datetime import datetime as Timestamp, date as Date, time as Time, timedelta as TimeDelta
+import decimal, time
 from exception import DataError
 
-
-class Date(datetime.date):
-    
-    """Class for a Date object.
-    
-    Private Functions:
-    __init__ -- Constructor for the Date class.
-    __str__ -- Stringifies the Date object.
-    """
-    
-    def __init__(self, year, month, day):
-        """Constructor for the Date class."""
-        super(Date, self).__init__(year, month, day)
-         
-#     def __str__(self):
-#         """Stringifies the Date object."""
-#         return "%s" % datetime.date(self.year, self.month, self.day).isoformat()
-#     
-    def __repr__(self):
-        return repr(datetime.date(self.year, self.month, self.day))
-
-class Time(datetime.time):
-    """Class for a Time object.
-    
-    Private Functions:
-    __init__ -- Constructor for the Time class.
-    __str__ -- Stringifies the Time object.
-    """
-    
-    def __init__(self, hour, minute, second, microsecond=0):
-        """Constructor for the Time class."""
-        super(Time, self).__init__(hour, minute, second, microsecond)
- 
-#     def __str__(self):
-#         """Stringifies the Time object."""
-#         return "%s" % datetime.time(self.hour, self.minute, self.second).isoformat()
-#      
-    def __repr__(self):
-        return repr(datetime.time(self.hour, self.minute, self.second))
-
-class Timestamp(datetime.datetime):
-    """Class for a Timestamp object.
-    
-    Private Functions:
-    __init__ -- Constructor for the Timestamp class.
-    __str__ -- Stringifies the Timestamp object.
-    """
-    
-    def __init__(self, year, month, day, hour, minute, second, microsecond=0):
-        """Constructor for the Timestamp class."""
-        super(Timestamp, self).__init__(year, month, day, hour, minute, second, microsecond)
-           
-#     def __str__(self):
-#         """Stringifies the Timestamp object."""
-#         return "%s" % datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second).isoformat(' ')
-#        
-    def __repr__(self):
-        return repr(datetime.datetime(self.year, self.month, self.day, self.hour, self.minute, self.second))
-        
 class Binary(object):
     
     """Class for a Binary object.
@@ -128,18 +67,18 @@ def TimestampFromTicks(ticks, micro = 0):
 
 def DateToTicks(value):
     """Converts a Date object to ticks."""
-    timeStruct = datetime.date(value.year, value.month, value.day).timetuple()
+    timeStruct = Date(value.year, value.month, value.day).timetuple()
     return int(time.mktime(timeStruct))
 
 def TimeToTicks(value):
     """Converts a Time object to ticks."""
-    timeStruct = datetime.timedelta(hours = value.hour, minutes = value.minute, seconds = value.second, microseconds = value.microsecond)
+    timeStruct = TimeDelta(hours = value.hour, minutes = value.minute, seconds = value.second, microseconds = value.microsecond)
     timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
     return (int((timeDec + time.timezone) * 10**abs(timeDec.as_tuple()[2])), abs(timeDec.as_tuple()[2]))
 
 def TimestampToTicks(value):
     """Converts a Timestamp object to ticks."""
-    timeStruct = datetime.datetime(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
+    timeStruct = Timestamp(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
     micro = value.microsecond/1000000.0
     return (int((time.mktime(timeStruct) + micro) * 10**(len(str(micro)) - 2)), len(str(micro)) - 2)
 
@@ -156,7 +95,7 @@ class TypeObject(object):
 STRING         = TypeObject(str)
 BINARY         = TypeObject(str)
 NUMBER         = TypeObject(int, decimal.Decimal)
-DATETIME     = TypeObject(datetime.datetime, datetime.date, datetime.time)
+DATETIME     = TypeObject(Timestamp, Date, Time)
 ROWID         = TypeObject()
 
 def TypeObjectFromNuodb(nuodb_type_name):

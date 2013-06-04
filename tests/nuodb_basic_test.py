@@ -376,7 +376,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
                            "time_col time, timestamp_col timestamp)")
             
-            test_vals = (pynuodb.Date(1971, 1, 1), pynuodb.Time(8, 13, 34), pynuodb.Timestamp(2013, 3, 24, 12, 3, 26))
+            test_vals = (pynuodb.Date(2008, 1, 1), pynuodb.Time(8, 13, 34), pynuodb.Timestamp(2013, 3, 24, 12, 3, 26))
             cursor.execute("insert into typetest (date_col, time_col, timestamp_col) " +
                            "values ('" + str(test_vals[0]) + "','" + str(test_vals[1]) + "','" + str(test_vals[2]) + "')")
             
@@ -416,7 +416,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
                            "time_col time, timestamp_col timestamp)")
 
-            test_vals = (pynuodb.Date(1970, 1, 1), pynuodb.Time(0, 0, 0), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0))
+            test_vals = (pynuodb.Date(1970, 1, 1), pynuodb.Time(0, 0, 0), pynuodb.Timestamp(2010, 12, 31, 19, 0, 0))
             cursor.execute("insert into typetest (date_col, time_col, timestamp_col) " +
                            "values (?, ?, ?)", test_vals)
             con.commit()
@@ -585,7 +585,7 @@ class NuoDBBasicTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, time_col time, timestamp_col timestamp)")
 
-            test_vals = (pynuodb.Time(5, 8, 20, 12), pynuodb.Timestamp(1969, 12, 31, 19, 0, 0, 1400))
+            test_vals = (pynuodb.Time(5, 8, 20, 12), pynuodb.Timestamp(1999, 12, 31, 19, 0, 0, 1400))
             cursor.execute("insert into typetest (time_col, timestamp_col) " +
                            "values (?, ?)", test_vals)
             con.commit()
@@ -628,9 +628,9 @@ class NuoDBBasicTest(NuoBase):
             vals = (
                         pynuodb.Binary("binary"),
                         True,
-                        pynuodb.Timestamp(1960, 12, 31, 19, 0, 0),
+                        pynuodb.Timestamp(1990, 12, 31, 19, 0, 0),
                         pynuodb.Time(10, 30, 44),
-                        pynuodb.Date(1968, 1, 1),
+                        pynuodb.Date(1998, 1, 1),
                         "this",
                         "is a",
                         "test",

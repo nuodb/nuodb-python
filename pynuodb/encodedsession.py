@@ -243,12 +243,12 @@ class EncodedSession(Session):
             return self.putDouble(value)
         elif isinstance(value, decimal.Decimal):
             return self.putScaledInt(value)
+        elif isinstance(value, datatype.Timestamp): #Note: Timestamp must be above Date because it inherits from Date
+            return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Date):
             return self.putScaledDate(value)
         elif isinstance(value, datatype.Time):
             return self.putScaledTime(value)
-        elif isinstance(value, datatype.Timestamp):
-            return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Binary):
             return self.putOpaque(value)
         elif value is True or value is False:
