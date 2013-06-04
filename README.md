@@ -15,6 +15,8 @@ If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-n
 
 ### Example
 
+Simple example for connecting and reading from an existing table:
+
 ```python
 """ This assumes that you have the quickstart database running (test@localhost).
 If you don't, you can start it by running /opt/nuodb/run-quickstart
@@ -27,6 +29,39 @@ cursor.arraysize = 3
 cursor.execute("select * from hockey")
 print cursor.fetchone()
 ```
+
+Data can be inserted into a table either explicitly within the execute method...
+
+```python
+import pynuodb
+
+connection = pynuodb.connect("test", "localhost", "dba", "goalie", schema='hockey')
+cursor = connection.cursor()
+
+cursor.execute("create table typetest (bool_col boolean, date_col date, string_col string, integer_col integer)")
+cursor.execute("insert into typetest values ('False', '2012-10-03', 'hello world', 42)")
+cursor.execute("select * from typetest")
+print cursor.fetchone()
+```
+
+or using variables...
+
+```python
+import pynuodb
+
+connection = pynuodb.connect("test", "localhost", "dba", "goalie", schema='hockey')
+cursor = connection.cursor()
+
+cursor.execute("create table typetest (bool_col boolean, date_col date, string_col string, integer_col integer)")
+
+test_vals = (False, pynuodb.Date(2012,10,3), "hello world", 42)
+cursor.execute("insert into typetest values (?, ?, ?, ?)", test_vals)
+cursor.execute("select * from typetest")
+print cursor.fetchone()
+```
+
+For further information on getting started with NuoDB, please refer to the [NuoDB wiki](http://doc.nuodb.com/display/DOC/Getting+Started) 
+
 
 ### License
 
