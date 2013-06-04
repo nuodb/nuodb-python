@@ -33,9 +33,9 @@ all:
 	make test
 
 install:	
-	python setup.py
+	sudo python setup.py install
 
 test:
-	nosetests $(TESTS)
+	python run_tests.py
 
 .PHONY: all install test
