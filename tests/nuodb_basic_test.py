@@ -40,11 +40,13 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double precision)")
             
             # Basic test
             cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) " +
                            "values (0, 0, 0, 0, 0, 0, 0)")
+            
+            con.commit()
             
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -57,6 +59,32 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
+
+    def test_double_precision(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col float, int_col double precision, bigint_col double, " + 
+                           "smallnegint_col double, negint_col double, bignegint_col double, double_col double)")       
+            
+            test_vals = (1, 100000, 10000000000000000, -1, -100000, -10000000000000000, 0.000000000001)
+            cursor.execute("insert into typetest (smallint_col, int_col, bigint_col, smallnegint_col, negint_col, bignegint_col, double_col) " +
+                           "values (" + str(test_vals[0]) + ", " + str(test_vals[1]) + ", " + str(test_vals[2]) + ", " + str(test_vals[3]) + ", " +
+                           str(test_vals[4]) + ", " + str(test_vals[5]) + ", " + str(test_vals[6]) + ")")
+            
+            con.commit()
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = cursor.fetchone()
+            
+            for i in xrange(1, len(row)):
+                self.assertEqual(row[i], test_vals[i - 1]);
+                        
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()             
             
     def test_param_numeric_types(self):
         con = self._connect()
