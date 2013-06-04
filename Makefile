@@ -34,6 +34,7 @@ all:
 
 install:	
 	sudo python setup.py install
+	sudo rm -rf build
 
 test:
 	python run_tests.py

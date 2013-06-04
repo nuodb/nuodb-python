@@ -8,8 +8,10 @@ setup(
     author_email='info@nuodb.com',
     description='NuoDB Python driver',
     keywords='scalable cloud database',
-    packages=['pynuodb', 'tests'],
+    packages=['pynuodb'],
+    package_dir={'pynuodb': 'pynuodb'},
     url='https://github.com/nuodb/nuodb-python',
     license='BSD licence, see LICENCE.txt',
-    long_description=open('README.md').read()
+    long_description=open('README.md').read(),
 )
+
