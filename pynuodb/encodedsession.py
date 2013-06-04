@@ -319,7 +319,11 @@ class EncodedSession(Session):
             return 0.0
         
         if typeCode in range(protocol.DOUBLELEN0 + 1, protocol.DOUBLELEN8 + 1):
-            return struct.unpack('!d', self._takeBytes(typeCode - 77))[0]
+            test = self._takeBytes(typeCode - 77)
+            if typeCode < protocol.DOUBLELEN8:
+                for i in xrange(0, protocol.DOUBLELEN8 - typeCode):
+                    test = test + chr(0);
+            return struct.unpack('!d', test)[0]
             
         raise DataError('Not a double')
 
