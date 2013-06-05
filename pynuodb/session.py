@@ -22,11 +22,11 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 #   s.authorize('admin', 'bird')
 #   print s.doRequest()
 #
-# Quiescing a chorus:
+# Quiescing a database:
 #
 #   s = Session('localhost', service='ChorusManagement')
 #   s.authorize('admin', 'bird')
-#   s.doConnect(attributes={"Database" : 'db', "Action" : ChorusAction.Quiesce})
+#   s.doConnect(attributes={"Database" : 'db', "Action" : DatabaseAction.Quiesce})
 #   checkForError(s.recv())
 #   s.close()
 #
