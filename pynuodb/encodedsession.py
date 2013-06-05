@@ -15,7 +15,7 @@ import protocol
 import datatype
 import time
 import decimal
-from exception import DataError, DatabaseError, EndOfStream
+from exception import DataError, DatabaseError, EndOfStream, dbErrorHandler
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -498,10 +498,12 @@ class EncodedSession(Session):
         if getResponse is True:
             self.__input = self.recv(False)
             self.__inpos = 0
+            
+            error = self.getInt()
 
             # TODO: include the actual error message, and use a different type
-            if self.getInt() != 0:
-                raise DatabaseError('Non-zero status: %s' % self.getString())
+            if error != 0:
+                dbErrorHandler(error, self.getString())
         else:
             self.__input = None
             self.__inpos = 0

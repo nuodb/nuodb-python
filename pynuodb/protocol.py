@@ -148,3 +148,108 @@ ROLLBACKTOSAVEPOINT             = 99
 SUPPORTSTRANSACTIONISOLATION    = 100 
 GETCATALOG                      = 101 
 GETCURRENTSCHEMA                = 102 
+
+
+# Error code values
+SYNTAX_ERROR                    = -1
+FEATURE_NOT_YET_IMPLEMENTED     = -2
+BUG_CHECK                       = -3
+COMPILE_ERROR                   = -4
+RUNTIME_ERROR                   = -5
+OCS_ERROR                       = -6
+NETWORK_ERROR                   = -7
+CONVERSION_ERROR                = -8
+TRUNCATION_ERROR                = -9
+CONNECTION_ERROR                = -10
+DDL_ERROR                       = -11
+APPLICATION_ERROR               = -12
+SECURITY_ERROR                  = -13
+DATABASE_CORRUPTION             = -14
+VERSION_ERROR                   = -15
+LICENSE_ERROR                   = -16
+INTERNAL_ERROR                  = -17
+DEBUG_ERROR                     = -18
+LOST_BLOB                       = -19
+INCONSISTENT_BLOB               = -20
+DELETED_BLOB                    = -21
+LOG_ERROR                       = -22
+DATABASE_DAMAGED                = -23
+UPDATE_CONFLICT                 = -24
+NO_SUCH_TABLE                   = -25
+INDEX_OVERFLOW                  = -26
+UNIQUE_DUPLICATE                = -27
+UNCOMMITTED_UPDATES             = -28
+DEADLOCK                        = -29
+OUT_OF_MEMORY_ERROR             = -30
+OUT_OF_RECORD_MEMORY_ERROR      = -31
+LOCK_TIMEOUT                    = -32
+PLATFORM_ERROR                  = -36
+NO_SCHEMA                       = -37
+CONFIGURATION_ERROR             = -38
+READ_ONLY_ERROR                 = -39
+NO_GENERATED_KEYS               = -40
+THROWN_EXCEPTION                = -41
+INVALID_TRANSACTION_ISOLATION   = -42
+UNSUPPORTED_TRANSACTION_ISOLATION = -43
+INVALID_UTF8                    = -44
+CONSTRAINT_ERROR                = -45
+UPDATE_ERROR                    = -46
+I18N_ERROR                      = -47
+OPERATION_KILLED                = -48
+INVALID_STATEMENT               = -49
+IS_SHUTDOWN                     = -50
+IN_QUOTED_STRING                = -51
+BATCH_UPDATE_ERROR              = -52
+
+
+stringifyError = {
+                      SYNTAX_ERROR                    : 'SYNTAX_ERROR',
+                      FEATURE_NOT_YET_IMPLEMENTED     : 'FEATURE_NOT_YET_IMPLEMENTED',
+                      BUG_CHECK                       : 'BUG_CHECK',
+                      COMPILE_ERROR                   : 'COMPILE_ERROR',
+                      RUNTIME_ERROR                   : 'RUNTIME_ERROR',
+                      OCS_ERROR                       : 'OCS_ERROR',
+                      NETWORK_ERROR                   : 'NETWORK_ERROR',
+                      CONVERSION_ERROR                : 'CONVERSION_ERROR',
+                      TRUNCATION_ERROR                : 'TRUNCATION_ERROR',
+                      CONNECTION_ERROR                : 'CONNECTION_ERROR',
+                      DDL_ERROR                       : 'DDL_ERROR',
+                      APPLICATION_ERROR               : 'APPLICATION_ERROR',
+                      SECURITY_ERROR                  : 'SECURITY_ERROR',
+                      DATABASE_CORRUPTION             : 'DATABASE_CORRUPTION',
+                      VERSION_ERROR                   : 'VERSION_ERROR',
+                      LICENSE_ERROR                   : 'LICENSE_ERROR',
+                      INTERNAL_ERROR                  : 'INTERNAL_ERROR',
+                      DEBUG_ERROR                     : 'DEBUG_ERROR',
+                      LOST_BLOB                       : 'LOST_BLOB',
+                      INCONSISTENT_BLOB               : 'INCONSISTENT_BLOB',
+                      DELETED_BLOB                    : 'DELETED_BLOB',
+                      LOG_ERROR                       : 'LOG_ERROR',
+                      DATABASE_DAMAGED                : 'DATABASE_DAMAGED',
+                      UPDATE_CONFLICT                 : 'UPDATE_CONFLICT',
+                      NO_SUCH_TABLE                   : 'NO_SUCH_TABLE',
+                      INDEX_OVERFLOW                  : 'INDEX_OVERFLOW',
+                      UNIQUE_DUPLICATE                : 'UNIQUE_DUPLICATE',
+                      UNCOMMITTED_UPDATES             : 'UNCOMMITTED_UPDATES',
+                      DEADLOCK                        : 'DEADLOCK',
+                      OUT_OF_MEMORY_ERROR             : 'OUT_OF_MEMORY_ERROR',
+                      OUT_OF_RECORD_MEMORY_ERROR      : 'OUT_OF_RECORD_MEMORY_ERROR',
+                      LOCK_TIMEOUT                    : 'LOCK_TIMEOUT',
+                      PLATFORM_ERROR                  : 'PLATFORM_ERROR',
+                      NO_SCHEMA                       : 'NO_SCHEMA',
+                      CONFIGURATION_ERROR             : 'CONFIGURATION_ERROR',
+                      READ_ONLY_ERROR                 : 'READ_ONLY_ERROR',
+                      NO_GENERATED_KEYS               : 'NO_GENERATED_KEYS',
+                      THROWN_EXCEPTION                : 'THROWN_EXCEPTION',
+                      INVALID_TRANSACTION_ISOLATION   : 'INVALID_TRANSACTION_ISOLATION',
+                      UNSUPPORTED_TRANSACTION_ISOLATION : 'UNSUPPORTED_TRANSACTION_ISOLATION',
+                      INVALID_UTF8                    : 'INVALID_UTF8',
+                      CONSTRAINT_ERROR                : 'CONSTRAINT_ERROR',
+                      UPDATE_ERROR                    : 'UPDATE_ERROR',
+                      I18N_ERROR                      : 'I18N_ERROR',
+                      OPERATION_KILLED                : 'OPERATION_KILLED',
+                      INVALID_STATEMENT               : 'INVALID_STATEMENT',
+                      IS_SHUTDOWN                     : 'IS_SHUTDOWN',
+                      IN_QUOTED_STRING                : 'IN_QUOTED_STRING',
+                      BATCH_UPDATE_ERROR              : 'BATCH_UPDATE_ERROR',
+                 }
