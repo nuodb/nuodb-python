@@ -79,8 +79,11 @@ def TimeToTicks(value):
 def TimestampToTicks(value):
     """Converts a Timestamp object to ticks."""
     timeStruct = Timestamp(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
-    micro = value.microsecond/1000000.0
-    return (int((time.mktime(timeStruct) + micro) * 10**(len(str(micro)) - 2)), len(str(micro)) - 2)
+    if value.microsecond:
+        micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
+        return (int((decimal.Decimal(int(time.mktime(timeStruct))) + micro) * decimal.Decimal(int(10**(len(str(micro)) - 2)))), len(str(micro)) - 2)
+    else:
+        return (int(time.mktime(timeStruct)), 0)
 
 class TypeObject(object):
     def __init__(self, *values):
