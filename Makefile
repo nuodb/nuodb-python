@@ -37,6 +37,6 @@ install:
 	sudo rm -rf build
 
 test:
-	python run_tests.py
-
+	python run_test.py
+	
 .PHONY: all install test

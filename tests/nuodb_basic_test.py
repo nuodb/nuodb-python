@@ -422,13 +422,15 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[2].hour, test_vals[1].hour)
             self.assertEqual(row[2].minute, test_vals[1].minute)
             self.assertEqual(row[2].second, test_vals[1].second)
+            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)
             
             self.assertEqual(row[3].year, test_vals[2].year)
             self.assertEqual(row[3].month, test_vals[2].month)
             self.assertEqual(row[3].day, test_vals[2].day)
             self.assertEqual(row[3].hour, test_vals[2].hour)
             self.assertEqual(row[3].minute, test_vals[2].minute)
-            self.assertEqual(row[3].second, test_vals[2].second)      
+            self.assertEqual(row[3].second, test_vals[2].second)    
+            self.assertEqual(row[3].microsecond, test_vals[2].microsecond)  
             
         finally:
             try:
@@ -463,13 +465,15 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[2].hour, test_vals[1].hour)
             self.assertEqual(row[2].minute, test_vals[1].minute)
             self.assertEqual(row[2].second, test_vals[1].second)
+            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)
             
             self.assertEqual(row[3].year, test_vals[2].year)
             self.assertEqual(row[3].month, test_vals[2].month)
             self.assertEqual(row[3].day, test_vals[2].day)
             self.assertEqual(row[3].hour, test_vals[2].hour)
             self.assertEqual(row[3].minute, test_vals[2].minute)
-            self.assertEqual(row[3].second, test_vals[2].second)            
+            self.assertEqual(row[3].second, test_vals[2].second)
+            self.assertEqual(row[3].microsecond, test_vals[2].microsecond)            
             
         finally:
             try:
@@ -580,6 +584,7 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(vals[0].hour, (row[1].hour + 3) % 24)
             self.assertEqual(vals[0].minute, row[1].minute)
             self.assertEqual(vals[0].second, row[1].second)
+            self.assertEqual(vals[0].microsecond, row[1].microsecond)
             con.close()
             
             
@@ -596,6 +601,7 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(vals[0].hour, (row[1].hour - 6) % 24)
             self.assertEqual(vals[0].minute, row[1].minute)
             self.assertEqual(vals[0].second, row[1].second)
+            self.assertEqual(vals[0].microsecond, row[1].microsecond)
             
             cursor.execute("drop table typetest if exists")
             con.close()
@@ -692,11 +698,13 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].day, vals[2].day)
             self.assertEqual(row[3].hour, vals[2].hour)
             self.assertEqual(row[3].minute, vals[2].minute)
-            self.assertEqual(row[3].second, vals[2].second)  
+            self.assertEqual(row[3].second, vals[2].second)
+            self.assertEqual(row[3].microsecond, vals[2].microsecond)  
             
             self.assertEqual(row[4].hour, vals[3].hour)
             self.assertEqual(row[4].minute, vals[3].minute)
             self.assertEqual(row[4].second, vals[3].second)
+            self.assertEqual(row[4].microsecond, vals[3].microsecond)
             
             self.assertEqual(row[5].year, vals[4].year)
             self.assertEqual(row[5].month, vals[4].month)
