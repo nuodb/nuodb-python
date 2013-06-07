@@ -11,8 +11,13 @@ If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-n
 
 ### Install
 
-	$ pip install pynuodb
+Install from source by running
 
+```bash
+git clone git@github.com:nuodb/nuodb-python.git
+cd nuodb-python
+sudo python setup.py install
+```
 ### Example
 
 Simple example for connecting and reading from an existing table:
