@@ -1,4 +1,5 @@
 from tests.nuodb_basic_test import *
+from tests.nuodb_executionflow_test import *
 from tests.nuodb_dbapi20_test import *
 
 import unittest
