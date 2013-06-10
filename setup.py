@@ -3,11 +3,11 @@ from distutils.core import setup
 
 setup(
     name='pynuodb',
-    version='0.0.1',
+    version='0.1',
     author='NuoDB',
     author_email='info@nuodb.com',
     description='NuoDB Python driver',
-    keywords='scalable cloud database',
+    keywords='nuodb scalable cloud database',
     packages=['pynuodb'],
     package_dir={'pynuodb': 'pynuodb'},
     url='https://github.com/nuodb/nuodb-python',
