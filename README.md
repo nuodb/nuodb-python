@@ -11,9 +11,10 @@ If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-n
 
 ### Install
 
-Install from source by cloning the repository and then running
+Install from source by running
 
 ```bash
+git clone git://github.com/nuodb/nuodb-python.git
 cd nuodb-python
 sudo python setup.py install
 ```
