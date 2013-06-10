@@ -26,8 +26,6 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-TESTS=$(shell find . -name \*_test.py)
-
 all:
 	make install
 	make test

@@ -18,6 +18,7 @@ git clone git://github.com/nuodb/nuodb-python.git
 cd nuodb-python
 sudo python setup.py install
 ```
+
 ### Example
 
 Simple example for connecting and reading from an existing table:
