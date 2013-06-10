@@ -22,6 +22,9 @@ before_install:
   - sleep 2
   - ${NUODB_ROOT}/bin/nuodb --chorus test --password bar --dba-user dba --dba-password user &
   - sleep 2
+  
+script:
+  - make test
 
 after_script:
   - sudo dpkg -r nuodb
