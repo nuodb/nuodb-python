@@ -17,6 +17,7 @@ Install from source by cloning the repository and then running
 cd nuodb-python
 sudo python setup.py install
 ```
+
 ### Example
 
 Simple example for connecting and reading from an existing table:
