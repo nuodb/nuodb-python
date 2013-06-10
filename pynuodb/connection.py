@@ -152,7 +152,7 @@ class Connection(object):
         """Sets the value of auto_commit on the database."""
         self._check_closed()
         self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
-        self.__session.exchangeMessages()
+        self.__session.exchangeMessages(False)
 
     def close(self):
         """Closes the connection with the host."""
