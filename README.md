@@ -3,7 +3,7 @@ NuoDB - Python
 
 [![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-This is the official Python pip package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
+This is the official Python package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
 
 ### Requirements
 
