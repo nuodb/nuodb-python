@@ -23,7 +23,7 @@ before_install:
   - sleep 2
   
 script:
-  - make test
+  - make all
 
 after_script:
   - sudo dpkg -r nuodb
