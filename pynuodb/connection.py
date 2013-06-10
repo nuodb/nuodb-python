@@ -23,10 +23,20 @@ import protocol
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
-
-def connect(database, host, user, password, port=48004, schema='user', auto_commit=False):
-    """Creates a connection object."""
-    return Connection(database, host, user, password, port, schema, auto_commit)
+#schema='user', auto_commit=False
+def connect(database, host, user, password, options = None ):
+    """Creates a connection object.
+    Arguments:
+    database -- Name of the database to access.
+    host -- NuoDB Broker host. This can include a port (e.g. "localhost:48005")
+    user -- The database user
+    password -- The database user's password
+    options -- A dictionary of NuoDB connection options
+        Some common options include:
+        "schema"
+        
+    """
+    return Connection(database, host, user, password, options)
 
 class Connection(object):
     
@@ -52,7 +62,7 @@ class Connection(object):
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
     
-    def __init__(self, dbName, broker, username, password, port, schema, auto_commit):
+    def __init__(self, dbName, broker, username, password, options):
         """Constructor for the Connection class.
         
         Arguments:
@@ -60,12 +70,12 @@ class Connection(object):
         broker -- Address of the broker you are connecting too.
         username -- NuoDB username.
         password -- NuoDB password.
-        port -- Port you are connecting on.
-        schema -- Schema within the database you are accessing.
-        auto_commit -- Boolean to turn on or off auto-commit.
+        options -- A dictionary of NuoDB connection options
+            Some common options include:
+            "schema"
         
         Returns:
-        None
+        a Connection instance
         """
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
@@ -73,7 +83,9 @@ class Connection(object):
 
         cp = ClientPassword()
         
-        parameters = {'user' : username, 'schema' : schema , 'timezone' : time.strftime('%Z')}
+        parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
+        if options:
+            parameters.update(options)
 
         self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
         for (k, v) in parameters.iteritems():
@@ -93,10 +105,7 @@ class Connection(object):
         self.__session.exchangeMessages()
         
         # set auto commit to false by default
-        if auto_commit:
-            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(1)
-        else:
-            self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
+        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
         
         self.__session.exchangeMessages(False)
 

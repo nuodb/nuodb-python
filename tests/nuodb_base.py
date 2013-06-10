@@ -21,8 +21,9 @@ START_TE        = "start process te host %s database %s options '--dba-user %s -
 
 class NuoBase(unittest.TestCase):
     driver = pynuodb
+    options = {"schema": "dbapi"}
     connect_args = ()
-    connect_kw_args = {'database': DATABASE_NAME, 'host': HOST, 'user': DBA_USER, 'password': DBA_PASSWORD}
+    connect_kw_args = {'database': DATABASE_NAME, 'host': HOST, 'user': DBA_USER, 'password': DBA_PASSWORD, 'options': options }
 
     lower_func = 'lower' # For stored procedure test
 

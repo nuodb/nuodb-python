@@ -24,7 +24,7 @@ class NuoDBBasicTest(NuoBase):
         pass
         
     def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", schema="hockey")
+        return pynuodb.connect("test", "localhost", "dba", "goalie", options = {"schema":"hockey"})
     
     def test_noop(self):
         con = self._connect()

@@ -26,7 +26,7 @@ class NuoDBExecutionFlowTest(NuoBase):
         pass
 
     def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", schema="hockey")
+        return pynuodb.connect("test", "localhost", "dba", "goalie", options = {"schema": "hockey"})
 
     def test_commit_after_disconnect(self):
         con = self._connect();
