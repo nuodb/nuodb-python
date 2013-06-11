@@ -8,7 +8,7 @@ Cursor -- Class for representing a database cursor.
 
 import protocol
 from datatype import TypeObjectFromNuodb
-from exception import Error, NotSupportedError, EndOfStream, OperationalError
+from exception import Error, NotSupportedError, EndOfStream, OperationalError, ProgrammingError
 
 class Cursor(object):
 
@@ -88,7 +88,7 @@ class Cursor(object):
         """
         self._check_closed()
         self._reset()
-        if not parameters:
+        if parameters is None:
             self._execute(operation)
             
         else:
@@ -172,7 +172,7 @@ class Cursor(object):
         p_count = self.session.getInt()
         
         if p_count != len(parameters):
-            raise OperationalError
+            raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" % (p_count, len(parameters)))
         
         # Use handle to query
         self.session.putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
