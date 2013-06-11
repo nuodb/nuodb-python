@@ -9,7 +9,7 @@ Note: At this time the Python/NuoDB Interface does not support Windows.
 
 ### Requirements
 
-If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/)
+If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/). Currently the driver supports Python version 2.7 only.
 
 ### Install
 
