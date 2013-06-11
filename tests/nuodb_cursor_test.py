@@ -7,15 +7,6 @@ from nuodb_base import NuoBase;
 from pynuodb.exception import DataError, ProgrammingError;
 
 class NuoDBCursorTest(NuoBase):
-    
-    def setUp(self):
-        NuoBase.setUp(self);
-
-    def tearDown(self):
-        NuoBase.tearDown(self);
-        
-    def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", options = { "schema" : "hockey" } );
 
     def test_cursor_description(self):
         con = self._connect();

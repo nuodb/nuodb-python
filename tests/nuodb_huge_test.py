@@ -7,15 +7,6 @@ from nuodb_base import NuoBase;
 
 class NuoDBHugeTest(NuoBase):
     
-    def setUp(self):
-        NuoBase.setUp(self);
-
-    def tearDown(self):
-        NuoBase.tearDown(self);
-        
-    def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", options = { "schema" : "hockey" } );
-
     def test_wide_select(self):
         
         con = self._connect();
@@ -25,7 +16,7 @@ class NuoDBHugeTest(NuoBase):
         alphabet = "ABCDEFGHIJKLMNOPQRSTUWXYZ";
         select_string = "SELECT ";
 
-	for col in range(1, total_columns + 1):
+        for col in range(1, total_columns + 1):
             select_string += "'" + alphabet + str(col) + "'";
             if col < total_columns:
                 select_string += " , ";
@@ -49,7 +40,7 @@ class NuoDBHugeTest(NuoBase):
         alphabet = "ABCDEFGHIJKLMNOPQRSTUWXYZ";
         alphabet_multi = "";
         
-	for col in range(1, total_width + 1):
+        for col in range(1, total_width + 1):
             alphabet_multi += alphabet;
 
         select_string = "SELECT '" + alphabet_multi + "' , ? , '" + alphabet_multi + "' = ? FROM DUAL";

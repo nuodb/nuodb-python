@@ -1,49 +1,67 @@
 #!/usr/bin/env python
 
-import popen2
 import pynuodb
+import pynuodb.entity
 import tempfile
 import unittest
+import time
 
 HOST            = "localhost"
 DOMAIN_USER     = "domain"
 DOMAIN_PASSWORD = "bird"
 
 DBA_USER        = 'dba'
-DBA_PASSWORD    = 'dba'
-DATABASE_NAME   = 'dbapi20_test'
-
-NUODB_HOME      = "/opt/nuodb"
-
-NUODB_MGR       = "java -jar %s/jar/nuodbmanager.jar --broker %s --user %s --password %s --command \"%%s\"" % (NUODB_HOME, HOST, DOMAIN_USER, DOMAIN_PASSWORD)
-START_SM        = "start process sm host %s database %s archive %s initialize yes" % (HOST, DATABASE_NAME, tempfile.mkdtemp())
-START_TE        = "start process te host %s database %s options '--dba-user %s --dba-password %s'" % (HOST, DATABASE_NAME, DBA_USER, DBA_PASSWORD)
+DBA_PASSWORD    = 'dba_password'
+DATABASE_NAME   = 'pynuodb_test'
 
 class NuoBase(unittest.TestCase):
     driver = pynuodb
-    options = {"schema": "dbapi"}
     connect_args = ()
+    options = {"schema": "test"}
     connect_kw_args = {'database': DATABASE_NAME, 'host': HOST, 'user': DBA_USER, 'password': DBA_PASSWORD, 'options': options }
 
     lower_func = 'lower' # For stored procedure test
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
+        domain = pynuodb.entity.Domain(HOST, DOMAIN_USER, DOMAIN_PASSWORD)
         try:
-            con = self._connect()
-            con.close()
-        except:
-            cmd = NUODB_MGR % (START_SM)
-            cout,cin = popen2.popen2(cmd)
-            cin.close()
-            cout.read()
+            if DATABASE_NAME not in [db.getName() for db in domain.getDatabases()]:
+                peer = domain.getEntryPeer();
+                peer.startStorageManager(DATABASE_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
+                peer.startTransactionEngine(DATABASE_NAME,  [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
+                
+        finally:
+            domain.disconnect()
             
-            cmd = NUODB_MGR % (START_TE)
-            cout,cin = popen2.popen2(cmd)
-            cin.close()
-            cout.read()
 
-    def tearDown(self):
-        pass
+    @classmethod
+    def tearDownClass(cls):
+        listener = TestDomainListener()
+        domain = pynuodb.entity.Domain(HOST, DOMAIN_USER, DOMAIN_PASSWORD, listener)
+        try:
+            domain.getDatabase(DATABASE_NAME).shutdown()
+            for i in xrange(1,10):
+                time.sleep(1)
+                if listener.db_left:
+                    break
+                
+        finally:
+            domain.disconnect()
+            
+            
+    def _connect(self):
+        return pynuodb.connect(**NuoBase.connect_kw_args)
 
-if __name__ == '__main__':
-    unittest.main()
+class TestDomainListener(object):
+    def __init__(self):
+        self.db_left = False
+            
+    def databaseLeft(self, database):
+        self.db_left = True
+
+#
+#if __name__ == '__main__':
+#    unittest.main()
+#    
+

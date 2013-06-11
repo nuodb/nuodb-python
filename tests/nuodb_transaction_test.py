@@ -6,16 +6,7 @@ import unittest
 from nuodb_base import NuoBase
 
 class NuoDBTransactionTest(NuoBase):
-    
-    def setUp(self):
-        NuoBase.setUp(self)
-
-    def tearDown(self):
-        NuoBase.tearDown(self)
         
-    def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", options = {"schema":"hockey"});
-    
     def test_connection_isolation(self):
         
         con1 = self._connect();

@@ -16,16 +16,7 @@ import os
 from nuodb_base import NuoBase
 
 class NuoDBBasicTest(NuoBase):
-    
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-        
-    def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", options = {"schema":"hockey"})
-    
+               
     def test_noop(self):
         con = self._connect()
         cursor = con.cursor()

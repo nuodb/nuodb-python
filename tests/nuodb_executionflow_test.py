@@ -18,15 +18,6 @@ from pynuodb.session import Session, SessionException
 from pynuodb.exception import Error
 
 class NuoDBExecutionFlowTest(NuoBase):
-    
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
-    def _connect(self):
-        return pynuodb.connect("test", "localhost", "dba", "goalie", options = {"schema": "hockey"})
 
     def test_commit_after_disconnect(self):
         con = self._connect();
