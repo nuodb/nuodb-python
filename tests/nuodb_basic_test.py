@@ -717,7 +717,18 @@ class NuoDBBasicTest(NuoBase):
             try:
                 cursor.execute("drop table typetest if exists")
             finally:
-                con.close()            
+                con.close()  
+                
+    def test_param_date_error(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
+
+        test_vals = (pynuodb.Date(1900, 1, 1),)
+            
+        with self.assertRaises(pynuodb.DataError): 
+            cursor.execute("insert into typetest (date_col) values (?)", test_vals)            
 
 if __name__ == '__main__':
     unittest.main()
