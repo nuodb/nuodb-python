@@ -5,13 +5,7 @@ import unittest
 
 from nuodb_base import NuoBase
 
-class NuoDBBasicTest(NuoBase):
-    
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
+class NuoDBBasicTest(unittest.TestCase):
     
     def test_toByteString(self):
         self.assertEqual(pynuodb.crypt.toSignedByteString(1), '01'.decode('hex'))

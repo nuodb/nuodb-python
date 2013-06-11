@@ -7,13 +7,7 @@ from nuodb_base import NuoBase
 from pynuodb.exception import Error, DataError
 
 class NuoDBGlobalsTest(NuoBase):
-    
-    def setUp(self):
-        NuoBase.setUp(self)
 
-    def tearDown(self):
-        NuoBase.tearDown(self)
-        
     def test_module_globals(self):
 
         self.assertEquals(pynuodb.apilevel, '2.0');
