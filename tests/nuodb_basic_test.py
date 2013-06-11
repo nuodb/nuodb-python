@@ -270,27 +270,27 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
                 
-                
-    def test_string_into_number(self):
-        con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("drop table typetest if exists")
-        try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
-            
-            test_vals = ('54.4978',)
-            cursor.execute("insert into typetest (number_col) " +
-                           "values (?)", test_vals)
-            cursor.execute("select number_col from typetest order by id desc limit 1")
-            row = cursor.fetchone()
-            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
-            
-        finally:
-            try:
-                cursor.execute("drop table typetest if exists")
-            finally:
-                con.close()
+# TODO: uncomment when DB-3298 is fixed
+#     def test_string_into_number(self):
+#         con = self._connect()
+#         cursor = con.cursor()
+#         cursor.execute("drop table typetest if exists")
+#         try:
+#             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, " + 
+#                            "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+#             
+#             test_vals = ('54.4978',)
+#             cursor.execute("insert into typetest (number_col) " +
+#                            "values (?)", test_vals)
+#             cursor.execute("select number_col from typetest order by id desc limit 1")
+#             row = cursor.fetchone()
+#             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
+#             
+#         finally:
+#             try:
+#                 cursor.execute("drop table typetest if exists")
+#             finally:
+#                 con.close()
             
             
     def test_string_types(self):
