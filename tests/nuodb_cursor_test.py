@@ -4,7 +4,7 @@ import pynuodb;
 import unittest;
 
 from nuodb_base import NuoBase;
-from pynuodb.exception import Error, DataError;
+from pynuodb.exception import DataError, ProgrammingError;
 
 class NuoDBCursorTest(NuoBase):
     
@@ -52,7 +52,7 @@ class NuoDBCursorTest(NuoBase):
         try:
             cursor.execute("SELECT ?, ? FROM DUAL", [1]);
             self.fail();
-        except TypeError as e:
+        except ProgrammingError as e:
             self.assertIsNotNone(e)
 
     def test_toomany_parameters(self):
@@ -63,13 +63,13 @@ class NuoDBCursorTest(NuoBase):
         try:
             cursor.execute("SELECT 1 FROM DUAL", [1]);
             self.fail();
-        except TypeError as e:
+        except ProgrammingError as e:
             self.assertIsNotNone(e);
 
         try:
             cursor.execute("SELECT ? FROM DUAL", [1,2]);
             self.fail();
-        except TypeError as e:
+        except ProgrammingError as e:
             self.assertIsNotNone(e);
 
     def test_incorrect_parameters(self):

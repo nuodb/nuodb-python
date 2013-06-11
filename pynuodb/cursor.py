@@ -8,7 +8,7 @@ Cursor -- Class for representing a database cursor.
 
 import protocol
 from datatype import TypeObjectFromNuodb
-from exception import Error, NotSupportedError, EndOfStream, OperationalError, ProgrammingError
+from exception import Error, NotSupportedError, EndOfStream, ProgrammingError, InterfaceError
 
 class Cursor(object):
 
@@ -41,7 +41,16 @@ class Cursor(object):
         self.closed = False
         self.arraysize = 1
         
-        self._reset()
+        self.description = None
+        self.rowcount = -1
+        self.colcount = -1
+        
+        self._st_handle = None
+        self._rs_handle = None
+        self._results = []
+        self._results_pos = 0
+        
+        self._complete = False
 
     def close(self):
         """Closes the cursor into the database."""
@@ -56,7 +65,15 @@ class Cursor(object):
             raise Error("connection is closed")
 
     def _reset(self):
-        """Resets SQL transaction variables."""
+        """Resets SQL transaction variables.
+        
+        Also closes any open statements and result sets.
+        """
+        
+        #Always close statement (and rs) before new query. This will need to change for #22
+        if self._st_handle is not None:
+            self._close_statement()
+        
         self.description = None
         self.rowcount = -1
         self.colcount = -1
@@ -253,7 +270,18 @@ class Cursor(object):
     def setoutputsize(self, size, column=None):
         """Currently not supported."""
         pass
+    
+    def _close_statement(self):
+        """Closes the current statement or prepared statement
         
+        This will cause any open result sets to be closed as well
+        """
+        
+        if self._st_handle is None:
+            raise InterfaceError('Statement is not open')
+        self.session.putMessageId(protocol.CLOSESTATMENT).putInt(self._st_handle)
+        self.session.exchangeMessages(False)
+
     def _get_next_results(self):
         """Gets the next set of results."""
         self.session.putMessageId(protocol.NEXT).putInt(self._rs_handle)
@@ -280,4 +308,3 @@ class Cursor(object):
         
         if next_row == 0:
             self._complete = True
-        
