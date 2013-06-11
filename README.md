@@ -5,6 +5,8 @@ NuoDB - Python
 
 This is the official Python package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
 
+Note: At this time the Python/NuoDB Interface does not support Windows.
+
 ### Requirements
 
 If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/)
