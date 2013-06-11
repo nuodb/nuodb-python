@@ -37,4 +37,8 @@ install:
 test:
 	python run_tests.py
 	
+deploy:
+	python setup.py register
+	python setup.py sdist upload
+	
 .PHONY: all install test
