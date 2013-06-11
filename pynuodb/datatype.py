@@ -68,7 +68,10 @@ def TimestampFromTicks(ticks, micro = 0):
 def DateToTicks(value):
     """Converts a Date object to ticks."""
     timeStruct = Date(value.year, value.month, value.day).timetuple()
-    return int(time.mktime(timeStruct))
+    try:
+        return int(time.mktime(timeStruct))
+    except:
+        raise DataError("Year out of range")
 
 def TimeToTicks(value):
     """Converts a Time object to ticks."""
@@ -79,11 +82,14 @@ def TimeToTicks(value):
 def TimestampToTicks(value):
     """Converts a Timestamp object to ticks."""
     timeStruct = Timestamp(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
-    if value.microsecond:
-        micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
-        return (int((decimal.Decimal(int(time.mktime(timeStruct))) + micro) * decimal.Decimal(int(10**(len(str(micro)) - 2)))), len(str(micro)) - 2)
-    else:
-        return (int(time.mktime(timeStruct)), 0)
+    try:
+        if value.microsecond:
+            micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
+            return (int((decimal.Decimal(int(time.mktime(timeStruct))) + micro) * decimal.Decimal(int(10**(len(str(micro)) - 2)))), len(str(micro)) - 2)
+        else:
+            return (int(time.mktime(timeStruct)), 0)
+    except:
+        raise DataError("Year out of range")
 
 class TypeObject(object):
     def __init__(self, *values):
