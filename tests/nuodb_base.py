@@ -40,7 +40,7 @@ class NuoBase(unittest.TestCase):
         listener = TestDomainListener()
         domain = pynuodb.entity.Domain(HOST, DOMAIN_USER, DOMAIN_PASSWORD, listener)
         try:
-            domain.getDatabase(DATABASE_NAME).shutdown()
+            domain.getDatabase(DATABASE_NAME).shutdown(False)
             for i in xrange(1,10):
                 time.sleep(1)
                 if listener.db_left:
