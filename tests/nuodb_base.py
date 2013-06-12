@@ -45,16 +45,12 @@ class NuoBase(unittest.TestCase):
         try:
             database = domain.getDatabase(DATABASE_NAME)
             if database is not None:
-                print "Shutdown Database: ", database
                 for process in database.getProcesses():
-                    print "Shutdown Process: ", process
                     process.shutdown()
-                    print "Shutdown Process done"
                     
                 for i in xrange(1,20):
                     time.sleep(0.25)
                     if listener.db_left:
-                        print "Shutdown Database done"
                         break
                 
         finally:
