@@ -12,6 +12,7 @@ import unittest
 import decimal
 import time
 import os
+import sys
 
 from nuodb_base import NuoBase
 
@@ -547,6 +548,7 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
             
+    @unittest.skipIf(sys.platform.startswith("win"), "time.tzset() does not work on windows")
     def test_timezones(self):
         try:
             os.environ['TZ'] = 'EST+05EDT,M4.1.0,M10.5.0'
