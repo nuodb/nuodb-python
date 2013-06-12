@@ -19,7 +19,7 @@ class NuoDBConnectTest(NuoBase):
         
     def test_nosuchdatabase(self):
         try:
-            con = pynuodb.connect("nosuchdatabase", "localhost", "dba", "goalie");
+            con = pynuodb.connect("nosuchdatabase", "localhost", "dba", "dba_password");
             self.fail();
         except SessionException:
             pass;
@@ -28,21 +28,21 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchport(self):
         try:
-            con = pynuodb.connect("test", "localhost:23456", "dba", "goalie")
+            con = pynuodb.connect("pynuodb_test", "localhost:23456", "dba", "dba_password")
             self.fail();
         except:
             pass;
 
     def test_nosuchhost(self):
         try:
-            con = pynuodb.connect("test", "nosuchhost", "dba", "goalie")
+            con = pynuodb.connect("pynuodb_test", "nosuchhost", "dba", "dba_password")
             self.fail();
         except:
             pass;
 
     def test_nosuchuser(self):
         try:
-            con = pynuodb.connect("test", "localhost", "nosuchuser", "goalie")
+            con = pynuodb.connect("pynuodb_test", "localhost", "nosuchuser", "dba_password")
             self.fail();
         except ProgrammingError:
             pass;
@@ -51,7 +51,7 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchpassword(self):
         try:
-            con = pynuodb.connect("test", "localhost", "dba", "nosuchpassword")
+            con = pynuodb.connect("pynuodb_test", "localhost", "dba", "nosuchpassword")
             self.fail();
         except ProgrammingError:
             pass;

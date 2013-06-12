@@ -13,6 +13,8 @@ from cursor import Cursor
 from encodedsession import EncodedSession
 from crypt import ClientPassword, RC4Cipher
 from util import getCloudEntry
+from session import SessionException
+from exception import ProgrammingError
 
 import time
 import string
@@ -101,8 +103,13 @@ class Connection(object):
         sessionKey = cp.computeSessionKey(string.upper(username), password, salt, serverKey)
         self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
-        self.__session.putMessageId(protocol.AUTHENTICATION).putString('Success!')
-        self.__session.exchangeMessages()
+        # check auth
+        try:
+            self.__session.putMessageId(protocol.AUTHENTICATION).putString('Success!')
+            self.__session.exchangeMessages()
+        except SessionException:
+            raise ProgrammingError('Invalid database username or password')
+            
         
         # set auto commit to false by default
         self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
