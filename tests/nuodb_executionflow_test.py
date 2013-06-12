@@ -162,6 +162,21 @@ class NuoDBExecutionFlowTest(NuoBase):
         cursor.execute("SELECT 1 FROM DUAL");
         cursor.fetchone();
 
+    def test_error_after_error(self):
+        con = self._connect();
+        cursor = con.cursor();
+
+        try:
+            cursor.execute("syntax1 error");
+            self.fail();
+        except Error as e1:
+            self.assertEqual(str(e1), "'SYNTAX_ERROR: syntax error on line 1\\nsyntax1 error\\n^ expected statement got SYNTAX1\\n'");
+
+        try:
+            cursor.execute("syntax2 error");
+            self.fail();
+        except Error as e1:
+            self.assertEqual(str(e1), "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got SYNTAX2\\n'");
 
 if __name__ == '__main__':
     unittest.main()

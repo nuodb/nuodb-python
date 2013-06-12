@@ -34,7 +34,6 @@ class NuoDBCursorTest(NuoBase):
 
 
     def test_insufficient_parameters(self):
-        
         con = self._connect();
         cursor = con.cursor();
 #       cursor.execute("SELECT ? FROM DUAL");
@@ -47,7 +46,6 @@ class NuoDBCursorTest(NuoBase):
             self.assertIsNotNone(e)
 
     def test_toomany_parameters(self):
-        
         con = self._connect();
         cursor = con.cursor();
         
@@ -64,14 +62,33 @@ class NuoDBCursorTest(NuoBase):
             self.assertIsNotNone(e);
 
     def test_incorrect_parameters(self):
-
         con = self._connect();
         cursor = con.cursor();
+
         try:
             cursor.execute("SELECT ? + 1 FROM DUAL", ['abc']);
             self.fail();
         except DataError as e:
             self.assertIsNotNone(e);
+
+    def test_executemany(self):
+        con = self._connect();
+        cursor = con.cursor();
+
+        cursor.execute("DROP TABLE IF EXISTS executemany_table");
+        cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)");
+        cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1 , 2 ], [ 3, 4 ] ]);
+
+        cursor.execute("SELECT * FROM executemany_table");
+
+        ret = cursor.fetchall();
+
+        self.assertEquals(ret[0][0], 1);
+        self.assertEquals(ret[0][1], 2);
+        self.assertEquals(ret[1][0], 3);
+        self.assertEquals(ret[1][1], 4);
+
+        cursor.execute("DROP TABLE executemany_table");
         
 if __name__ == '__main__':
     unittest.main()
