@@ -51,6 +51,7 @@ class NuoBase(unittest.TestCase):
                 for i in xrange(1,20):
                     time.sleep(0.25)
                     if listener.db_left:
+                        time.sleep(1)
                         break
                 
         finally:
