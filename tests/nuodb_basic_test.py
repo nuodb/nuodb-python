@@ -716,7 +716,7 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
 
-        test_vals = (pynuodb.Date(1900, 1, 1),)
+        test_vals = (pynuodb.Date(1800, 1, 1),)
             
         with self.assertRaises(pynuodb.DataError): 
             cursor.execute("insert into typetest (date_col) values (?)", test_vals)            
