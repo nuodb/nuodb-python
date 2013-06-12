@@ -5,6 +5,9 @@ import pynuodb.entity
 import tempfile
 import unittest
 import time
+import os
+import string
+import random
 
 HOST            = "localhost"
 DOMAIN_USER     = "domain"
@@ -27,8 +30,9 @@ class NuoBase(unittest.TestCase):
         domain = pynuodb.entity.Domain(HOST, DOMAIN_USER, DOMAIN_PASSWORD)
         try:
             if DATABASE_NAME not in [db.getName() for db in domain.getDatabases()]:
-                peer = domain.getEntryPeer();
-                peer.startStorageManager(DATABASE_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
+                peer = domain.getEntryPeer()
+                archive = os.path.join(tempfile.gettempdir(), ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(20)))
+                peer.startStorageManager(DATABASE_NAME, archive, True, waitSeconds=10)
                 peer.startTransactionEngine(DATABASE_NAME,  [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
                 
         finally:
