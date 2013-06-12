@@ -6,6 +6,7 @@ from tests.nuodb_globals_test import *
 from tests.nuodb_cursor_test import *
 from tests.nuodb_blob_test import *
 from tests.nuodb_huge_test import *
+from tests.nuodb_connect_test import *
 
 import unittest
 import os
