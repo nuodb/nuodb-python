@@ -62,7 +62,7 @@ import pynuodb
 connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
 cursor = connection.cursor()
 
-cursor.execute("create table typetest (bool_col boolean, date_col date, " +
+cursor.execute("create table variabletest (bool_col boolean, date_col date, " +
                "string_col string, integer_col integer)")
 
 test_vals = (False, pynuodb.Date(2012,10,3), "hello world", 42)
