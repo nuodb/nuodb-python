@@ -104,34 +104,37 @@ class NuoDBTransactionTest(NuoBase):
 
         cursor2.execute("DROP TABLE rollback_disconnect");
 
-    def DISABLEDtest_autocommit_set(self):
-        con = self._connect();
+    def test_autocommit_set(self):
+        con1 = self._connect();
+        con2 = self._connect();
 
-        self.assertEquals(con.auto_commit, False);
+        self.assertEquals(con1.auto_commit, False);
  
-        con.auto_commit = True;
-        self.assertEquals(con.auto_commit, True);
+        con1.auto_commit = True;
+        self.assertEquals(con1.auto_commit, True);
 
-        cursor1 = con.cursor();
+        con2.auto_commit = True;
+        self.assertEquals(con2.auto_commit, True);
+
+        cursor1 = con1.cursor();
         cursor1.execute("DROP TABLE IF EXISTS autocommit_set");
         cursor1.execute("CREATE TABLE autocommit_set (f1 integer)");
-        con.commit();
 
         cursor1.execute("INSERT INTO autocommit_set VALUES (1)");
 
-        cursor2 = con.cursor();
+        cursor2 = con2.cursor();
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set");
         self.assertEquals(cursor2.fetchone()[0], 1);
         cursor2.execute("TRUNCATE TABLE autocommit_set");
 
-        con.auto_commit = False;
-        self.assertEquals(con.auto_commit, False);
+        con1.auto_commit = False;
+        self.assertEquals(con1.auto_commit, False);
 
         cursor1.execute("INSERT INTO autocommit_set VALUES (1)");
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set");
         self.assertEquals(cursor2.fetchone()[0], 0);
 
-        con.commit();
+        con1.commit();
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set");
         self.assertEquals(cursor2.fetchone()[0], 1);
 
