@@ -3,7 +3,7 @@ NuoDB - Python
 
 [![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-This is the official Python package for [NuoDB](http://www.nuodb.com). It implements the NuoDB [SQL Protocol](https://github.com/nuodb/nuodb-python/blob/master/SQL_Protocol.md)
+This is the official Python package for [NuoDB](http://www.nuodb.com). Please note that this driver is currently in beta.
 
 Note: At this time the Python/NuoDB Interface does not support Windows.
 
@@ -66,8 +66,8 @@ cursor.execute("create table variabletest (bool_col boolean, date_col date, " +
                "string_col string, integer_col integer)")
 
 test_vals = (False, pynuodb.Date(2012,10,3), "hello world", 42)
-cursor.execute("insert into typetest values (?, ?, ?, ?)", test_vals)
-cursor.execute("select * from typetest")
+cursor.execute("insert into variabletest values (?, ?, ?, ?)", test_vals)
+cursor.execute("select * from variabletest")
 print cursor.fetchone()
 ```
 
