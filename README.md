@@ -19,6 +19,12 @@ cd nuodb-python
 sudo python setup.py install
 ```
 
+Or install from pip
+
+```
+pip install pynuodb
+```
+
 ### Example
 
 Simple example for connecting and reading from an existing table:
