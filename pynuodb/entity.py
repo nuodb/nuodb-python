@@ -50,6 +50,12 @@ should be raised to help the caller make this happen.
 """
 
 class Domain(BaseListener):
+    
+    """Represents the NuoDB domain.
+    
+    The domain is the top level NuoDB management object. The domain object 
+    provides access to the peers and databases that are contained within.
+    """
 
     def __init__(self, broker_addr, domain_user, domain_pwd, listener=None):
         if not domain_pwd:
@@ -83,6 +89,7 @@ class Domain(BaseListener):
         return self.domain_name + " [Entered through: " + self.entry_peer.connect_str + "]"
 
     def disconnect(self):
+        """Disconnect from the domain."""
         self.__monitor.close()
 
     @property
@@ -126,7 +133,7 @@ class Domain(BaseListener):
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
         
-        The argument graceful (default True) means that the database will first
+        graceful -- (default True) means that the database will first
         be quiesced and the shutdown.
         """
         for database in self.__databases.itervalues():
@@ -191,9 +198,11 @@ class Domain(BaseListener):
             except AttributeError:
                 pass
 
-    # NOTE: this is the status provided on initial broker-connection, and not
-    # per-process status updates
     def __handle_status(self, message):
+        """Handle initial domain status on domain connection.
+        
+        Note that this is ONLY for processing the initial status message. All
+        further update messages are processed by message_received()."""
         root = ElementTree.fromstring(message)
         if root.tag != "Status":
             raise Exception("Expected status message; got " + root.tag)
@@ -225,6 +234,7 @@ class Domain(BaseListener):
                         self.__process_joined(Process.from_message(self.__databases[name], process_element), None)
 
     def __peer_joined(self, peer):
+        """Called when a peer joins the domain."""
         self.__peers[peer.id] = peer
         if self.__listener:
             try:
@@ -233,6 +243,7 @@ class Domain(BaseListener):
                 pass
 
     def __peer_left(self, peer):
+        """Called when a peer leaves the domain."""
         del self.__peers[peer.id]
         if self.__listener:
             try:
@@ -241,6 +252,7 @@ class Domain(BaseListener):
                 pass
 
     def __process_joined(self, process, start_id):
+        """Called when a process joins the domain."""
         process.database._add_process(process)
         process.peer._notify_start_id(start_id, process)
         if self.__listener:
@@ -250,6 +262,7 @@ class Domain(BaseListener):
                 pass
     
     def __process_left(self, process):
+        """Called when a process leaves the domain."""
         database = process.database
         database._remove_process(process)
         process.peer._remove_process(process)
@@ -268,6 +281,7 @@ class Domain(BaseListener):
                     pass
 
     def __process_failed(self, peer, start_id, reason):
+        """Called when a process in the domain fails."""
         peer._notify_start_id(start_id, reason)
         if self.__listener:
             try:
@@ -276,6 +290,7 @@ class Domain(BaseListener):
                 pass
 
     def __process_status_changed(self, process, status):
+        """Called when a process in the domain changes status."""
         process._set_status(status)
         if self.__listener:
             try:
@@ -283,18 +298,25 @@ class Domain(BaseListener):
             except AttributeError:
                 pass
 
-    # an initial verison only to support the shutdown routine that doesn't
-    # need to watch for return messages ... right now this module is only
-    # supporting the tests, which don't need the other management routines
-    # at this point, so we'll flesh this out (as in the Java implementation)
-    # in the second round when other utilites get updated as well
+
     def _send_management_message(self, message, peer, process):
+        """Send a management message.
+        
+        Note that this is an initial verison only to support the shutdown 
+        routine that doesn't need to watch for return messages ... right now 
+        this module is only supporting the tests, which don't need the other 
+        management routines at this point, so we'll flesh this out (as in the 
+        Java implementation) in the second round when other utilites get 
+        updated as well
+        """
         root = ElementTree.fromstring("<ManagementRequest AgentId=\"%s\" ProcessId=\"%i\"/>" % (peer.id, process.pid))
         root.append(message)
 
         self.__session.send(ElementTree.tostring(root))
 
 class Peer:
+    
+    """Represents a peer (or host) in the domain."""
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
         self.__domain = domain
@@ -310,6 +332,7 @@ class Peer:
 
     @staticmethod
     def from_message(domain, peer_element):
+        """"Construct a new peer object from an XML message."""
         return Peer(domain, peer_element.get("Address"), peer_element.get("AgentId"),
                     peer_element.get("Role") == "Broker", peer_element.get("Port"),
                     peer_element.get("Hostname"), peer_element.get("Version"))
@@ -331,40 +354,81 @@ class Peer:
 
     @property
     def domain(self):
+        """Return the domain that contains this peer."""
         return self.__domain
 
     @property
     def address(self):
+        """Return the address of this peer."""
         return self.__address
 
     @property
     def connect_str(self):
+        """Return the connect string for this peer."""
         return self.__address + ":" + str(self.__port)
 
     @property
     def port(self):
+        """Return the port that this peer is using."""
         return self.__port
 
     @property
     def id(self):
+        """Return the id of this peer (agent_id)."""
         return self.__id
 
     @property
     def hostname(self):
+        """Return the hostname of this peer."""
         return self.__hostname
     
     @property
     def version(self):
+        """Return the NuoDB release version of this peer."""
         return self.__version
 
     @property
     def is_broker(self):
+        """Return True if this peer is a broker."""
         return self.__is_broker
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
+        """Start a transaction engine on this peer for a given database.
+        
+        options -- accepts a list of two element tuples, where the first element
+        is a nuodb option flag and the second is the value. For options that
+        do not accept a value, pass None as the value.
+         
+        If this is the first transaction engine to be started for a database
+        you must include --dba-user and --dba-password in the options.
+        
+        wait_seconds -- defines how long to wait for the transaction engine to 
+        start. The default is None, which does not wait for a response. 
+        Specifying a wait_seconds value will cause this function to block 
+        until a response is received indicating success or failure. If the
+        time elapses without a response a SessionException will be raised.
+        
+        """
         return self.__start_process(db_name, options, wait_seconds)
 
     def start_storage_manager(self, db_name, archive, initialize, options=None, wait_seconds=None):
+        """Start a storage manager on this peer for a given database.
+              
+        archive -- the archive location for the new storage manager. 
+        
+        initialize -- should be set to True if this is storage manager is being
+        started with a new archive. 
+        
+        options -- accepts a list of two element tuples, where the first 
+        element is a nuodb option flag and the second is the value. For 
+        options that do not accept a value, pass None as the value.
+        
+        wait_seconds -- defines how long to wait for the storage manager to 
+        start. The default is None, which does not wait for a response. 
+        Specifying a wait_seconds value will cause this function to block 
+        until a response is received indicating success or failure. If the
+        time elapses without a response, a SessionException will be raised.
+        """
         if not options:
             options = []
 
@@ -372,7 +436,6 @@ class Peer:
 
         if initialize:
             options.append(("--initialize", None))
-            options.append(("--force", None))
 
         return self.__start_process(db_name, options, wait_seconds)
 
@@ -429,6 +492,13 @@ class Peer:
             self.__lock.release()
 
     def get_local_processes(self, db_name=None):
+        """Return a list of the NuoDB processes on this host.
+        
+        db_name -- (default None) if not None, only return processes on this peer that belong
+        to a given database. Note that if the database spans multiple peers
+        this method will only return the subset of processes that are on this 
+        peer. 
+        """
         if db_name == None:
             return self.__processes.values()
 
@@ -453,6 +523,8 @@ class Peer:
 
 
 class Database:
+    
+    """Represents a NuoDB database."""
 
     def __init__(self, domain, name):
         self.__domain = domain
@@ -476,10 +548,12 @@ class Database:
 
     @property
     def domain(self):
+        """Return the domain that contains this database."""
         return self.__domain
 
     @property
     def name(self):
+        """Return the name of this database."""
         return self.__name
 
     def _add_process(self, process):
@@ -490,12 +564,18 @@ class Database:
 
     @property
     def processes(self):
+        """Return a list of all processes in this database."""
         return self.__processes.values()
 
     def __process_id(self, process):
         return process.peer.id + ":" + str(process.pid)
 
     def shutdown(self, graceful=True):
+        """Shutdown this database.
+        
+        graceful -- (default True) if True, the database will first
+        be quiesced and the shutdown.
+        """
         if len(self.__processes) == 0:
             return
 
@@ -532,6 +612,15 @@ class Database:
             raise SessionException("Failed to shutdown " + str(failure_count) + " process(es)\n" + failure_text)
 
     def quiesce(self, wait_seconds=0):
+        """Quiesce the database.
+        
+        wait_seconds -- (default 0) defines how long to wait for the database 
+        to quiesce. If wait_seconds is 0 quiesce will not wait for a response.
+        If wait_seconds is not 0 quiesce will block until the database is 
+        quiesced or wait_seconds seconds pass. If the database does not 
+        respond with a status of QUIESCED within the timeout, a 
+        SessionException will be raised.
+        """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
                        self.__domain.user, self.__domain.password,
                        self.__name, DatabaseAction.Quiesce)
@@ -542,6 +631,15 @@ class Database:
             raise SessionException("Timed out waiting to quiesce database")
 
     def unquiesce(self, wait_seconds=0):
+        """Unquiesce the database.
+        
+        wait_seconds -- (default 0) defines how long to wait for the database 
+        to unquiesce. If wait_seconds is 0 unquiesce will not wait for a response.
+        If wait_seconds is not 0 unquiesce will block until the database is 
+        running or wait_seconds seconds pass. If the database does not 
+        respond with a status of RUNNING within the timeout, a 
+        SessionException will be raised.
+        """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
                        self.__domain.user, self.__domain.password,
                        self.__name, DatabaseAction.Unquiesce)
@@ -577,6 +675,8 @@ class Database:
         return False
 
 class Process:
+    
+    """Represents a NuoDB process (TE or SM)"""
 
     def __init__(self, peer, database, port, pid, transactional, status, hostname=None, version=None):
         self.__peer = peer
@@ -594,6 +694,7 @@ class Process:
 
     @staticmethod
     def from_message(database, process_element):
+        """Construct a new process from an XML message."""
         peer = database.domain.get_peer(process_element.get("AgentId"))
         if peer == None:
             raise Exception("Process is for an unknown peer")
@@ -624,50 +725,89 @@ class Process:
 
     @property
     def peer(self):
+        """Return the peer on which this process is running."""
         return self.__peer
 
     @property
     def database(self):
+        """Return the database that contains this process."""
         return self.__database
 
     @property
     def address(self):
+        """Return the address of this process."""
         return self.__peer.address
 
     @property
     def port(self):
+        """Return the port that this process is using."""
         return self.__port
 
     @property
     def pid(self):
+        """Return the process id of this process."""
         return self.__pid
     
     @property
     def is_transactional(self):
+        """Return True if this process is a Transaction Engine.
+        
+        Return False if it is a Storage Manager.
+        """
         return self.__transactional
 
     @property
     def hostname(self):
+        """Return the hostname of this process."""
         return self.__hostname
     
     @property
     def version(self):
+        """Return the NuoDB release version of this process."""
         return self.__version
 
     def shutdown(self, wait_time=0):
+        """Shutdown this process.
+        
+        This is used in a graceful=True database shutdown.
+        """
         msg = ElementTree.fromstring("<Request Service=\"Admin\" Type=\"Shutdown\" WaitTime=\"%i\"/>" % wait_time)
         self.__peer.domain._send_management_message(msg, self.__peer, self)
 
     def kill(self):
+        """Kill this process.
+        
+        This is used in a graceful=False database shutdown. 
+        """
         domain = self.__peer.domain
         killProcess(self.__peer.connect_str, domain.user, domain.password, self.pid)
 
     @property
     def status(self):
+        """Return the status of this process.
+        
+        Possible statuses are:
+        ACTIVE - The node has reported that it's ready for chorus participation.
+        RUNNING - The node is in its running/active state.
+        SYNCING - The node is currently synchronizing with the database state.
+        QUIESCING - The node is starting to quiesce.
+        UNQUIESCING - The node is moving from being quiesced to running.
+        QUIESCED - The node is quiesced and will not service transactions.
+        DIED - The node is recognized as having left the database.
+        QUIESCING2 - An internal state change in the process of quiescing.
+        SHUTTING_DOWN - The node is in the process of a soft shutdown.
+        UNKNOWN - Any unknown state ... this should always be last in this enum 
+                  to protect against skew between this enum and the C++ constants.
+        """
         return self.__status
 
     def wait_for_status(self, status, wait_seconds):
-
+        """Block until this process has a specified status.
+        
+        If the status is not reached within wait_seconds seconds this method
+        will return False. If the status is reached it will immediately return 
+        True.
+        """
         while wait_seconds >= 0:
             if self.status == status:
                 return True
