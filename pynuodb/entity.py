@@ -87,39 +87,56 @@ class Domain(BaseListener):
 
     @property
     def user(self):
+        """Return the domain user."""
         return self.__user
 
     @property
     def password(self):
+        """Return the domain password."""
         return self.__password
     
     @property
     def domain_name(self):
+        """Return the domain name."""
         return self.__domain_name
 
     def get_peer(self, agent_id):
+        """Return a peer for a given agent_id."""
         return self.__peers.get(agent_id)
 
     @property
     def peers(self):
+        """Return a list of all peers in the domain."""
         return self.__peers.values()
 
     @property
     def entry_peer(self):
+        """Return the peer that was used to enter the domain."""
         return self.__entry_peer
 
     def get_database(self, name):
+        """Return a database by name"""
         return self.__databases.get(name)
 
     @property
     def databases(self):
+        """Return a list of databases in the domain"""
         return self.__databases.values()
 
     def shutdown(self, graceful=True):
+        """Shutdown all databases in the domain.
+        
+        The argument graceful (default True) means that the database will first
+        be quiesced and the shutdown.
+        """
         for database in self.__databases.itervalues():
             database.shutdown(graceful)
 
     def message_received(self, root):
+        """Process a management message from the broker.
+        
+        Override from session.BaseListener.
+        """
         if root.tag == "Event":
             event_type = root.get("Type")
             if event_type == "NewBroker":
@@ -151,8 +168,9 @@ class Domain(BaseListener):
                     if self.__listener:
                         try:
                             self.__listener.database_joined(self.__databases[db_name])
-                        except:
+                        except AttributeError:
                             pass
+                            
 
                 if event_type == "NewProcess":
                     start_id = process_element.get("StartId")
@@ -163,10 +181,14 @@ class Domain(BaseListener):
                                                      process_element))
 
     def closed(self):
+        """Called when the session is closed.
+        
+        Override from session.BaseListener.
+        """
         if self.__listener:
             try:
                 self.__listener.closed()
-            except:
+            except AttributeError:
                 pass
 
     # NOTE: this is the status provided on initial broker-connection, and not
@@ -193,7 +215,7 @@ class Domain(BaseListener):
                 if self.__listener:
                     try:
                         self.__listener.database_joined(self.__databases[name])
-                    except:
+                    except AttributeError:
                         pass
 
                 for process_element in list(child):
@@ -207,7 +229,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.peer_joined(peer)
-            except:
+            except AttributeError:
                 pass
 
     def __peer_left(self, peer):
@@ -215,7 +237,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.peer_left(peer)
-            except:
+            except AttributeError:
                 pass
 
     def __process_joined(self, process, start_id):
@@ -224,7 +246,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.process_joined(process)
-            except:
+            except AttributeError:
                 pass
     
     def __process_left(self, process):
@@ -234,7 +256,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.process_left(process)
-            except:
+            except AttributeError:
                 pass
 
         if len(database.processes) == 0:
@@ -242,7 +264,7 @@ class Domain(BaseListener):
             if self.__listener:
                 try:
                     self.__listener.database_left(database)
-                except:
+                except AttributeError:
                     pass
 
     def __process_failed(self, peer, start_id, reason):
@@ -250,7 +272,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.process_failed(peer, reason)
-            except:
+            except AttributeError:
                 pass
 
     def __process_status_changed(self, process, status):
@@ -258,7 +280,7 @@ class Domain(BaseListener):
         if self.__listener:
             try:
                 self.__listener.process_status_changed(process, status)
-            except:
+            except AttributeError:
                 pass
 
     # an initial verison only to support the shutdown routine that doesn't
