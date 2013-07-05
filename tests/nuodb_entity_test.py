@@ -37,11 +37,11 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertIsNotNone(domain)
             self.assertFalse(domain.closed())
             
-            self.assertEqual(domain.getUser(), DOMAIN_USER)
-            self.assertEqual(domain.getPassword(), DOMAIN_PASSWORD)     
-            self.assertIsNotNone(domain.getDomainName())
-            self.assertIsNotNone(domain.getEntryPeer())
-            self.assertIn(domain.getEntryPeer(), domain.getPeers())
+            self.assertEqual(domain.user, DOMAIN_USER)
+            self.assertEqual(domain.password, DOMAIN_PASSWORD)     
+            self.assertIsNotNone(domain.domain_name)
+            self.assertIsNotNone(domain.entry_peer)
+            self.assertIn(domain.entry_peer, domain.peers)
             
         finally:
             self._cleanup(domain)
@@ -52,15 +52,15 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
                         
-            num_dbs_before = domain.getDatabaseCount()
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
             domain.shutdown()
             time.sleep(1)
-            database = domain.getDatabase(TEST_DB_NAME)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIsNone(database)
             
         finally:
@@ -72,7 +72,7 @@ class NuoDBEntityTest(unittest.TestCase):
         dl = TestListener()
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD, dl)
-            peer = domain.getEntryPeer()
+            peer = domain.entry_peer
             
             self.assertIs(peer, dl.pJoined)
             self.assertIsNone(dl.pLeft)
@@ -85,7 +85,7 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertIsNone(dl.dLeft)
             self.assertFalse(dl.c)
             
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
             i = 0
             while dl.nJoined is not sm and i < 10:
                 time.sleep(1)
@@ -96,7 +96,7 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertIs(sm, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
             
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
             i = 0
             while dl.nJoined is not te and i < 10:
                 time.sleep(1)
@@ -104,7 +104,7 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertIs(te, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
             
-            database = domain.getDatabase(TEST_DB_NAME)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIs(database, dl.dJoined)
             
             self.assertIsNone(dl.pLeft)
@@ -138,17 +138,17 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
-            peer = domain.getEntryPeer()
+            peer = domain.entry_peer
             self.assertIsNotNone(peer)
             
-            self.assertIs(peer.getDomain(), domain)
-            self.assertIsNotNone(peer.getAddress())
-            self.assertIsNotNone(peer.getConnectStr())
-            self.assertIsNotNone(peer.getPort())
-            self.assertIsNotNone(peer.getId())
-            self.assertIsNotNone(peer.getHostname())
-            self.assertIsNotNone(peer.getVersion())
-            self.assertTrue(peer.isBroker())
+            self.assertIs(peer.domain, domain)
+            self.assertIsNotNone(peer.address)
+            self.assertIsNotNone(peer.connect_str)
+            self.assertIsNotNone(peer.port)
+            self.assertIsNotNone(peer.id)
+            self.assertIsNotNone(peer.hostname)
+            self.assertIsNotNone(peer.version)
+            self.assertTrue(peer.is_broker)
             
         finally:
             self._cleanup(domain)          
@@ -160,46 +160,46 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            num_dbs_before = domain.getDatabaseCount()
-            peer = domain.getEntryPeer()
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
             
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
             self.assertIsNotNone(sm)
-            self.assertIs(sm.getPeer(), peer)
-            self.assertIsNotNone(sm.getAddress())
-            self.assertIsNotNone(sm.getPort())
-            self.assertIsNotNone(sm.getPid())
-            self.assertIsNotNone(sm.getHostname())
-            self.assertIsNotNone(sm.getVersion())
-            self.assertEqual(domain.getDatabaseCount(), num_dbs_before + 1)
-            self.assertIn(sm, peer.getLocalProcesses())
-            self.assertFalse(sm.isTransactional())
+            self.assertIs(sm.peer, peer)
+            self.assertIsNotNone(sm.address)
+            self.assertIsNotNone(sm.port)
+            self.assertIsNotNone(sm.pid)
+            self.assertIsNotNone(sm.hostname)
+            self.assertIsNotNone(sm.version)
+            self.assertEqual(len(domain.databases), num_dbs_before + 1)
+            self.assertIn(sm, peer.get_local_processes())
+            self.assertFalse(sm.is_transactional)
             
-            database = domain.getDatabase(TEST_DB_NAME)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
-            self.assertIn(database, domain.getDatabases())
-            self.assertIs(database.getDomain(), domain)
-            self.assertEqual(database.getName(), TEST_DB_NAME)
-            self.assertEqual(database.getProcessCount(), 1)
-            self.assertIn(sm, database.getProcesses())
+            self.assertIn(database, domain.databases)
+            self.assertIs(database.domain, domain)
+            self.assertEqual(database.name, TEST_DB_NAME)
+            self.assertEqual(len(database.processes), 1)
+            self.assertIn(sm, database.processes)
             
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
             self.assertIsNotNone(te)
-            self.assertIs(te.getPeer(), peer)
-            self.assertIsNotNone(te.getAddress())
-            self.assertIsNotNone(te.getPort())
-            self.assertIsNotNone(te.getPid())
-            self.assertIsNotNone(te.getHostname())
-            self.assertIsNotNone(te.getVersion())
-            self.assertEqual(domain.getDatabaseCount(), num_dbs_before + 1)
-            self.assertIn(te, peer.getLocalProcesses())
-            self.assertTrue(te.isTransactional())
+            self.assertIs(te.peer, peer)
+            self.assertIsNotNone(te.address)
+            self.assertIsNotNone(te.port)
+            self.assertIsNotNone(te.pid)
+            self.assertIsNotNone(te.hostname)
+            self.assertIsNotNone(te.version)
+            self.assertEqual(len(domain.databases), num_dbs_before + 1)
+            self.assertIn(te, peer.get_local_processes())
+            self.assertTrue(te.is_transactional)
             
-            self.assertEqual(database.getProcessCount(), 2)
-            self.assertIn(te, database.getProcesses())
-            self.assertEqual(sm.getVersion(), te.getVersion())
-            self.assertIs(sm.getDatabase(), database)
-            self.assertIs(te.getDatabase(), database)
+            self.assertEqual(len(database.processes), 2)
+            self.assertIn(te, database.processes)
+            self.assertEqual(sm.version, te.version)
+            self.assertIs(sm.database, database)
+            self.assertIs(te.database, database)
             
             
         finally:
@@ -211,19 +211,19 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
             domain.disconnect()
             time.sleep(1)
             
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
-            database = domain.getDatabase(TEST_DB_NAME)
+            database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
             
-            self.assertEqual(database.getProcessCount(), 2)            
+            self.assertEqual(len(database.processes), 2)            
             
             
         finally:
@@ -237,32 +237,32 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            peer = domain.getEntryPeer()
-            sm1 = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te1 = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database1 = domain.getDatabase(TEST_DB_NAME)
+            peer = domain.entry_peer
+            sm1 = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te1 = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database1 = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database1)
             
-            sm2 = peer.startStorageManager(TEST_DB_NAME2, tempfile.mkdtemp(), True, waitSeconds=10)
-            te2 = peer.startTransactionEngine(TEST_DB_NAME2, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database2 = domain.getDatabase(TEST_DB_NAME2)
+            sm2 = peer.start_storage_manager(TEST_DB_NAME2, tempfile.mkdtemp(), True, wait_seconds=10)
+            te2 = peer.start_transaction_engine(TEST_DB_NAME2, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database2 = domain.get_database(TEST_DB_NAME2)
             self.assertIsNotNone(database2)
             self.assertNotEqual(database1, database2)
             
-            self.assertIn(sm1, peer.getLocalProcesses())
-            self.assertIn(te1, peer.getLocalProcesses())
-            self.assertIn(sm2, peer.getLocalProcesses())
-            self.assertIn(te2, peer.getLocalProcesses())
+            self.assertIn(sm1, peer.get_local_processes())
+            self.assertIn(te1, peer.get_local_processes())
+            self.assertIn(sm2, peer.get_local_processes())
+            self.assertIn(te2, peer.get_local_processes())
             
-            self.assertIn(sm1, peer.getLocalProcesses(database1.getName()))
-            self.assertIn(te1, peer.getLocalProcesses(database1.getName()))
-            self.assertIn(sm2, peer.getLocalProcesses(database2.getName()))
-            self.assertIn(te2, peer.getLocalProcesses(database2.getName()))
+            self.assertIn(sm1, peer.get_local_processes(database1.name))
+            self.assertIn(te1, peer.get_local_processes(database1.name))
+            self.assertIn(sm2, peer.get_local_processes(database2.name))
+            self.assertIn(te2, peer.get_local_processes(database2.name))
             
-            self.assertNotIn(sm1, peer.getLocalProcesses(database2.getName()))
-            self.assertNotIn(te1, peer.getLocalProcesses(database2.getName()))
-            self.assertNotIn(sm2, peer.getLocalProcesses(database1.getName()))
-            self.assertNotIn(te2, peer.getLocalProcesses(database1.getName()))
+            self.assertNotIn(sm1, peer.get_local_processes(database2.name))
+            self.assertNotIn(te1, peer.get_local_processes(database2.name))
+            self.assertNotIn(sm2, peer.get_local_processes(database1.name))
+            self.assertNotIn(te2, peer.get_local_processes(database1.name))
             
         finally:
             self._cleanup(domain)
@@ -273,16 +273,16 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            num_dbs_before = domain.getDatabaseCount()
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
-            self.assertEqual(database.getProcessCount(), 2)
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
+            self.assertEqual(len(database.processes), 2)
             
-            new_te = peer.startTransactionEngine(TEST_DB_NAME, waitSeconds=10)
-            self.assertTrue(new_te.waitForStatus('RUNNING', 10))
-            self.assertEqual(database.getProcessCount(), 3)
+            new_te = peer.start_transaction_engine(TEST_DB_NAME, wait_seconds=10)
+            self.assertTrue(new_te.wait_for_status('RUNNING', 10))
+            self.assertEqual(len(database.processes), 3)
             
         finally:
             self._cleanup(domain)
@@ -293,17 +293,17 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            num_dbs_before = domain.getDatabaseCount()
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            new_te = peer.startTransactionEngine(TEST_DB_NAME, waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
-            self.assertEqual(database.getProcessCount(), 3)
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            new_te = peer.start_transaction_engine(TEST_DB_NAME, wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
+            self.assertEqual(len(database.processes), 3)
             new_te.shutdown()
             time.sleep(1)
             
-            self.assertEqual(database.getProcessCount(), 2)
+            self.assertEqual(len(database.processes), 2)
             
         finally:
             self._cleanup(domain)
@@ -314,17 +314,17 @@ class NuoDBEntityTest(unittest.TestCase):
         try:
             domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
             
-            num_dbs_before = domain.getDatabaseCount()
-            peer = domain.getEntryPeer()
-            sm = peer.startStorageManager(TEST_DB_NAME, tempfile.mkdtemp(), True, waitSeconds=10)
-            te = peer.startTransactionEngine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], waitSeconds=10)
-            new_te = peer.startTransactionEngine(TEST_DB_NAME, waitSeconds=10)
-            database = domain.getDatabase(TEST_DB_NAME)
-            self.assertEqual(database.getProcessCount(), 3)
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, tempfile.mkdtemp(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            new_te = peer.start_transaction_engine(TEST_DB_NAME, wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
+            self.assertEqual(len(database.processes), 3)
             new_te.kill()
             time.sleep(1)
             
-            self.assertEqual(database.getProcessCount(), 2)
+            self.assertEqual(len(database.processes), 2)
             
         finally:
             self._cleanup(domain)
@@ -332,15 +332,15 @@ class NuoDBEntityTest(unittest.TestCase):
     def _cleanup(self, domain):
         if domain is not None:
             try:
-                db_names = [db.getName() for db in domain.getDatabases()]
+                db_names = [db.name for db in domain.databases]
                 for name in db_names:
-                    db = domain.getDatabase(name)
+                    db = domain.get_database(name)
                     db.shutdown()
                     i = 0
-                    while db.getProcessCount() > 0 and i < 10:
+                    while len(db.processes) > 0 and i < 10:
                         time.sleep(1)
                         i += 1
-                    if domain.getDatabase(name) is not None:
+                    if domain.get_database(name) is not None:
                         raise Exception("Could not shutdown existing test database %s" % (name))
                         
             finally:
@@ -358,29 +358,29 @@ class TestListener(object):
         self.dLeft = None
         self.c = False
     
-    def peerJoined(self, peer):
+    def peer_joined(self, peer):
         self.pJoined = peer
         
-    def peerLeft(self, peer):
+    def peer_left(self, peer):
         self.pLeft = peer
         
-    def processJoined(self, process):
+    def process_joined(self, process):
         self.nJoined = process
         
-    def processLeft(self, process):
+    def process_left(self, process):
         self.nLeft = process
         
-    def processFailed(self, process):
+    def process_failed(self, process):
         self.nFailed = process
         
-    def processStatusChanged(self, process, status):
+    def process_status_changed(self, process, status):
         self.nStatusChanged[0] = process
         self.nStatusChanged[1] = status
         
-    def databaseJoined(self, database):
+    def database_joined(self, database):
         self.dJoined = database
         
-    def databaseLeft(self, database):
+    def database_left(self, database):
         self.dLeft = database
         
     def closed(self):
