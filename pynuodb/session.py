@@ -91,10 +91,12 @@ class Session:
 
         self.__service = service
 
-    def getAddress(self):
+    @property
+    def address(self):
         return self.__address
 
-    def getPort(self):
+    @property
+    def port(self):
         return self.__port
 
     # NOTE: This routine works only for agents ... see the sql module for a
@@ -272,13 +274,13 @@ class SessionMonitor(threading.Thread):
             except:
                 if self.__listener:
                     try:
-                        self.__listener.invalidMessage(message)
+                        self.__listener.invalid_message(message)
                     except:
                         pass
             else:
                 if self.__listener:
                     try:
-                        self.__listener.messageReceived(root)
+                        self.__listener.message_received(root)
                     except:
                         pass
 
@@ -299,10 +301,10 @@ class SessionMonitor(threading.Thread):
 
 class BaseListener:
 
-    def messageReceived(self, root):
+    def message_received(self, root):
         pass
 
-    def invalidMessage(self, message):
+    def invalid_message(self, message):
         pass
 
     def closed(self):
