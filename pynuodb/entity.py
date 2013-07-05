@@ -134,7 +134,7 @@ class Domain(BaseListener):
         """Shutdown all databases in the domain.
         
         graceful -- (default True) means that the database will first
-        be quiesced and the shutdown.
+        be quiesced and then shutdown.
         """
         for database in self.__databases.itervalues():
             database.shutdown(graceful)
@@ -416,7 +416,7 @@ class Peer:
               
         archive -- the archive location for the new storage manager. 
         
-        initialize -- should be set to True if this is storage manager is being
+        initialize -- should be set to True if this storage manager is being
         started with a new archive. 
         
         options -- accepts a list of two element tuples, where the first 
@@ -574,7 +574,7 @@ class Database:
         """Shutdown this database.
         
         graceful -- (default True) if True, the database will first
-        be quiesced and the shutdown.
+        be quiesced and then shutdown.
         """
         if len(self.__processes) == 0:
             return
@@ -787,15 +787,15 @@ class Process:
         """Return the status of this process.
         
         Possible statuses are:
-        ACTIVE - The node has reported that it's ready for chorus participation.
-        RUNNING - The node is in its running/active state.
-        SYNCING - The node is currently synchronizing with the database state.
-        QUIESCING - The node is starting to quiesce.
-        UNQUIESCING - The node is moving from being quiesced to running.
-        QUIESCED - The node is quiesced and will not service transactions.
-        DIED - The node is recognized as having left the database.
+        ACTIVE - The process has reported that it's ready for database participation.
+        RUNNING - The process is in its running/active state.
+        SYNCING - The process is currently synchronizing with the database state.
+        QUIESCING - The process is starting to quiesce.
+        UNQUIESCING - The process is moving from being quiesced to running.
+        QUIESCED - The process is quiesced and will not service transactions.
+        DIED - The process is recognized as having left the database.
         QUIESCING2 - An internal state change in the process of quiescing.
-        SHUTTING_DOWN - The node is in the process of a soft shutdown.
+        SHUTTING_DOWN - The process is in the process of a soft shutdown.
         UNKNOWN - Any unknown state ... this should always be last in this enum 
                   to protect against skew between this enum and the C++ constants.
         """
