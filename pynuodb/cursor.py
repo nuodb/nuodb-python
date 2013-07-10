@@ -51,6 +51,13 @@ class Cursor(object):
         self._results_pos = 0
         
         self._complete = False
+        
+        self.__query = None
+        
+    @property    
+    def query(self):
+        """Return the most recent query"""
+        return self.__query
 
     def close(self):
         """Closes the cursor into the database."""
@@ -105,6 +112,7 @@ class Cursor(object):
         """
         self._check_closed()
         self._reset()
+        self.__query = operation
         if parameters is None:
             self._execute(operation)
             
