@@ -9,7 +9,7 @@ events happen. The Domain provides access to Peers, Databases and Processes.
 from session import BaseListener, Session, SessionMonitor, SessionException
 from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
 
-import time
+import time, json
 from threading import Event, Lock
 import xml.etree.ElementTree as ElementTree
 
@@ -91,6 +91,11 @@ class Domain(BaseListener):
     def disconnect(self):
         """Disconnect from the domain."""
         self.__monitor.close()
+        
+    def _send_domain_message(self, service, attributes=None, text=None, children=None):
+        session = Session(self.__entry_peer.address, service=service)
+        session.authorize(self.__user, self.__password)
+        return session.doRequest(attributes, text, children)
 
     @property
     def user(self):
@@ -129,6 +134,33 @@ class Domain(BaseListener):
     def databases(self):
         """Return a list of databases in the domain"""
         return self.__databases.values()
+
+    def set_template_description(self, template, description):
+        """Set template by name"""
+        return self._send_domain_message("Description", {'Action': 'SetTemplateDescription', 'TemplateName': template}, text=description)
+
+    def get_template(self, name):
+        """Return a template by name"""
+        message = self._send_domain_message("Description", {'Action': 'GetTemplateDescription', 'TemplateName': name})
+        if ElementTree.fromstring(message).text:
+            return json.loads(ElementTree.fromstring(message).text)
+        return {}
+
+    @property
+    def templates(self):
+        """Return a list of templates in the domain"""
+        message = self._send_domain_message("Description", {'Action': 'ListTemplates'})
+        templates = ElementTree.fromstring(message)
+        data = []
+        for template in templates:
+            data.append(dict((k.lower(), v) for k, v in template.attrib.iteritems()))
+        return data
+
+    def set_description(self, database, description):
+        """Sets description of specified database. If the database does not exist, then create one"""
+        inner_text = str({'template': description})
+#         inner_text = "{\"name\": \"%s\", 'description': '%s'}" % (database, description) 
+        return self._send_domain_message("Description", {'Action': 'SetDatabaseDescription', 'DatabaseName': database, 'DbaUser': self.user, 'DbaPassword': self.password}, text=inner_text)
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
@@ -392,6 +424,28 @@ class Peer:
         """Return True if this peer is a broker."""
         return self.__is_broker
 
+    @property
+    def tags(self):
+        """Return all host tags"""
+        message = self.__domain._send_domain_message("Description", {'Action': 'GetHostTags', 'AgentId': self.id})
+        tags = ElementTree.fromstring(message)
+        data = []
+        for tag in tags:
+            data.append(dict((k.lower(), v) for k, v in tag.attrib.iteritems()))
+        return data
+    
+    def get_tag(self, tag):
+        """Return host tag"""
+        message = self.__domain._send_domain_message("Description", {'Action': 'GetHostTags', 'AgentId': self.id})
+        if ElementTree.fromstring(message).text:
+            json.loads(ElementTree.fromstring(message).text)
+        return []
+        
+    def set_tag(self, key, value):
+        """Set host tag"""
+        element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
+        return self.__domain._send_domain_message("Description", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
+
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
         
@@ -555,6 +609,37 @@ class Database:
     def name(self):
         """Return the name of this database."""
         return self.__name
+
+    @property
+    def description(self):
+        """Return the description of this database."""
+        message = self.__domain._send_domain_message("Description", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
+        return json.loads(ElementTree.fromstring(message).text)
+
+    @property
+    def status(self):
+        """Return the status of the database."""
+        #TODO: hack to determine database state
+        data = {'RUNNING': 0, 'QUIESCED': 0}
+        for process in self.processes:
+            if process.status == "RUNNING":
+                data['RUNNING'] = data['RUNNING'] + 1
+            if process.status == "QUIESCED":
+                data['QUIESCED'] = data['QUIESCED'] + 1
+        if data['RUNNING'] > data['QUIESCED']:
+            return "RUNNING"
+        if data['QUIESCED'] > data['RUNNING']:
+            return "QUIESCED"
+
+     @property
+     def storage_managers(self):
+         """Return storage managers."""
+         return [process for process in self.__processes if not process.is_transactional]
+      
+     @property
+     def transaction_engines(self):
+         """Return transaction engines."""
+         return [process for process in self.__processes if process.is_transactional]
 
     def _add_process(self, process):
         self.__processes[self.__process_id(process)] = process
