@@ -93,7 +93,7 @@ class Domain(BaseListener):
         self.__monitor.close()
         
     def _send_domain_message(self, service, attributes=None, text=None, children=None):
-        session = Session(self.__entry_peer.address, service=service)
+        session = Session(self.__entry_peer.address, port=self.__entry_peer.port, service=service)
         session.authorize(self.__user, self.__password)
         return session.doRequest(attributes, text, children)
 
