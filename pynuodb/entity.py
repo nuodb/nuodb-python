@@ -137,11 +137,11 @@ class Domain(BaseListener):
 
     def set_template_description(self, template, description):
         """Set template by name"""
-        return self._send_domain_message("Description", {'Action': 'SetTemplateDescription', 'TemplateName': template}, text=description)
+        return self._send_domain_message("DescriptionService", {'Action': 'SetTemplateDescription', 'TemplateName': template}, text=description)
 
     def get_template(self, name):
         """Return a template by name"""
-        message = self._send_domain_message("Description", {'Action': 'GetTemplateDescription', 'TemplateName': name})
+        message = self._send_domain_message("DescriptionService", {'Action': 'GetTemplateDescription', 'TemplateName': name})
         if ElementTree.fromstring(message).text:
             return json.loads(ElementTree.fromstring(message).text)
         return {}
@@ -149,7 +149,7 @@ class Domain(BaseListener):
     @property
     def templates(self):
         """Return a list of templates in the domain"""
-        message = self._send_domain_message("Description", {'Action': 'ListTemplates'})
+        message = self._send_domain_message("DescriptionService", {'Action': 'ListTemplates'})
         templates = ElementTree.fromstring(message)
         data = []
         for template in templates:
@@ -160,7 +160,7 @@ class Domain(BaseListener):
         """Sets description of specified database. If the database does not exist, then create one"""
         inner_text = str({'template': description})
 #         inner_text = "{\"name\": \"%s\", 'description': '%s'}" % (database, description) 
-        return self._send_domain_message("Description", {'Action': 'SetDatabaseDescription', 'DatabaseName': database, 'DbaUser': self.user, 'DbaPassword': self.password}, text=inner_text)
+        return self._send_domain_message("DescriptionService", {'Action': 'SetDatabaseDescription', 'DatabaseName': database, 'DbaUser': self.user, 'DbaPassword': self.password}, text=inner_text)
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
@@ -427,24 +427,27 @@ class Peer:
     @property
     def tags(self):
         """Return all host tags"""
-        message = self.__domain._send_domain_message("Description", {'Action': 'GetHostTags', 'AgentId': self.id})
+        message = self.__domain._send_domain_message("DescriptionService", {'Action': 'GetHostTags', 'AgentId': self.id})
         tags = ElementTree.fromstring(message)
-        data = []
+        data = {}
         for tag in tags:
-            data.append(dict((k.lower(), v) for k, v in tag.attrib.iteritems()))
-        return data
+            data[tag.get('Key')] = tag.get('Value')
+
+        return data        
     
     def get_tag(self, tag):
         """Return host tag"""
-        message = self.__domain._send_domain_message("Description", {'Action': 'GetHostTags', 'AgentId': self.id})
-        if ElementTree.fromstring(message).text:
-            json.loads(ElementTree.fromstring(message).text)
-        return []
-        
-    def set_tag(self, key, value):
+        return self.tags[tag]
+
+    def create_tag(self, key, value):
         """Set host tag"""
         element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
-        return self.__domain._send_domain_message("Description", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
+        self.__domain._send_domain_message("DescriptionService", {'Action': 'CreateHostTags', 'AgentId': self.id}, children=[element])
+        
+    def update_tag(self, key, value):
+        """Set host tag"""
+        element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
+        self.__domain._send_domain_message("DescriptionService", {'Action': 'UpdateHostTags', 'AgentId': self.id}, children=[element])
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
@@ -613,7 +616,7 @@ class Database:
     @property
     def description(self):
         """Return the description of this database."""
-        message = self.__domain._send_domain_message("Description", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
+        message = self.__domain._send_domain_message("DescriptionService", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
         return json.loads(ElementTree.fromstring(message).text)
 
     @property
