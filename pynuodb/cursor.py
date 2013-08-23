@@ -228,8 +228,10 @@ class Cursor(object):
             
         for _ in seq_of_parameters[:]:
             result = self.session.getInt()
-            if result < 0:
-                dbErrorHandler(result, self.session.getString())
+            if result == -3:
+                error_code = self.session.getInt()
+                error_string = self.session.getString()
+                dbErrorHandler(error_code, error_string)
                       
 
     def fetchone(self):
