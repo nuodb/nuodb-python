@@ -427,7 +427,7 @@ class Peer:
     @property
     def tags(self):
         """Return all host tags"""
-        message = self.__domain._send_domain_message("DescriptionService", {'Action': 'GetHostTags', 'AgentId': self.id})
+        message = self.__domain._send_domain_message("Tag", {'Action': 'GetHostTags', 'AgentId': self.id})
         tags = ElementTree.fromstring(message)
         data = {}
         for tag in tags:
@@ -439,15 +439,15 @@ class Peer:
         """Return host tag"""
         return self.tags[tag]
 
-    def create_tag(self, key, value):
+    def set_tag(self, key, value):
         """Set host tag"""
         element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
-        self.__domain._send_domain_message("DescriptionService", {'Action': 'CreateHostTags', 'AgentId': self.id}, children=[element])
+        self.__domain._send_domain_message("Tag", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
         
-    def update_tag(self, key, value):
-        """Set host tag"""
-        element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
-        self.__domain._send_domain_message("DescriptionService", {'Action': 'UpdateHostTags', 'AgentId': self.id}, children=[element])
+    def delete_tag(self, key):
+        """Delete host tag"""
+        element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key, value))
+        self.__domain._send_domain_message("Tag", {'Action': 'DeleteHostTags', 'AgentId': self.id}, children=[element])
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
