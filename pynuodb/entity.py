@@ -135,32 +135,48 @@ class Domain(BaseListener):
         """Return a list of databases in the domain"""
         return self.__databases.values()
 
-    def set_template_description(self, template, description):
-        """Set template by name"""
-        return self._send_domain_message("DescriptionService", {'Action': 'SetTemplateDescription', 'TemplateName': template}, text=description)
+    def create_template(self, template_name, summary, requirements):
+        """Create template by name"""
+        return self._send_domain_message(**Template.build_create_request(template_name, summary, requirements))
 
-    def get_template(self, name):
+    def update_template(self, template_name, summary, requirements):
+        """Update template by name"""
+        return self._send_domain_message(**Template.build_update_request(template_name, summary, requirements))
+
+    def delete_template(self, template_name):
+        """Delete template by name"""
+        return self._send_domain_message(**Template.build_delete_request(template_name))
+
+    def get_template(self, template_name):
         """Return a template by name"""
-        message = self._send_domain_message("DescriptionService", {'Action': 'GetTemplateDescription', 'TemplateName': name})
-        if ElementTree.fromstring(message).text:
-            return json.loads(ElementTree.fromstring(message).text)
-        return {}
+        return self._send_domain_message(**Template.build_get_request(template_name))
 
     @property
     def templates(self):
         """Return a list of templates in the domain"""
-        message = self._send_domain_message("DescriptionService", {'Action': 'ListTemplates'})
-        templates = ElementTree.fromstring(message)
-        data = []
-        for template in templates:
-            data.append(dict((k.lower(), v) for k, v in template.attrib.iteritems()))
-        return data
+        return self._send_domain_message(**Template.build_list_request())
 
-    def set_description(self, database, description):
-        """Sets description of specified database. If the database does not exist, then create one"""
-        inner_text = str({'template': description})
-#         inner_text = "{\"name\": \"%s\", 'description': '%s'}" % (database, description) 
-        return self._send_domain_message("DescriptionService", {'Action': 'SetDatabaseDescription', 'DatabaseName': database, 'DbaUser': self.user, 'DbaPassword': self.password}, text=inner_text)
+    def create_description(self, name, template_name, variables, dba_user, dba_password):
+        return self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password))
+
+    def update_description(self, name, template_name, variables):
+        return self._send_domain_message(**Description.build_update_request(name, template_name, variables))
+
+    def delete_description(self, name):
+        return self._send_domain_message(**Description.build_delete_request(name))
+
+    def get_description(self, name):
+        return self._send_domain_message(**Description.build_get_request(name))
+
+    def start_description(self, name):
+        return self._send_domain_message(**Description.build_start_request(name))
+
+    def stop_description(self, name):
+        return self._send_domain_message(**Description.build_stop_request(name))
+
+    @property
+    def descriptions(self):
+        return self._send_domain_message(**Description.build_list_request())
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
@@ -446,7 +462,7 @@ class Peer:
         
     def delete_tag(self, key):
         """Delete host tag"""
-        element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key, value))
+        element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key))
         self.__domain._send_domain_message("Tag", {'Action': 'DeleteHostTags', 'AgentId': self.id}, children=[element])
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
@@ -616,7 +632,7 @@ class Database:
     @property
     def description(self):
         """Return the description of this database."""
-        message = self.__domain._send_domain_message("DescriptionService", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
+        message = self.__domain._send_domain_message("Description", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
         return json.loads(ElementTree.fromstring(message).text)
 
     @property
@@ -927,3 +943,94 @@ class Process:
 
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
     
+class Template:
+
+    @staticmethod
+    def build_create_request(name, summary, requirements):
+        summary_element = ElementTree.Element("Summary")
+        summary_element.text = summary
+        requirements_element = ElementTree.Element("Requirements")
+        requirements_element.text = requirements
+        return {"service": "Description",
+                "attributes": {'Action': 'CreateTemplate', 'TemplateName': name},
+                "children": [summary_element, requirements_element]}
+
+    @staticmethod
+    def build_update_request(name, summary, requirements):
+        summary_element = ElementTree.Element("Summary")
+        summary_element.text = summary
+        requirements_element = ElementTree.Element("Requirements")
+        requirements_element.text = requirements
+        return {"service": "Description",
+                "attributes": {'Action': 'UpdateTemplate', 'TemplateName': name},
+                "children": [summary_element, requirements_element]}
+
+    @staticmethod
+    def build_delete_request(name):
+        return {"service": "Description", "attributes": {'Action': 'DeleteTemplate', 'TemplateName': name}}
+
+    @staticmethod
+    def build_get_request(name):
+        return {"service": "Description", "attributes": {'Action': 'GetTemplate', 'TemplateName': name}}
+
+    @staticmethod
+    def build_list_request():
+        return {"service": "Description", "attributes": {'Action': 'ListTemplates'}}
+
+    def __init__(self, message):
+        pass
+
+
+
+class Description:
+    @staticmethod
+    def build_create_request(name, template_name, variables, dba_user, dba_password):
+        template_element = ElementTree.Element("Template")
+        template_element.text = template_name
+        variables_element = ElementTree.Element("Variables")
+        for key in variables:
+            variable_child = ElementTree.SubElement(variables_element, "Variable")
+            variable_child.set("Key", key)
+            variable_child.text = variables[key]
+
+        return {"service": "Description",
+                "attributes": {'Action': 'CreateDescription',
+                               'DatabaseName': name,
+                               'DbaUser': dba_user,
+                               'DbaPassword': dba_password},
+                "children": [template_element, variables_element]}
+
+    @staticmethod
+    def build_update_request(name, template_name, variables):
+        template_element = ElementTree.Element("Template")
+        template_element.text = template_name
+        variables_element = ElementTree.Element("Variables")
+        for key in variables:
+            variable_child = ElementTree.SubElement(variables_element, "Variable")
+            variable_child.set("Key", key)
+            variable_child.text = variables[key]
+
+        return {"service": "Description",
+                "attributes": {'Action': 'UpdateDescription',
+                               'DatabaseName': name},
+                "children": [template_element, variables_element]}
+
+    @staticmethod
+    def build_delete_request(name):
+        return {"service": "Description", "attributes": {'Action': 'DeleteDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_get_request(name):
+        return {"service": "Description", "attributes": {'Action': 'GetDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_list_request():
+        return {"service": "Description", "attributes": {'Action': 'ListDescriptions'}}
+
+    @staticmethod
+    def build_start_request(name):
+        return {"service": "Description", "attributes": {'Action': 'StartDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_stop_request(name):
+        return {"service": "Description", "attributes": {'Action': 'StopDescription', 'DatabaseName': name}}
