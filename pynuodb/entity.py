@@ -137,46 +137,58 @@ class Domain(BaseListener):
 
     def create_template(self, template_name, summary, requirements):
         """Create template by name"""
-        return self._send_domain_message(**Template.build_create_request(template_name, summary, requirements))
+        response = self._send_domain_message(**Template.build_create_request(template_name, summary, requirements))
+        return ElementTree.fromstring(response).tag == Template.success_message
 
     def update_template(self, template_name, summary, requirements):
         """Update template by name"""
-        return self._send_domain_message(**Template.build_update_request(template_name, summary, requirements))
+        response = self._send_domain_message(**Template.build_update_request(template_name, summary, requirements))
+        return ElementTree.fromstring(response).tag == Template.success_message
 
     def delete_template(self, template_name):
         """Delete template by name"""
-        return self._send_domain_message(**Template.build_delete_request(template_name))
+        response = self._send_domain_message(**Template.build_delete_request(template_name))
+        return ElementTree.fromstring(response).tag == Template.success_message
 
     def get_template(self, template_name):
         """Return a template by name"""
-        return self._send_domain_message(**Template.build_get_request(template_name))
+        response = self._send_domain_message(**Template.build_get_request(template_name))
+        return Template.from_message(response)
 
     @property
     def templates(self):
         """Return a list of templates in the domain"""
-        return self._send_domain_message(**Template.build_list_request())
+        response = self._send_domain_message(**Template.build_list_request())
+        return Template.from_list_message(response)
 
     def create_description(self, name, template_name, variables, dba_user, dba_password):
-        return self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password))
+        response = self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password))
+        return ElementTree.fromstring(response).tag == Description.success_message
 
     def update_description(self, name, template_name, variables):
-        return self._send_domain_message(**Description.build_update_request(name, template_name, variables))
+        response = self._send_domain_message(**Description.build_update_request(name, template_name, variables))
+        return ElementTree.fromstring(response).tag == Description.success_message
 
     def delete_description(self, name):
-        return self._send_domain_message(**Description.build_delete_request(name))
+        response = self._send_domain_message(**Description.build_delete_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
 
     def get_description(self, name):
-        return self._send_domain_message(**Description.build_get_request(name))
+        response = self._send_domain_message(**Description.build_get_request(name))
+        return Description.from_message(response)
 
     def start_description(self, name):
-        return self._send_domain_message(**Description.build_start_request(name))
+        response = self._send_domain_message(**Description.build_start_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
 
     def stop_description(self, name):
-        return self._send_domain_message(**Description.build_stop_request(name))
+        response = self._send_domain_message(**Description.build_stop_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
 
     @property
     def descriptions(self):
-        return self._send_domain_message(**Description.build_list_request())
+        response = self._send_domain_message(**Description.build_list_request())
+        return Description.from_list_message(response)
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
@@ -944,7 +956,7 @@ class Process:
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
     
 class Template:
-
+    success_message = "Success"
     @staticmethod
     def build_create_request(name, summary, requirements):
         summary_element = ElementTree.Element("Summary")
@@ -977,12 +989,55 @@ class Template:
     def build_list_request():
         return {"service": "Description", "attributes": {'Action': 'ListTemplates'}}
 
-    def __init__(self, message):
-        pass
+    @staticmethod
+    def from_message(message):
+        root = ElementTree.fromstring(message)
+        name = root.get("TemplateName")
+
+        summary = ""
+        summary_element = root.find("Summary")
+        if summary_element is not None:
+            summary = summary_element.text
+
+        requirements = ""
+        requirements_element = root.find("Requirements")
+        if requirements_element is not None:
+            requirements = requirements_element.text
+
+        return Template(name, summary, requirements)
+
+    @staticmethod
+    def from_list_message(message):
+        names = list()
+        root = ElementTree.fromstring(message)
+        for child in root:
+            names.append(child.get("TemplateName"))
+
+        return names
+
+
+    def __init__(self, name, summary, requirements):
+        self._name = name
+        self._summary = summary
+        self._requirements = requirements
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def summary(self):
+        return self._summary
+
+    @property
+    def requirements(self):
+        return self._requirements
+
 
 
 
 class Description:
+    success_message = "Success"
     @staticmethod
     def build_create_request(name, template_name, variables, dba_user, dba_password):
         template_element = ElementTree.Element("Template")
@@ -1034,3 +1089,59 @@ class Description:
     @staticmethod
     def build_stop_request(name):
         return {"service": "Description", "attributes": {'Action': 'StopDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def from_message(message):
+        root = ElementTree.fromstring(message)
+        name = root.get("DatabaseName")
+
+        template_name = ""
+        template_element = root.find("Template")
+        if template_element is not None:
+            template_name = template_element.text
+
+        variables = {}
+        variables_element = root.find("Variables")
+        if variables_element is not None:
+            for var in variables_element:
+                key = var.get("Key")
+                value = var.text
+                variables[key] = value
+
+        status = ""
+        status_element = root.find("Status")
+        if status_element is not None:
+            status = status_element.text
+
+        return Description(name, template_name, variables, status)
+
+    @staticmethod
+    def from_list_message(message):
+        names = list()
+        root = ElementTree.fromstring(message)
+        for child in root:
+            names.append(child.get("DatabaseName"))
+
+        return names
+
+    def __init__(self, name, template_name, variables, status):
+        self._name = name
+        self._template_name = template_name
+        self._variables = variables
+        self._status = status
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def template_name(self):
+        return self._template_name
+
+    @property
+    def variables(self):
+        return self._variables
+
+    @property
+    def status(self):
+        return self._status
