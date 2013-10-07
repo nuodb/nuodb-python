@@ -665,12 +665,12 @@ class Database:
     @property
     def storage_managers(self):
         """Return storage managers."""
-        return [process for process in self.__processes if not process.is_transactional]
+        return [process for process in self.__processes.values() if not process.is_transactional]
       
     @property
     def transaction_engines(self):
         """Return transaction engines."""
-        return [process for process in self.__processes if process.is_transactional]
+        return [process for process in self.__processes.values() if process.is_transactional]
 
     def _add_process(self, process):
         self.__processes[self.__process_id(process)] = process
