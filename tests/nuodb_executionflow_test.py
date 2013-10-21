@@ -189,7 +189,8 @@ class NuoDBExecutionFlowTest(NuoBase):
                 self.assertEqual(str(e1), "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got syntax2\\n'");
 
 def version_lt(version):
-    if "NUODB_VERSION" in os.environ and StrictVersion(os.enviorn['NUODB_VERSION']) < StrictVersion(version):
+    current_version = os.getenv('NUODB_VERSION', None)
+    if current_version is not None and StrictVersion(current_version) < StrictVersion(version):
         return True
         
     return False
