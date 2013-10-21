@@ -4,8 +4,8 @@ python:
   - "2.7"
 
 env:
-  - NUODB_ROOT=/opt/nuodb NUODB_INCLUDE_DIR=/opt/nuodb/include NUODB_LIB_DIR=/opt/nuodb/lib64 NODE_PATH=/usr/local/bin NUODB_VERSION=2.0
-  - NUODB_ROOT=/opt/nuodb NUODB_INCLUDE_DIR=/opt/nuodb/include NUODB_LIB_DIR=/opt/nuodb/lib64 NODE_PATH=/usr/local/bin NUODB_VERSION=1.2
+  - NUODB_VERSION=2.0
+  - NUODB_VERSION=1.2
 
 notifications:
   recipients:
