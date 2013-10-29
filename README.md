@@ -3,7 +3,7 @@ NuoDB - Python
 
 [![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-This is the official Python package for [NuoDB](http://www.nuodb.com). Please note that this driver is currently in beta.
+This is the official Python package for [NuoDB](http://www.nuodb.com).
 
 ### Requirements
 
