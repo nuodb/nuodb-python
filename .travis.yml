@@ -4,6 +4,8 @@ python:
   - "2.7"
 
 env:
+  - NUODB_VERSION=2.0.2
+  - NUODB_VERSION=2.0.1
   - NUODB_VERSION=2.0
   - NUODB_VERSION=1.2
 
