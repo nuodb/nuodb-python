@@ -794,7 +794,7 @@ class Process:
     
     """Represents a NuoDB process (TE or SM)"""
 
-    def __init__(self, peer, database, port, pid, transactional, status, hostname=None, version=None):
+    def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
         self.__peer = peer
         self.__database = database
         self.__port = port
@@ -802,6 +802,7 @@ class Process:
         self.__transactional = transactional
         self.__hostname = hostname
         self.__version = version
+        self.__node_id = node_id
         peer._add_process(self)
         if status != None:
             self.__status = status
@@ -822,7 +823,8 @@ class Process:
 
         return Process(peer, database, int(process_element.get("Port")),
                     pid, int(process_element.get("NodeType")) == 1,
-                     process_element.get("State"), process_element.get("Hostname"), process_element.get("Version"))
+                     process_element.get("State"), process_element.get("Hostname"),
+                     process_element.get("Version"), process_element.get("NodeId"))
 
     def __hash__(self):
         return self.__pid
@@ -863,6 +865,11 @@ class Process:
     def pid(self):
         """Return the process id of this process."""
         return self.__pid
+
+    @property
+    def node_id(self):
+        """Return the NodeId of this process."""
+        return self.__node_id
     
     @property
     def is_transactional(self):
