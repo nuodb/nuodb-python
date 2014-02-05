@@ -802,7 +802,12 @@ class Process:
         self.__transactional = transactional
         self.__hostname = hostname
         self.__version = version
-        self.__node_id = node_id
+
+        if node_id is not None:
+            self.__node_id = int(node_id)
+        else:
+            self.__node_id = None
+
         peer._add_process(self)
         if status != None:
             self.__status = status
