@@ -479,7 +479,7 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, bool_col boolean, " +
-                           "binary_col binary)")
+                           "binary_col binary(20))")
 
             test_vals = (False, pynuodb.Binary("other binary"))
             cursor.execute("insert into typetest (bool_col, binary_col) " +
@@ -502,7 +502,7 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, bool_col boolean, " +
-                           "binary_col binary)")
+                           "binary_col binary(10))")
 
             test_vals = (True, pynuodb.Binary("binary"))
             cursor.execute("insert into typetest (bool_col, binary_col) " +
@@ -526,7 +526,7 @@ class NuoDBBasicTest(NuoBase):
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
         try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary)")
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary(100000))")
 
             f = open("640px-Starling.JPG", "rb")
             data = f.read()
@@ -647,7 +647,7 @@ class NuoDBBasicTest(NuoBase):
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
         try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary, " +
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary(10), " +
                            "bool_col boolean, timestamp_col timestamp, time_col time, date_col date, string_col string, " +
                            "varchar_col varchar(10), char_col char(10), smallint_col smallint, integer_col integer, bigint_col bigint, " +
                            "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double, clob_col clob, blob_col blob)")
