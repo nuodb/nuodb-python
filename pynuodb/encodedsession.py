@@ -13,9 +13,8 @@ import uuid
 import struct
 import protocol
 import datatype
-import time
 import decimal
-from exception import DataError, DatabaseError, EndOfStream, dbErrorHandler
+from exception import DataError, EndOfStream, dbErrorHandler
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -84,15 +83,22 @@ class EncodedSession(Session):
     # Methods to put values into the next message
 
     def putMessageId(self, messageId):
-        """Start a message with the messageId."""
+        """
+        Start a message with the messageId.
+        @type messageId int
+        """
         if self.__output != None:
             raise SessionException('no')
         self.__output = ''
-        self.putInt(messageId, isMessageId = True)
+        self.putInt(messageId, isMessageId=True)
         return self
 
-    def putInt(self, value, isMessageId = False):
-        """Appends an Integer value to the message."""
+    def putInt(self, value, isMessageId=False):
+        """
+        Appends an Integer value to the message.
+        @type value int
+        @type isMessageId bool
+        """
         if value < 32 and value > -11:
             packed = chr(protocol.INT0 + value)
         else:
@@ -105,7 +111,10 @@ class EncodedSession(Session):
         return self
 
     def putScaledInt(self, value):
-        """Appends a Scaled Integer value to the message."""
+        """
+        Appends a Scaled Integer value to the message.
+        @type value decimal.Decimal
+        """
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
@@ -113,7 +122,10 @@ class EncodedSession(Session):
         return self
 
     def putString(self, value):
-        """Appends a String to the message."""
+        """
+        Appends a String to the message.
+        @type value str
+        """
         length = len(value)
         if length < 40:
             packed = chr(protocol.UTF8LEN0 + length) + value
@@ -124,7 +136,10 @@ class EncodedSession(Session):
         return self
 
     def putBoolean(self, value):
-        """Appends a Boolean value to the message."""
+        """
+        Appends a Boolean value to the message.
+        @type value bool
+        """
         if value is True:
             self.__output += chr(protocol.TRUE)
         else:
@@ -322,7 +337,7 @@ class EncodedSession(Session):
             test = self._takeBytes(typeCode - 77)
             if typeCode < protocol.DOUBLELEN8:
                 for i in xrange(0, protocol.DOUBLELEN8 - typeCode):
-                    test = test + chr(0);
+                    test = test + chr(0)
             return struct.unpack('!d', test)[0]
             
         raise DataError('Not a double')

@@ -26,7 +26,8 @@ apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
 #schema='user', auto_commit=False
-def connect(database, host, user, password, options = None ):
+
+def connect(database, host, user, password, options=None):
     """Creates a connection object.
     Arguments:
     database -- Name of the database to access.
@@ -36,7 +37,12 @@ def connect(database, host, user, password, options = None ):
     options -- A dictionary of NuoDB connection options
         Some common options include:
         "schema"
-        
+
+    @type database str
+    @type host str
+    @type user str
+    @type password str
+    @type options dict[str,str]
     """
     return Connection(database, host, user, password, options)
 
@@ -78,6 +84,12 @@ class Connection(object):
         
         Returns:
         a Connection instance
+
+        @type dbName str
+        @type broker str
+        @type username str
+        @type password str
+        @type options dict[str,str]
         """
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)

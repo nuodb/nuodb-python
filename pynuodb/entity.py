@@ -4,20 +4,11 @@ __all__ = [ "Domain", "Peer", "Database", "Process" ]
 in the com.nuodb.entity Java package. A Domain instance provides entry into
 a domain, and optionally a hook for getting called back when domain-level
 events happen. The Domain provides access to Peers, Databases and Processes.
-"""
 
-from session import BaseListener, Session, SessionMonitor, SessionException
-from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
-
-import time, json
-from threading import Event, Lock
-import xml.etree.ElementTree as ElementTree
-
-
-""" To create a Domain 'connection' you need to give a broker address (a string
+To create a Domain 'connection' you need to give a broker address (a string
 which may end in ':PORT') and domain password. You can also supply a class
 to notify on domain events. That class may implement any of the methods:
-   
+
     peer_joined(self, peer)
     peer_left(self, peer)
     process_joined(self, process)
@@ -27,7 +18,7 @@ to notify on domain events. That class may implement any of the methods:
     database_joined(self, database)
     database_left(self, database)
     closed(self)
-    
+
 
 For instance, a valid listener could be formed like this:
 
@@ -49,8 +40,15 @@ to another broker. Either this should be added, or some clear exception
 should be raised to help the caller make this happen.
 """
 
+from session import BaseListener, Session, SessionMonitor, SessionException
+from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
+
+import time, json
+from threading import Event, Lock
+import xml.etree.ElementTree as ElementTree
+
+
 class Domain(BaseListener):
-    
     """Represents the NuoDB domain.
     
     The domain is the top level NuoDB management object. The domain object 
@@ -58,6 +56,12 @@ class Domain(BaseListener):
     """
 
     def __init__(self, broker_addr, domain_user, domain_pwd, listener=None):
+        """
+        @type broker_addr str
+        @type domain_user str
+        @type domain_pwd str
+        @type listener
+        """
         if not domain_pwd:
             raise Exception("A password is required to join a domain")
 
@@ -68,13 +72,17 @@ class Domain(BaseListener):
         self.__password = domain_pwd
         self.__listener = listener
         self.__peers = dict()
+        """ @type : dict[str, Peer] """
         self.__databases = dict()
+        """ @type : dict[str, Database] """
 
         self.__monitor = SessionMonitor(self.__session, self)
         
         # These will be set in handle status after joining the domain 
         self.__domain_name = None
+        """ @type : str """
         self.__entry_peer = None
+        """ @type : Peer """
 
         try:
             self.__session.doConnect()
@@ -113,7 +121,10 @@ class Domain(BaseListener):
         return self.__domain_name
 
     def get_peer(self, agent_id):
-        """Return a peer for a given agent_id."""
+        """
+        Return a peer for a given agent_id.
+        @type agent_id str
+        """
         return self.__peers.get(agent_id)
 
     @property
@@ -127,7 +138,10 @@ class Domain(BaseListener):
         return self.__entry_peer
 
     def get_database(self, name):
-        """Return a database by name"""
+        """
+        Return a database by name
+        @type name str
+        """
         return self.__databases.get(name)
 
     @property
@@ -374,11 +388,20 @@ class Domain(BaseListener):
 
         self.__session.send(ElementTree.tostring(root))
 
+
 class Peer:
-    
     """Represents a peer (or host) in the domain."""
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
+        """
+        @type domain Domain
+        @type address str
+        @type agent_id str
+        @type broker bool
+        @type port int
+        @type hostname str
+        @type version str
+        """
         self.__domain = domain
         self.__address = address
         self.__id = agent_id
@@ -398,7 +421,7 @@ class Peer:
                     peer_element.get("Hostname"), peer_element.get("Version"))
 
     def __hash__(self):
-        return self.__id.hash()
+        return hash(self.__id)
 
     def __eq__(self, other):
         if not other:
@@ -492,7 +515,10 @@ class Peer:
         Specifying a wait_seconds value will cause this function to block 
         until a response is received indicating success or failure. If the
         time elapses without a response a SessionException will be raised.
-        
+
+        @type db_name str
+        @type options list[tuple[str]]
+        @type wait_seconds int
         """
         return self.__start_process(db_name, options, wait_seconds)
 
@@ -513,6 +539,12 @@ class Peer:
         Specifying a wait_seconds value will cause this function to block 
         until a response is received indicating success or failure. If the
         time elapses without a response, a SessionException will be raised.
+
+        @type db_name str
+        @type archive str
+        @type initialize bool
+        @type options list[tuple[str]]
+        @type wait_seconds int
         """
         if not options:
             options = []
@@ -524,9 +556,13 @@ class Peer:
 
         return self.__start_process(db_name, options, wait_seconds)
 
-
     def __start_process(self, db_name, options, wait_seconds):
-        if wait_seconds == None:
+        """
+        @type db_name str
+        @type options list[tuple[str]]
+        @type wait_seconds int
+        """
+        if wait_seconds is None:
             startProcess(self.connect_str, self.__domain.user, self.__domain.password, db_name, options)
             return
 
@@ -584,7 +620,7 @@ class Peer:
         this method will only return the subset of processes that are on this 
         peer. 
         """
-        if db_name == None:
+        if db_name is None:
             return self.__processes.values()
 
         processes = []
@@ -612,13 +648,18 @@ class Database:
     """Represents a NuoDB database."""
 
     def __init__(self, domain, name):
+        """
+        @type domain Domain
+        @type name str
+        """
         self.__domain = domain
         self.__name = name
 
         self.__processes = dict()
+        """ @type : dict[str, Process] """
 
     def __hash__(self):
-        return self.__name.hash()
+        return hash(self.__name)
 
     def __eq__(self, other):
         if not other:
@@ -738,8 +779,8 @@ class Database:
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
-                       self.__domain.user, self.__domain.password,
-                       self.__name, DatabaseAction.Quiesce)
+                         self.__domain.user, self.__domain.password,
+                         self.__name, DatabaseAction.Quiesce)
         if wait_seconds == 0:
             return
 
@@ -757,8 +798,8 @@ class Database:
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
-                       self.__domain.user, self.__domain.password,
-                       self.__name, DatabaseAction.Unquiesce)
+                         self.__domain.user, self.__domain.password,
+                         self.__name, DatabaseAction.Unquiesce)
         if wait_seconds == 0:
             return
 
@@ -795,6 +836,17 @@ class Process:
     """Represents a NuoDB process (TE or SM)"""
 
     def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
+        """
+        @type peer Peer
+        @type database Database
+        @type port int
+        @type pid int
+        @type transactional bool
+        @type status str
+        @type hostname str
+        @type version str
+        @type node_id int
+        """
         self.__peer = peer
         self.__database = database
         self.__port = port
@@ -809,7 +861,7 @@ class Process:
             self.__node_id = None
 
         peer._add_process(self)
-        if status != None:
+        if status is not None:
             self.__status = status
         else:
             self.__status = "UNKNOWN"
@@ -818,12 +870,12 @@ class Process:
     def from_message(database, process_element):
         """Construct a new process from an XML message."""
         peer = database.domain.get_peer(process_element.get("AgentId"))
-        if peer == None:
+        if peer is None:
             raise Exception("Process is for an unknown peer")
 
         pid = int(process_element.get("ProcessId"))
         process = peer._get_process(pid)
-        if process != None:
+        if process is not None:
             return process
 
         return Process(peer, database, int(process_element.get("Port")),
@@ -957,18 +1009,19 @@ class Process:
     # many moving pieces to implement and test
     def query(self, query_type, msg_body=None):
         session = Session(self.peer.connect_str, service="Manager")
-        session.authorize(self.peer.domain.user,
-                    self.peer.domain.password)
-        pwd_response = session.doRequest(attributes={ "Type" : "GetDatabaseCredentials",
-                                               "Database" : self.database.name })
+        session.authorize(self.peer.domain.user, self.peer.domain.password)
+        pwd_response = session.doRequest(attributes={"Type": "GetDatabaseCredentials",
+                                                     "Database": self.database.name})
 
         pwd_xml = ElementTree.fromstring(pwd_response)
         pwd = pwd_xml.find("Password").text.strip()
 
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
-    
+
+
 class Template:
     success_message = "Success"
+
     @staticmethod
     def build_create_request(name, summary, requirements):
         summary_element = ElementTree.Element("Summary")
@@ -1027,8 +1080,12 @@ class Template:
 
         return names
 
-
     def __init__(self, name, summary, requirements):
+        """
+        @type name str
+        @type summary str
+        @type requirements str
+        """
         self._name = name
         self._summary = summary
         self._requirements = requirements
@@ -1046,10 +1103,9 @@ class Template:
         return self._requirements
 
 
-
-
 class Description:
     success_message = "Success"
+
     @staticmethod
     def build_create_request(name, template_name, variables, dba_user, dba_password):
         template_element = ElementTree.Element("Template")
@@ -1137,6 +1193,12 @@ class Description:
         return names
 
     def __init__(self, name, template_name, variables, status):
+        """
+        @type name str
+        @type template_name str
+        @type variables dict[str,str]
+        @type status str
+        """
         self._name = name
         self._template_name = template_name
         self._variables = variables

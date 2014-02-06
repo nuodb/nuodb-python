@@ -36,7 +36,10 @@ class Cursor(object):
     """
     
     def __init__(self, session):
-        """Constructor for the Cursor class."""
+        """
+        Constructor for the Cursor class.
+        @type session EncodedSession
+        """
         self.session = session
         self.closed = False
         self.arraysize = 1
