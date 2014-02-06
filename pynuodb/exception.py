@@ -57,6 +57,10 @@ class EndOfStream(StandardError):
         return repr(self.__value)
 
 def dbErrorHandler(errorCode, errorString):
+    """
+    @type errorCode int
+    @type errorString str
+    """
     if   errorCode in [
                            protocol.COMPILE_ERROR,
                            protocol.RUNTIME_ERROR,
