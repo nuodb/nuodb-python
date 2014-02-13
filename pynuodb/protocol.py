@@ -201,6 +201,40 @@ IS_SHUTDOWN                     = -50
 IN_QUOTED_STRING                = -51
 BATCH_UPDATE_ERROR              = -52
 
+DATA_ERRORS = {COMPILE_ERROR,
+               RUNTIME_ERROR,
+               CONVERSION_ERROR,
+               TRUNCATION_ERROR,
+               VERSION_ERROR,
+               INVALID_UTF8,
+               I18N_ERROR}
+
+OPERATIONAL_ERRORS = {NETWORK_ERROR,
+                      DDL_ERROR,
+                      PLATFORM_ERROR,
+                      BATCH_UPDATE_ERROR,
+                      OPERATION_KILLED,
+                      INVALID_STATEMENT}
+
+INTERNAL_ERRORS = {DATABASE_CORRUPTION,
+                   INTERNAL_ERROR,
+                   UPDATE_CONFLICT,
+                   DEADLOCK,
+                   IS_SHUTDOWN}
+
+PROGRAMMING_ERRORS = {SYNTAX_ERROR,
+                      CONNECTION_ERROR,
+                      APPLICATION_ERROR,
+                      SECURITY_ERROR,
+                      NO_SUCH_TABLE,
+                      NO_SCHEMA,
+                      CONFIGURATION_ERROR,
+                      READ_ONLY_ERROR,
+                      IN_QUOTED_STRING}
+
+NOT_SUPPORTED_ERRORS = {FEATURE_NOT_YET_IMPLEMENTED,
+                        UNSUPPORTED_TRANSACTION_ISOLATION}
+
 
 stringifyError = {
                       SYNTAX_ERROR                    : 'SYNTAX_ERROR',

@@ -8,7 +8,7 @@ Cursor -- Class for representing a database cursor.
 
 import protocol
 from datatype import TypeObjectFromNuodb
-from exception import Error, NotSupportedError, EndOfStream, ProgrammingError, InterfaceError, dbErrorHandler
+from exception import Error, NotSupportedError, EndOfStream, ProgrammingError, InterfaceError, db_error_handler
 
 class Cursor(object):
 
@@ -234,7 +234,7 @@ class Cursor(object):
             if result == -3:
                 error_code = self.session.getInt()
                 error_string = self.session.getString()
-                dbErrorHandler(error_code, error_string)
+                db_error_handler(error_code, error_string)
                       
 
     def fetchone(self):

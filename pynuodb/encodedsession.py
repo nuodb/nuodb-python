@@ -14,7 +14,7 @@ import struct
 import protocol
 import datatype
 import decimal
-from exception import DataError, EndOfStream, dbErrorHandler
+from exception import DataError, EndOfStream, db_error_handler
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
@@ -518,7 +518,7 @@ class EncodedSession(Session):
 
             # TODO: include the actual error message, and use a different type
             if error != 0:
-                dbErrorHandler(error, self.getString())
+                db_error_handler(error, self.getString())
         else:
             self.__input = None
             self.__inpos = 0
