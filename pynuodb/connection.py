@@ -65,7 +65,7 @@ class Connection(object):
     auto_commit (getter) -- Gets the value of auto_commit from the database.
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
-    
+
     from exception import Warning, Error, InterfaceError, DatabaseError, DataError, \
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
