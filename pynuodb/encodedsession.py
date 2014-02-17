@@ -4,7 +4,7 @@ Exported Classes:
 EncodedSession -- Class for representing an encoded session with the database.
 """
 
-__all__  = [ 'EncodedSession' ]
+# __all__  = [ 'EncodedSession' ]
 
 from crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
 from session import Session, SessionException
@@ -14,10 +14,17 @@ import struct
 import protocol
 import datatype
 import decimal
-from exception import DataError, EndOfStream, db_error_handler
+import traceback
+from exception import DataError, EndOfStream, ProgrammingError, db_error_handler
+from datatype import TypeObjectFromNuodb
+
+from statement import Statement, PreparedStatement, ExecutionResult
+from result_set import ResultSet
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
+
+STRICT = False
 
 class EncodedSession(Session):
 
@@ -79,15 +86,266 @@ class EncodedSession(Session):
         self.__inpos = 0
         self.closed = False
 
+    # Mostly for connections
+    def open_database(self, db_name, parameters, cp):
+        """
+        @type db_name str
+        @type parameters dict[str,str]
+        @type cp crypt.ClientPassword
+        """
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(db_name).putInt(len(parameters))
+        for (k, v) in parameters.iteritems():
+            self.putString(k).putString(v)
+        self.putNull().putString(cp.genClientKey())
+
+        self._exchangeMessages()
+
+        version = self.getInt()
+        serverKey = self.getString()
+        salt = self.getString()
+
+        return version, serverKey, salt
+
+    def check_auth(self):
+        try:
+            self._putMessageId(protocol.AUTHENTICATION).putString(protocol.AUTH_TEST_STR)
+            self._exchangeMessages()
+        except SessionException:
+            raise ProgrammingError('Invalid database username or password')
+
+
+    def get_autocommit(self):
+        self._putMessageId(protocol.GETAUTOCOMMIT)
+        self._exchangeMessages()
+        val = self.getValue()
+
+        return val
+
+    def set_autocommit(self, value):
+        self._putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
+        self._exchangeMessages(False)
+
+    def send_close(self):
+
+        self._putMessageId(protocol.CLOSE)
+        self._exchangeMessages()
+
+    def send_commit(self):
+        self._putMessageId(protocol.COMMITTRANSACTION)
+        self._exchangeMessages()
+        val = self.getValue()
+        return val
+
+    def send_rollback(self):
+        self._putMessageId(protocol.ROLLBACKTRANSACTION)
+        self._exchangeMessages()
+
+    def test_connection(self):
+        # Create a statement handle
+        self._putMessageId(protocol.CREATE)
+        self._exchangeMessages()
+        handle = self.getInt()
+
+        # Use handle to query dual
+        self._putMessageId(protocol.EXECUTEQUERY).putInt(handle).putString('select 1 as one from dual')
+        self._exchangeMessages()
+
+        rsHandle = self.getInt()
+        count = self.getInt()
+        colname = self.getString()
+        result = self.getInt()
+        fieldValue = self.getInt()
+        r2 = self.getInt()
+
+    # Mostly for cursors
+    def create_statement(self):
+        """
+        @rtype: Statement
+        """
+        self._putMessageId(protocol.CREATE)
+        self._exchangeMessages()
+        return Statement(self.getInt())
+
+    def execute_statement(self, statement, query):
+        """
+        @type statement Statement
+        @type query str
+        @rtype: ExecutionResult
+        """
+        self._putMessageId(protocol.EXECUTE).putInt(statement.handle).putString(query)
+        self._exchangeMessages()
+
+        result = self.getInt()
+        rowcount = self.getInt()
+
+        return ExecutionResult(statement, result, rowcount)
+
+    def close_statement(self, statement):
+        """
+        @type statement Statement
+        """
+        self._putMessageId(protocol.CLOSESTATMENT).putInt(statement.handle)
+        self._exchangeMessages(False)
+
+    def create_prepared_statement(self, query):
+        """
+        @type query str
+        @rtype: PreparedStatement
+        """
+        self._putMessageId(protocol.PREPARE).putString(query)
+        self._exchangeMessages()
+
+        handle = self.getInt()
+        param_count = self.getInt()
+
+        return PreparedStatement(handle, param_count)
+
+    def execute_prepared_statement(self, prepared_statement, parameters):
+        """
+        @type prepared_statement PreparedStatement
+        @type parameters list
+        @rtype: ExecutionResult
+        """
+        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+        self.putInt(prepared_statement.handle).putInt(len(parameters))
+
+        for param in parameters:
+            self.putValue(param)
+
+        self._exchangeMessages()
+
+        result = self.getInt()
+        rowcount = self.getInt()
+
+        return ExecutionResult(prepared_statement, result, rowcount)
+
+    def execute_batch_prepared_statement(self, prepared_statement, param_lists):
+        """
+        @type prepared_statement PreparedStatement
+        @type param_lists list[list]
+
+        """
+        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+        self.putInt(prepared_statement.handle)
+        for parameters in param_lists:
+            if prepared_statement.parameter_count != len(parameters):
+                raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
+                                       (prepared_statement.parameter_count, len(parameters)))
+            self.putInt(len(parameters))
+            for param in parameters:
+                self.putValue(param)
+        self.putInt(-1)
+        self.putInt(len(param_lists))
+        self._exchangeMessages()
+
+        for _ in param_lists:
+            result = self.getInt()
+            if result == -3:
+                error_code = self.getInt()
+                error_string = self.getString()
+                db_error_handler(error_code, error_string)
+
+    def fetch_result_set(self, statement):
+        """
+        @type statement Statement
+        @rtype: ResultSet
+        """
+        self._putMessageId(protocol.GETRESULTSET).putInt(statement.handle)
+        self._exchangeMessages()
+
+        handle = self.getInt()
+        colcount = self.getInt()
+
+        col_num_iter = xrange(colcount)
+        for _ in col_num_iter:
+            self.getString()
+
+        complete = False
+        init_results = []
+        next_row = self.getInt()
+
+        while next_row == 1:
+            row = [None] * colcount
+            for i in col_num_iter:
+                row[i] = self.getValue()
+
+            init_results.append(tuple(row))
+
+            try:
+                next_row = self.getInt()
+            except EndOfStream:
+                break
+
+        # the first chunk might be all of the data
+        if next_row == 0:
+            complete = True
+
+        return ResultSet(handle, colcount, init_results, complete)
+
+    def fetch_result_set_next(self, result_set):
+        """
+        @type result_set ResultSet
+        """
+        self._putMessageId(protocol.NEXT).putInt(result_set.handle)
+        self._exchangeMessages()
+
+        col_num_iter = xrange(result_set.col_count)
+
+        result_set.clear_results()
+
+        next_row = self.getInt()
+        while next_row == 1:
+            row = [None] * result_set.col_count
+            for i in col_num_iter:
+                row[i] = self.getValue()
+
+            result_set.add_row(tuple(row))
+
+            try:
+                next_row = self.getInt()
+            except EndOfStream:
+                break
+
+        if next_row == 0:
+            result_set.complete = True
+
+    def fetch_result_set_description(self, result_set):
+        """
+        @type result_set ResultSet
+        @rtype: ResultSetMetadata
+        """
+        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
+        self._exchangeMessages()
+
+        description = [None] * self.getInt()
+        for i in xrange(result_set.col_count):
+            self.getString()    # catalog_name
+            self.getString()    # schema_name
+            self.getString()    # table_name
+            column_name = self.getString()
+            self.getString()    # column_label
+            self.getValue()     # collation_sequence
+            column_type_name = self.getString()
+            self.getInt()       # column_type
+            column_display_size = self.getInt()
+            precision = self.getInt()
+            scale = self.getInt()
+            self.getInt()       # flags
+
+            description[i] = [column_name, TypeObjectFromNuodb(column_type_name),
+                              column_display_size, None, precision, scale, None]
+
+        return description
+
     #
     # Methods to put values into the next message
 
-    def putMessageId(self, messageId):
+    def _putMessageId(self, messageId):
         """
         Start a message with the messageId.
         @type messageId int
         """
-        if self.__output != None:
+        if self.__output is not None:
             raise SessionException('no')
         self.__output = ''
         self.putInt(messageId, isMessageId=True)
@@ -429,7 +687,7 @@ class EncodedSession(Session):
     def getUUID(self):
         """Read the next UUID value off the session."""
         if self._getTypeCode() == protocol.UUID:
-            return uuid.UUID(self._takeBytes(16))
+            return uuid.UUID(bytes=self._takeBytes(16))
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
             pass
@@ -502,7 +760,7 @@ class EncodedSession(Session):
         else:
             raise NotImplementedError("not implemented")
 
-    def exchangeMessages(self, getResponse=True):
+    def _exchangeMessages(self, getResponse=True):
         """Exchange the pending message for an optional response from the server."""
         try:
             # print "message to server: %s" %  (self.__output)
@@ -516,7 +774,6 @@ class EncodedSession(Session):
             
             error = self.getInt()
 
-            # TODO: include the actual error message, and use a different type
             if error != 0:
                 db_error_handler(error, self.getString())
         else:

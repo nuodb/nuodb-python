@@ -13,12 +13,9 @@ from cursor import Cursor
 from encodedsession import EncodedSession
 from crypt import ClientPassword, RC4Cipher
 from util import getCloudEntry
-from session import SessionException
-from exception import ProgrammingError
 
 import time
 import string
-import protocol
 
 # http://www.python.org/dev/peps/pep-0249
 
@@ -101,32 +98,15 @@ class Connection(object):
         if options:
             parameters.update(options)
 
-        self.__session.putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(dbName).putInt(len(parameters))
-        for (k, v) in parameters.iteritems():
-            self.__session.putString(k).putString(v)
-        self.__session.putNull().putString(cp.genClientKey())
-
-        self.__session.exchangeMessages()
-
-        version = self.__session.getInt()
-        serverKey = self.__session.getString()
-        salt = self.__session.getString()
+        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
 
         sessionKey = cp.computeSessionKey(string.upper(username), password, salt, serverKey)
         self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
-        # check auth
-        try:
-            self.__session.putMessageId(protocol.AUTHENTICATION).putString('Success!')
-            self.__session.exchangeMessages()
-        except SessionException:
-            raise ProgrammingError('Invalid database username or password')
-            
-        
-        # set auto commit to false by default
-        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(0)
-        
-        self.__session.exchangeMessages(False)
+        self.__session.check_auth()
+
+        # set auto commit to false by default per PEP
+        self.__session.set_autocommit(0)
 
     def testConnection(self):
         """Tests to ensure the connection was properly established.
@@ -142,42 +122,25 @@ class Connection(object):
         Returns:
         None
         """
-        # Create a statement handle
-        self.__session.putMessageId(protocol.CREATE)
-        self.__session.exchangeMessages()
-        handle = self.__session.getInt()
-
-        # Use handle to query dual
-        self.__session.putMessageId(protocol.EXECUTEQUERY).putInt(handle).putString('select 1 as one from dual')
-        self.__session.exchangeMessages()
-
-        rsHandle = self.__session.getInt()
-        count = self.__session.getInt()
-        colname = self.__session.getString()
-        result = self.__session.getInt()
-        fieldValue = self.__session.getInt()
-        r2 = self.__session.getInt()
+        self.__session.test_connection()
 
     @property
     def auto_commit(self):
         """Gets the value of auto_commit from the database."""
         self._check_closed()
-        self.__session.putMessageId(protocol.GETAUTOCOMMIT)
-        self.__session.exchangeMessages()
-        return self.__session.getValue()
+        return self.__session.get_autocommit()
     
     @auto_commit.setter
     def auto_commit(self, value):
         """Sets the value of auto_commit on the database."""
         self._check_closed()
-        self.__session.putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
-        self.__session.exchangeMessages(False)
+        self.__session.set_autocommit(value)
 
     def close(self):
         """Closes the connection with the host."""
         self._check_closed()
-        self.__session.putMessageId(protocol.CLOSE)
-        self.__session.exchangeMessages()
+        self.__session.send_close()
+        #TODO: Nope
         self.__session.closed = True
 
     def _check_closed(self):
@@ -188,18 +151,14 @@ class Connection(object):
     def commit(self):
         """Sends a message to the host to commit transaction."""
         self._check_closed()
-        self.__session.putMessageId(protocol.COMMITTRANSACTION)
-        self.__session.exchangeMessages()
-        self._trans_id = self.__session.getValue()
+        self._trans_id = self.__session.send_commit()
 
     def rollback(self):
         """Sends a message to the host to rollback uncommitted changes."""
         self._check_closed()
-        self.__session.putMessageId(protocol.ROLLBACKTRANSACTION)
-        self.__session.exchangeMessages()
+        self.__session.send_rollback()
 
     def cursor(self):
         """Return a new Cursor object using the connection."""
         self._check_closed()
         return Cursor(self.__session)
-    

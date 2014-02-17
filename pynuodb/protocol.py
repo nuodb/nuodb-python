@@ -1,5 +1,6 @@
 """Contains the constants for sending the protocol to the server."""
 
+AUTH_TEST_STR = 'Success!'
 
 # Data Types Encoding Rules
 NULL                            = 1
@@ -34,7 +35,7 @@ MILLISECLEN0                    = 86     # milliseconds since January 1, 1970
 MILLISECLEN8                    = 94
 NANOSECLEN0                     = 95     # nanoseconds since January 1, 1970
 NANOSECLEN8                     = 103
-TIMELEN0                        = 104    # milliseconds since midnight 
+TIMELEN0                        = 104    # milliseconds since midnight
 TIMELEN4                        = 108
 SCALEDTIMELEN1                  = 209
 SCALEDTIMELEN8                  = 216
@@ -287,3 +288,4 @@ stringifyError = {
                       IN_QUOTED_STRING                : 'IN_QUOTED_STRING',
                       BATCH_UPDATE_ERROR              : 'BATCH_UPDATE_ERROR',
                  }
+
