@@ -84,6 +84,7 @@ class Session:
         self.__port = port
 
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.__sock.connect((host, port))
 
         self.__cipherOut = None
