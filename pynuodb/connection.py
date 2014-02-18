@@ -158,7 +158,7 @@ class Connection(object):
         self._check_closed()
         self.__session.send_rollback()
 
-    def cursor(self):
+    def cursor(self, prepared_statement_cache_size=50):
         """Return a new Cursor object using the connection."""
         self._check_closed()
-        return Cursor(self.__session)
+        return Cursor(self.__session, prepared_statement_cache_size)

@@ -37,7 +37,7 @@ class Cursor(object):
     _get_next_results -- Gets the next set of results.    
     """
     
-    def __init__(self, session):
+    def __init__(self, session, prepared_statement_cache_size):
         """
         Constructor for the Cursor class.
         @type session EncodedSession
@@ -45,8 +45,8 @@ class Cursor(object):
         self.session = session
         """ @type : EncodedSession """
 
-        self._statement_pool = StatementPool(session)
-        """ @type : StatementPool """
+        self._statement_cache = StatementCache(session, prepared_statement_cache_size)
+        """ @type : StatementCache """
 
         self._result_set = None
         """ @type : result_set.ResultSet """
@@ -68,7 +68,7 @@ class Cursor(object):
     def close(self):
         """Closes the cursor into the database."""
         self._check_closed()
-        self._statement_pool.shutdown()
+        self._statement_cache.shutdown()
         self.closed = True
 
     def _check_closed(self):
@@ -127,12 +127,12 @@ class Cursor(object):
     def _execute(self, operation):
         """Handles operations without parameters."""
         # Use handle to query
-        return self.session.execute_statement(self._statement_pool.get_statement(), operation)
+        return self.session.execute_statement(self._statement_cache.get_statement(), operation)
 
     def _executeprepared(self, operation, parameters):
         """Handles operations with parameters."""
         # Create a statement handle
-        p_statement = self._statement_pool.get_prepared_statement(operation)
+        p_statement = self._statement_cache.get_prepared_statement(operation)
         
         if p_statement.parameter_count != len(parameters):
             raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
@@ -145,7 +145,7 @@ class Cursor(object):
         """Executes the operation for each list of paramaters passed in."""
         self._check_closed()
 
-        p_statement = self._statement_pool.get_prepared_statement(operation)
+        p_statement = self._statement_cache.get_prepared_statement(operation)
         self.session.execute_batch_prepared_statement(p_statement, seq_of_parameters)
 
     def fetchone(self):
@@ -202,8 +202,8 @@ class Cursor(object):
         pass
 
 
-class StatementPool(object):
-    def __init__(self, session, prepared_statement_cache_size=50):
+class StatementCache(object):
+    def __init__(self, session, prepared_statement_cache_size):
         self._session = session
         """ @type : EncodedSession """
 
