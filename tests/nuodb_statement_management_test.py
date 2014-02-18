@@ -108,7 +108,6 @@ class NuoDBStatementManagementTest(NuoBase):
             for _ in xrange(0, 20):
                 cursor.execute(query, test_vals)
 
-
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
@@ -125,7 +124,6 @@ class NuoDBStatementManagementTest(NuoBase):
             finally:
                 con.close()
 
-
     def test_prepared_statement_cache_stable(self):
         con = self._connect()
         cursor = con.cursor()
@@ -139,7 +137,6 @@ class NuoDBStatementManagementTest(NuoBase):
                          decimal.Decimal('34524584057.3434234'), 10000.999)
             query = "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " \
                     "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
-
 
             handle = None
             for _ in xrange(0, 20):
@@ -203,7 +200,6 @@ class NuoDBStatementManagementTest(NuoBase):
             finally:
                 con.close()
 
-
     def test_prepared_statement_cache_eviction(self):
         con = self._connect()
         cache_size = 5
@@ -228,7 +224,6 @@ class NuoDBStatementManagementTest(NuoBase):
                        "insert into typetest (smallint_col, integer_col) values (?, ?)",
                        "insert into typetest (smallint_col) values (?)"]
 
-
             for i in xrange(0, len(queries)):
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
@@ -242,7 +237,6 @@ class NuoDBStatementManagementTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
 
     def test_prepared_statement_cache_eviction_lru(self):
         con = self._connect()
@@ -268,7 +262,8 @@ class NuoDBStatementManagementTest(NuoBase):
                        "insert into typetest (smallint_col, integer_col) values (?, ?)",
                        "insert into typetest (smallint_col) values (?)"]
 
-            query_order = [0,0,0,0,0,0,0,0,0,0,0,0,0,2,5,5,3,1,4,6,1,5,4,5,2,3,1,5,6,4,3,6,1,5,6,1,6,3,1,2,1,1]
+            query_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 5, 3, 1, 4, 6, 1, 5, 4, 5, 2, 3, 1, 5, 6, 4, 3,
+                           6, 1, 5, 6, 1, 6, 3, 1, 2, 1, 1]
             for i in query_order:
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
@@ -285,7 +280,6 @@ class NuoDBStatementManagementTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
 
 
 def extract_statement_handle(cursor):

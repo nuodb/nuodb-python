@@ -4,7 +4,7 @@ Exported Classes:
 EncodedSession -- Class for representing an encoded session with the database.
 """
 
-# __all__  = [ 'EncodedSession' ]
+__all__  = [ 'EncodedSession' ]
 
 from crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
 from session import Session, SessionException
@@ -14,7 +14,7 @@ import struct
 import protocol
 import datatype
 import decimal
-import traceback
+
 from exception import DataError, EndOfStream, ProgrammingError, db_error_handler
 from datatype import TypeObjectFromNuodb
 
@@ -23,8 +23,6 @@ from result_set import ResultSet
 
 # from nuodb.util import getCloudEntry
 # (host, port) = getCloudEntry(broker, dbName, connectionKeys)
-
-STRICT = False
 
 class EncodedSession(Session):
 
