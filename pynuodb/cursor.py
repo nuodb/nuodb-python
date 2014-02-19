@@ -6,9 +6,11 @@ Cursor -- Class for representing a database cursor.
 
 """
 
-import protocol
-from datatype import TypeObjectFromNuodb
-from exception import Error, NotSupportedError, EndOfStream, ProgrammingError, InterfaceError, db_error_handler
+from collections import deque
+
+from statement import Statement, PreparedStatement
+from exception import Error, NotSupportedError, ProgrammingError
+
 
 class Cursor(object):
 
@@ -35,25 +37,26 @@ class Cursor(object):
     _get_next_results -- Gets the next set of results.    
     """
     
-    def __init__(self, session):
+    def __init__(self, session, prepared_statement_cache_size):
         """
         Constructor for the Cursor class.
         @type session EncodedSession
         """
         self.session = session
+        """ @type : EncodedSession """
+
+        self._statement_cache = StatementCache(session, prepared_statement_cache_size)
+        """ @type : StatementCache """
+
+        self._result_set = None
+        """ @type : result_set.ResultSet """
+
         self.closed = False
         self.arraysize = 1
         
         self.description = None
         self.rowcount = -1
         self.colcount = -1
-        
-        self._st_handle = None
-        self._rs_handle = None
-        self._results = []
-        self._results_pos = 0
-        
-        self._complete = False
         
         self.__query = None
         
@@ -65,6 +68,7 @@ class Cursor(object):
     def close(self):
         """Closes the cursor into the database."""
         self._check_closed()
+        self._statement_cache.shutdown()
         self.closed = True
 
     def _check_closed(self):
@@ -79,21 +83,10 @@ class Cursor(object):
         
         Also closes any open statements and result sets.
         """
-        
-        #Always close statement (and rs) before new query. This will need to change for #22
-        if self._st_handle is not None:
-            self._close_statement()
-        
         self.description = None
         self.rowcount = -1
         self.colcount = -1
-        
-        self._st_handle = None
-        self._rs_handle = None
-        self._results = []
-        self._results_pos = 0
-        
-        self._complete = False
+        self._result_set = None
 
     def callproc(self, procname, parameters=None):
         """Currently not supported."""
@@ -116,155 +109,65 @@ class Cursor(object):
         self._check_closed()
         self._reset()
         self.__query = operation
+
         if parameters is None:
-            self._execute(operation)
-            
+            exec_result = self._execute(operation)
         else:
-            self._executeprepared(operation, parameters)
-            
-        result = self.session.getInt()
+            exec_result = self._executeprepared(operation, parameters)
 
-        # TODO: check this, should be -1 on select?
-        self.rowcount = self.session.getInt()
-        if result > 0:
-            self.session.putMessageId(protocol.GETRESULTSET).putInt(self._st_handle)
-            self.session.exchangeMessages()
+        self.rowcount = exec_result.row_count
+        if exec_result.result > 0:
+            self._result_set = self.session.fetch_result_set(exec_result.statement)
+            self.description = self.session.fetch_result_set_description(self._result_set)
 
-            self._rs_handle = self.session.getInt()
-            self.colcount = self.session.getInt()
-
-            col_num_iter = xrange(self.colcount)                  
-
-            for i in col_num_iter:
-                self.session.getString()
-
-            next_row = self.session.getInt()
-            while next_row == 1:
-                row = [None] * self.colcount
-                for i in col_num_iter:
-                    row[i] = self.session.getValue()
-        
-                self._results.append(tuple(row))
-            
-                try:
-                    next_row = self.session.getInt()  
-                except EndOfStream:
-                    break
-                    
-            # the first chunk might be all of the data
-            if next_row == 0:
-                self._complete = True
-                    
-            # add description attribute
-            self.session.putMessageId(protocol.GETMETADATA).putInt(self._rs_handle)
-            self.session.exchangeMessages()
-            
-            self.description = [None] * self.session.getInt()
-            for i in col_num_iter:
-                catalogName = self.session.getString()
-                schemaName = self.session.getString()
-                tableName = self.session.getString()
-                columnName = self.session.getString()
-                columnLabel = self.session.getString()
-                collationSequence = self.session.getValue()
-                columnTypeName = self.session.getString()
-                columnType = self.session.getInt()
-                columnDisplaySize = self.session.getInt()
-                precision = self.session.getInt()
-                scale = self.session.getInt()
-                flags = self.session.getInt()
-                self.description[i] = [columnName, TypeObjectFromNuodb(columnTypeName), 
-                                       columnDisplaySize, None, precision, scale, None]
-                                       
+        # TODO: ???
         if self.rowcount < 0:
             self.rowcount = -1
 
     def _execute(self, operation):
         """Handles operations without parameters."""
-        # Create a statement handle
-        self.session.putMessageId(protocol.CREATE)
-        self.session.exchangeMessages()
-        self._st_handle = self.session.getInt()
-        
         # Use handle to query
-        self.session.putMessageId(protocol.EXECUTE).putInt(self._st_handle).putString(operation)
-        self.session.exchangeMessages()
+        return self.session.execute_statement(self._statement_cache.get_statement(), operation)
 
     def _executeprepared(self, operation, parameters):
         """Handles operations with parameters."""
         # Create a statement handle
-        self.session.putMessageId(protocol.PREPARE).putString(operation)
-        self.session.exchangeMessages()
-        self._st_handle = self.session.getInt()
-        p_count = self.session.getInt()
+        p_statement = self._statement_cache.get_prepared_statement(operation)
         
-        if p_count != len(parameters):
-            raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" % (p_count, len(parameters)))
+        if p_statement.parameter_count != len(parameters):
+            raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
+                                   (p_statement.parameter_count, len(parameters)))
         
         # Use handle to query
-        self.session.putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
-        self.session.putInt(self._st_handle).putInt(p_count)
-        for param in parameters[:]:
-            self.session.putValue(param)
-        self.session.exchangeMessages()
+        return self.session.execute_prepared_statement(p_statement, parameters)
 
     def executemany(self, operation, seq_of_parameters):
         """Executes the operation for each list of paramaters passed in."""
         self._check_closed()
-        
-        self.session.putMessageId(protocol.PREPARE).putString(operation)
-        self.session.exchangeMessages()
-        self._st_handle = self.session.getInt()
-        p_count = self.session.getInt()
-        
-        self.session.putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
-        self.session.putInt(self._st_handle)
-        for parameters in seq_of_parameters[:]:
-            if p_count != len(parameters):
-                raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" % (p_count, len(parameters)))
-            self.session.putInt(len(parameters))
-            for param in parameters[:]:
-                self.session.putValue(param)
-        self.session.putInt(-1)
-        self.session.putInt(len(seq_of_parameters))
-        self.session.exchangeMessages()
-            
-        for _ in seq_of_parameters[:]:
-            result = self.session.getInt()
-            if result == -3:
-                error_code = self.session.getInt()
-                error_string = self.session.getString()
-                db_error_handler(error_code, error_string)
-                      
+
+        p_statement = self._statement_cache.get_prepared_statement(operation)
+        self.session.execute_batch_prepared_statement(p_statement, seq_of_parameters)
 
     def fetchone(self):
         """Fetches the first row of results generated by the previous execute."""
         self._check_closed()
-        if self._rs_handle == None:
+        if self._result_set is None:
             raise Error("Previous execute did not produce any results or no call was issued yet")
-        
-        if self._results_pos == len(self._results):
-            if not self._complete:
-                self._get_next_results()
-            else:
-                return None
-                
-        res = self._results[self._results_pos]
-        self._results_pos += 1
-        return res
+
+        return self._result_set.fetchone(self.session)
 
     def fetchmany(self, size=None):
         """Fetches the number of rows that are passed in."""
         self._check_closed()
         
-        if size == None:
+        if size is None:
             size = self.arraysize
             
         fetched_rows = []
         num_fetched_rows = 0
         while num_fetched_rows < size:
             row = self.fetchone()
-            if row == None:
+            if row is None:
                 break
             else:
                 fetched_rows.append(row)
@@ -279,13 +182,12 @@ class Cursor(object):
         fetched_rows = []
         while True:
             row = self.fetchone()
-            if row == None:
+            if row is None:
                 break
             else:
                 fetched_rows.append(row)
                 
         return fetched_rows   
-
 
     def nextset(self):
         """Currently not supported."""
@@ -298,41 +200,63 @@ class Cursor(object):
     def setoutputsize(self, size, column=None):
         """Currently not supported."""
         pass
-    
-    def _close_statement(self):
-        """Closes the current statement or prepared statement
-        
-        This will cause any open result sets to be closed as well
-        """
-        
-        if self._st_handle is None:
-            raise InterfaceError('Statement is not open')
-        self.session.putMessageId(protocol.CLOSESTATMENT).putInt(self._st_handle)
-        self.session.exchangeMessages(False)
 
-    def _get_next_results(self):
-        """Gets the next set of results."""
-        self.session.putMessageId(protocol.NEXT).putInt(self._rs_handle)
-        self.session.exchangeMessages()
-        
-        col_num_iter = xrange(self.colcount)
-        
-        self._results = []
-        next_row = self.session.getInt()
-        while next_row == 1:
-            row = [None] * self.colcount
-            for i in col_num_iter:
-                row[i] = self.session.getValue()
-        
-            self._results.append(tuple(row))
-            
-            try:
-                next_row = self.session.getInt()  
-            except EndOfStream:
-                break
-            
-        
-        self._results_pos = 0
-        
-        if next_row == 0:
-            self._complete = True
+
+class StatementCache(object):
+    def __init__(self, session, prepared_statement_cache_size):
+        self._session = session
+        """ @type : EncodedSession """
+
+        self._statement = self._session.create_statement()
+        """ @type : Statement """
+
+        self._ps_cache = dict()
+        """ @type : dict[str,PreparedStatement] """
+
+        self._ps_key_queue = deque()
+        """ @type : deque[str] """
+
+        self._ps_cache_size = prepared_statement_cache_size
+        """ @type : int """
+
+    def get_statement(self):
+        """
+        @rtype: Statement
+        """
+        return self._statement
+
+    def get_prepared_statement(self, query):
+        """
+        @type query str
+        @rtype: PreparedStatement
+        """
+
+        statement = self._ps_cache.get(query)
+        if statement is not None:
+            self._ps_key_queue.remove(query)
+            self._ps_key_queue.append(query)
+            return statement
+
+        statement = self._session.create_prepared_statement(query)
+
+        while len(self._ps_cache) >= self._ps_cache_size:
+            lru_statement_key = self._ps_key_queue.popleft()
+            statement_to_remove = self._ps_cache[lru_statement_key]
+            self._session.close_statement(statement_to_remove)
+            del self._ps_cache[lru_statement_key]
+
+        self._ps_key_queue.append(query)
+        self._ps_cache[query] = statement
+
+        return statement
+
+    def shutdown(self):
+        self._session.close_statement(self._statement)
+
+        for key in self._ps_cache:
+            statement_to_remove = self._ps_cache[key]
+            self._session.close_statement(statement_to_remove)
+
+        self._ps_cache.clear()
+        self._ps_key_queue.clear()
+
