@@ -162,7 +162,7 @@ def TypeObjectFromNuodb(nuodb_type_name):
         
     elif nuodb_type_name == "bytes":
         return BINARY
-        
+
     elif nuodb_type_name == "binarystring":
         return BINARY
         
@@ -172,6 +172,9 @@ def TypeObjectFromNuodb(nuodb_type_name):
     elif nuodb_type_name == "boolean":
         #TODO: Not sure about this?
         return NUMBER
+
+    elif nuodb_type_name == "binary":
+        return BINARY
 
     else:
         raise DataError('received unknown column type from the database')

@@ -730,19 +730,15 @@ class Database:
     def shutdown(self, graceful=True):
         """Shutdown this database.
         
-        graceful -- (default True) if True, the database will first
-        be quiesced and then shutdown.
+        graceful -- (default True) if True, the database processes will be shutdown gracefully.
         """
         if len(self.__processes) == 0:
             return
 
-        if graceful:
-            self.quiesce()
-
         failure_count = 0
         failure_text = ""
 
-        for process in self.__processes.itervalues():
+        for process in self.__processes.values():
             if process.is_transactional:
                 try:
                     if graceful:
@@ -754,7 +750,7 @@ class Database:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
-        for process in self.__processes.itervalues():
+        for process in self.__processes.values():
             if not process.is_transactional:
                 try:
                     if graceful:
