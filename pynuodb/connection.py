@@ -140,7 +140,7 @@ class Connection(object):
         """Closes the connection with the host."""
         self._check_closed()
         self.__session.send_close()
-        #TODO: Nope
+        #TODO: This sends a close request, but doesn't force close the socket
         self.__session.closed = True
 
     def _check_closed(self):
