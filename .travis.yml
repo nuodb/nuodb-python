@@ -7,7 +7,6 @@ env:
   - NUODB_VERSION=2.0.2
   - NUODB_VERSION=2.0.1
   - NUODB_VERSION=2.0
-  - NUODB_VERSION=1.2
 
 notifications:
   recipients:
@@ -23,5 +22,5 @@ before_install:
 script:
   - make all
 
-after_script:
-  - sudo dpkg -r nuodb
+after_failure:
+  - cat /var/log/nuodb/agent.log
