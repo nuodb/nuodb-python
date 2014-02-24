@@ -80,8 +80,11 @@ class EncodedSession(Session):
         self.doConnect()
 
         self.__output = None
+        """ @type : str """
         self.__input = None
+        """ @type : str """
         self.__inpos = 0
+        """ @type : int """
         self.closed = False
 
     # Mostly for connections
@@ -800,7 +803,7 @@ class EncodedSession(Session):
 
     def _takeBytes(self, length):
         """Gets the next length of bytes off the session."""
-        if self.__inpos >= len(self.__input):
+        if self.__inpos + length > len(self.__input):
             raise EndOfStream('end of stream reached')
                         
         try:
