@@ -387,10 +387,10 @@ class EncodedSession(Session):
         """
         length = len(value)
         if length < 40:
-            packed = chr(protocol.UTF8LEN0 + length) + value
+            packed = chr(protocol.UTF8LEN0 + length) + str(value)
         else:
             lengthStr = toByteString(length)
-            packed = chr(protocol.UTF8COUNT1 - 1 + len(lengthStr)) + lengthStr + value
+            packed = chr(protocol.UTF8COUNT1 - 1 + len(lengthStr)) + lengthStr + str(value)
         self.__output += packed
         return self
 
