@@ -45,6 +45,7 @@ import socket
 import string
 import struct
 import threading
+import sys
 import xml.etree.ElementTree as ElementTree
 
 
@@ -126,9 +127,9 @@ class Session:
         verifyMessage = self.recv()
         try:
             root = ElementTree.fromstring(verifyMessage)
-        except:
+        except Exception as e:
             self.close()
-            raise SessionException("Failed to establish session with password")
+            raise SessionException("Failed to establish session with password: " + str(e)), None, sys.exc_info()[2]
 
         if root.tag != "PasswordVerify":
             self.close()
@@ -158,9 +159,9 @@ class Session:
 
         try:
             self.send(connectStr)
-        except Exception as x:
+        except Exception:
             self.close()
-            raise x
+            raise
 
     def __constructServiceMessage(self, template, attributes, text, children):
         attributeString = ""
@@ -195,9 +196,9 @@ class Session:
 
         try:
             self.__sock.send(lenStr + message)
-        except Exception as x:
+        except Exception:
             self.close()
-            raise x
+            raise
 
     def recv(self, doStrip=True):
         if not self.__sock:
@@ -209,9 +210,9 @@ class Session:
             
             msg = self.__readFully(msgLength)
 
-        except Exception as x:
+        except Exception:
             self.close()
-            raise x
+            raise
 
         if self.__cipherIn:
             if doStrip:
@@ -229,7 +230,8 @@ class Session:
             received = self.__sock.recv(msgLength)
 
             if not received:
-                raise SessionException("Session was closed while receiving")
+                raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
+                                       "len(received)=[%d]" % (msgLength, len(msg), len(received)))
 
             msg = msg + received
             msgLength = msgLength - len(received)

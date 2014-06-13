@@ -14,6 +14,7 @@ import struct
 import protocol
 import datatype
 import decimal
+import sys
 
 from exception import DataError, EndOfStream, ProgrammingError, db_error_handler
 from datatype import TypeObjectFromNuodb
@@ -111,8 +112,8 @@ class EncodedSession(Session):
         try:
             self._putMessageId(protocol.AUTHENTICATION).putString(protocol.AUTH_TEST_STR)
             self._exchangeMessages()
-        except SessionException:
-            raise ProgrammingError('Invalid database username or password')
+        except SessionException as e:
+            raise ProgrammingError('Failed to authenticate: ' + str(e)), None, sys.exc_info()[2]
 
 
     def get_autocommit(self):
