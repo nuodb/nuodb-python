@@ -108,6 +108,8 @@ DATETIME     = TypeObject(Timestamp, Date, Time)
 ROWID         = TypeObject()
 
 def TypeObjectFromNuodb(nuodb_type_name):
+    """TODO:  this is very fragile.  The driver should map type numbers not typenames."""
+
     """Returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
     supplied NuoDB column type name
     """
