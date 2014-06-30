@@ -177,5 +177,5 @@ def TypeObjectFromNuodb(nuodb_type_name):
         return BINARY
 
     else:
-        raise DataError('received unknown column type from the database')
+        raise DataError('received unknown column type (%s) from the database' % nuodb_type_name)
 
