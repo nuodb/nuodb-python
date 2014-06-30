@@ -289,3 +289,26 @@ stringifyError = {
                       BATCH_UPDATE_ERROR              : 'BATCH_UPDATE_ERROR',
                  }
 
+#
+# NuoDB Client-Server Protocol Version #'s
+#
+PROTOCOL_VERSION1          = 1
+PROTOCOL_VERSION2          = 2   # 3/27/2011    Passing SQLState on exceptions; piggybacking generated
+                                 #              key result sets.
+PROTOCOL_VERSION3          = 3   # 2/14/2012    Passing txn, node id and commit sequence
+PROTOCOL_VERSION4          = 4   # 2/29/2012    Added GetCurrentSchema
+PROTOCOL_VERSION5          = 5   # 3/12/2012    Server returns DB UUID
+PROTOCOL_VERSION6          = 6   # 3/22/2012    Server encodes error message for each statement in batch
+PROTOCOL_VERSION7          = 7   # 5/11/2012    Fix issues with generated key result set and last commit info
+PROTOCOL_VERSION8          = 8   # 8/10/2012    Optimize result set close to be async and support to skip column header
+PROTOCOL_VERSION9          = 9   # 8/30/2012    New Date/Time/Timestamp encodings
+PROTOCOL_VERSION10         = 10  # 11/13/2012   Normalized Dates - NuoDB GA 1.0
+PROTOCOL_VERSION11         = 11  # 02/01/2013   New BigInt - NuoDB GA 1.0.2
+PROTOCOL_VERSION12         = 12  # 06/28/2013   Added setQueryTimeout/PrepareCall/ExecuteCall
+PROTOCOL_VERSION13         = 13  # 01/24/2013   Added some JDBC methods
+PROTOCOL_VERSION14         = 14  # 02/18/2014   Changed strings in Types/TypeUtil.cpp - affected Python driver
+PROTOCOL_VERSION15         = 15  # 04/22/2014   openDatabase returns server-side connection id in response
+#
+# The current protocol version of THIS driver.  The server will negotiate the lowest compatible version.
+#
+CURRENT_PROTOCOL_VERSION   = PROTOCOL_VERSION14

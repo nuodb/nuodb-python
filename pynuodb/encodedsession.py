@@ -95,7 +95,7 @@ class EncodedSession(Session):
         @type parameters dict[str,str]
         @type cp crypt.ClientPassword
         """
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.EXECUTEPREPAREDUPDATE).putString(db_name).putInt(len(parameters))
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
         for (k, v) in parameters.iteritems():
             self.putString(k).putString(v)
         self.putNull().putString(cp.genClientKey())
@@ -334,6 +334,8 @@ class EncodedSession(Session):
             scale = self.getInt()
             self.getInt()       # flags
 
+            """TODO: type information should be derived from the type (column_type) not the
+                     typename.  """
             description[i] = [column_name, TypeObjectFromNuodb(column_type_name),
                               column_display_size, None, precision, scale, None]
 
