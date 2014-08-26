@@ -2,7 +2,7 @@
 
 import protocol
 
-__all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'DataError',
+__all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError', 'DataError',
            'OperationalError', 'IntegrityError', 'InternalError',
            'ProgrammingError', 'NotSupportedError', 'EndOfStream', 'db_error_handler']
 
@@ -32,6 +32,11 @@ class DatabaseError(Error):
     def __init__(self, value):
         Error.__init__(self, value)
 
+class BatchError(DatabaseError):
+    results = None
+    def __init__(self, value, results):
+        Error.__init__(self, value)
+        self.results = results
 
 class DataError(DatabaseError):
     def __init__(self, value):

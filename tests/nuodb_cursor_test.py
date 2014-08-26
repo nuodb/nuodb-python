@@ -4,7 +4,7 @@ import pynuodb;
 import unittest;
 
 from nuodb_base import NuoBase;
-from pynuodb.exception import DataError, ProgrammingError;
+from pynuodb.exception import DataError, ProgrammingError, BatchError;
 
 class NuoDBCursorTest(NuoBase):
 
@@ -89,6 +89,44 @@ class NuoDBCursorTest(NuoBase):
         self.assertEquals(ret[1][1], 4);
 
         cursor.execute("DROP TABLE executemany_table");
+
+    def test_executemany_bad_parameters(self):
+        con = self._connect();
+        cursor = con.cursor();
+        cursor.execute("DROP TABLE IF EXISTS executemany_table");
+        cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)");
+        # 3rd tuple has too many params
+        try:
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2, 3] ]);
+            self.fail()
+        except ProgrammingError as e:
+            self.assertIsNotNone(e)
+
+        cursor.execute("DROP TABLE executemany_table");
         
+    def test_executemany_somefail(self):
+        con = self._connect();
+        cursor = con.cursor();
+        cursor.execute("DROP TABLE IF EXISTS executemany_table");
+        cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)");
+        cursor.execute('CREATE UNIQUE INDEX "f1idx" ON "executemany_table" ("f1");');
+        # 3rd tuple has uniqueness conflict
+        try:
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2], [5,6] ]);
+            self.fail()
+        except BatchError as e:
+            self.assertEquals(e.results[0], 1);
+            self.assertEquals(e.results[1], 1);
+            self.assertEquals(e.results[2], -3);
+            self.assertEquals(e.results[3], 1);
+        except Error as e:
+            self.fail();
+
+        # test that they all made it save the bogus one
+        cursor.execute("select * from executemany_table;");
+        self.assertEquals(len(cursor.fetchall()), 3)
+
+        cursor.execute("DROP TABLE executemany_table");
+
 if __name__ == '__main__':
     unittest.main()

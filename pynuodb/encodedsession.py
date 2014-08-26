@@ -16,7 +16,7 @@ import datatype
 import decimal
 import sys
 
-from exception import DataError, EndOfStream, ProgrammingError, db_error_handler
+from exception import DataError, EndOfStream, ProgrammingError, db_error_handler, BatchError
 from datatype import TypeObjectFromNuodb
 
 from statement import Statement, PreparedStatement, ExecutionResult
@@ -240,12 +240,21 @@ class EncodedSession(Session):
         self.putInt(len(param_lists))
         self._exchangeMessages()
 
+        results = []
+        error_code = None
+        error_string = None
+
         for _ in param_lists:
             result = self.getInt()
-            if result == -3:
+            results.append(result)
+            if result == -3 and error_code is None:
                 error_code = self.getInt()
                 error_string = self.getString()
-                db_error_handler(error_code, error_string)
+
+        if error_code is not None:
+            raise BatchError(protocol.stringifyError[error_code] + ': ' + error_string, results)
+
+        return results
 
     def fetch_result_set(self, statement):
         """
@@ -349,8 +358,6 @@ class EncodedSession(Session):
         Start a message with the messageId.
         @type messageId int
         """
-        if self.__output is not None:
-            raise SessionException('no')
         self.__output = ''
         self.putInt(messageId, isMessageId=True)
         return self
