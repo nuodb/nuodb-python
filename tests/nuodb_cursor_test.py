@@ -112,14 +112,15 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute('CREATE UNIQUE INDEX "f1idx" ON "executemany_table" ("f1");');
         # 3rd tuple has uniqueness conflict
         try:
-            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2], [5,6] ]);
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2], [5,6], [5,6] ]);
             self.fail()
         except BatchError as e:
             self.assertEquals(e.results[0], 1);
             self.assertEquals(e.results[1], 1);
             self.assertEquals(e.results[2], -3);
             self.assertEquals(e.results[3], 1);
-        except Error as e:
+            self.assertEquals(e.results[4], -3);
+        except:
             self.fail();
 
         # test that they all made it save the bogus one
