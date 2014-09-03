@@ -247,9 +247,13 @@ class EncodedSession(Session):
         for _ in param_lists:
             result = self.getInt()
             results.append(result)
-            if result == -3 and error_code is None:
-                error_code = self.getInt()
-                error_string = self.getString()
+            if result == -3:
+                ec = self.getInt()
+                es = self.getString()
+                # only report first
+                if error_code is None:
+                    error_code = ec
+                    error_string = es
 
         if error_code is not None:
             raise BatchError(protocol.stringifyError[error_code] + ': ' + error_string, results)
