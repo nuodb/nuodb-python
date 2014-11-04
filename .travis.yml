@@ -4,11 +4,12 @@ python:
   - "2.7"
 
 env:
-  - NUODB_VERSION=2.0.4
-  - NUODB_VERSION=2.0.3
-  - NUODB_VERSION=2.0.2
-  - NUODB_VERSION=2.0.1
-  - NUODB_VERSION=2.0
+  - NUODB_VERSION=2.1 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb_2.1.0.2.deb NUODB_ADD_DOMAIN_PASS=yes NUODB_START_AGENT=yes
+  - NUODB_VERSION=2.0.4 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb_2.0.4.20.deb NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
+  - NUODB_VERSION=2.0.3 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb-2.0.3.linux.x64.deb NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
+  - NUODB_VERSION=2.0.2 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb-2.0.2.linux.x64.deb NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
+  - NUODB_VERSION=2.0.1 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb-2.0.1.linux.x64.deb NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
+  - NUODB_VERSION=2.0 NUODB_DOWNLOAD_URL=http://download.nuohub.org/nuodb-2.0.linux.x64.deb NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
 
 notifications:
   recipients:
@@ -18,9 +19,12 @@ notifications:
     - tgates@nuodb.com
 
 before_install:
-  - wget http://download.nuohub.org/nuodb-${NUODB_VERSION}.linux.x64.deb --output-document=/var/tmp/nuodb.deb
+  - wget ${NUODB_DOWNLOAD_URL} --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
   - sleep 4
+  - if [[ "${NUODB_ADD_DOMAIN_PASS}" == "yes" ]] ; then sudo chmod 777 /opt/nuodb/etc/default.properties; echo "domainPassword = bird" >> /opt/nuodb/etc/default.properties; sudo chmod 600 /opt/nuodb/etc/default.properties; fi
+  - if [[ "${NUODB_START_AGENT}" == "yes" ]]; then sudo service nuoagent start; fi
+
   
 script:
   - make all

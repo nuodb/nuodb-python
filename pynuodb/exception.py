@@ -81,17 +81,18 @@ def db_error_handler(error_code, error_string):
     @type error_code int
     @type error_string str
     """
+    error_code_string = protocol.lookup_code(error_code)
     if error_code in protocol.DATA_ERRORS:
-        raise DataError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise DataError(error_code_string + ': ' + error_string)
     elif error_code in protocol.OPERATIONAL_ERRORS:
-        raise OperationalError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise OperationalError(error_code_string + ': ' + error_string)
     # elif errorCode in []:
-    #     raise IntegrityError(protocol.stringifyError[errorCode] + ': ' + errorString)
+    #     raise IntegrityError(error_code_string + ': ' + errorString)
     elif error_code in protocol.INTERNAL_ERRORS:
-        raise InternalError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise InternalError(error_code_string + ': ' + error_string)
     elif error_code in protocol.PROGRAMMING_ERRORS:
-        raise ProgrammingError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise ProgrammingError(error_code_string + ': ' + error_string)
     elif error_code in protocol.NOT_SUPPORTED_ERRORS:
-        raise NotSupportedError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise NotSupportedError(error_code_string + ': ' + error_string)
     else:
-        raise DatabaseError(protocol.stringifyError[error_code] + ': ' + error_string)
+        raise DatabaseError(error_code_string + ': ' + error_string)
