@@ -4,20 +4,11 @@ __all__ = [ "Domain", "Peer", "Database", "Process" ]
 in the com.nuodb.entity Java package. A Domain instance provides entry into
 a domain, and optionally a hook for getting called back when domain-level
 events happen. The Domain provides access to Peers, Databases and Processes.
-"""
 
-from session import BaseListener, Session, SessionMonitor, SessionException
-from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
-
-import time
-from threading import Event, Lock
-import xml.etree.ElementTree as ElementTree
-
-
-""" To create a Domain 'connection' you need to give a broker address (a string
+To create a Domain 'connection' you need to give a broker address (a string
 which may end in ':PORT') and domain password. You can also supply a class
 to notify on domain events. That class may implement any of the methods:
-   
+
     peer_joined(self, peer)
     peer_left(self, peer)
     process_joined(self, process)
@@ -27,7 +18,7 @@ to notify on domain events. That class may implement any of the methods:
     database_joined(self, database)
     database_left(self, database)
     closed(self)
-    
+
 
 For instance, a valid listener could be formed like this:
 
@@ -49,8 +40,15 @@ to another broker. Either this should be added, or some clear exception
 should be raised to help the caller make this happen.
 """
 
+from session import BaseListener, Session, SessionMonitor, SessionException
+from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
+
+import time, json
+from threading import Event, Lock
+import xml.etree.ElementTree as ElementTree
+
+
 class Domain(BaseListener):
-    
     """Represents the NuoDB domain.
     
     The domain is the top level NuoDB management object. The domain object 
@@ -58,6 +56,12 @@ class Domain(BaseListener):
     """
 
     def __init__(self, broker_addr, domain_user, domain_pwd, listener=None):
+        """
+        @type broker_addr str
+        @type domain_user str
+        @type domain_pwd str
+        @type listener
+        """
         if not domain_pwd:
             raise Exception("A password is required to join a domain")
 
@@ -68,13 +72,17 @@ class Domain(BaseListener):
         self.__password = domain_pwd
         self.__listener = listener
         self.__peers = dict()
+        """ @type : dict[str, Peer] """
         self.__databases = dict()
+        """ @type : dict[str, Database] """
 
         self.__monitor = SessionMonitor(self.__session, self)
         
         # These will be set in handle status after joining the domain 
         self.__domain_name = None
+        """ @type : str """
         self.__entry_peer = None
+        """ @type : Peer """
 
         try:
             self.__session.doConnect()
@@ -91,6 +99,11 @@ class Domain(BaseListener):
     def disconnect(self):
         """Disconnect from the domain."""
         self.__monitor.close()
+        
+    def _send_domain_message(self, service, attributes=None, text=None, children=None):
+        session = Session(self.__entry_peer.address, port=self.__entry_peer.port, service=service)
+        session.authorize(self.__user, self.__password)
+        return session.doRequest(attributes, text, children)
 
     @property
     def user(self):
@@ -107,28 +120,107 @@ class Domain(BaseListener):
         """Return the domain name."""
         return self.__domain_name
 
+    def find_peer(self, address):
+        """
+        Find a peer by address
+        @type: address str
+        @rtype: Peer
+        """
+
     def get_peer(self, agent_id):
-        """Return a peer for a given agent_id."""
+        """
+        Return a peer for a given agent_id.
+        @type agent_id str
+        @rtype: Peer
+        """
         return self.__peers.get(agent_id)
 
     @property
     def peers(self):
-        """Return a list of all peers in the domain."""
+        """
+        Return a list of all peers in the domain.
+        @rtype: list[Peer]
+        """
         return self.__peers.values()
 
     @property
     def entry_peer(self):
-        """Return the peer that was used to enter the domain."""
+        """
+        Return the peer that was used to enter the domain.
+        @rtype: Peer
+        """
         return self.__entry_peer
 
     def get_database(self, name):
-        """Return a database by name"""
+        """
+        Return a database by name
+        @type name str
+        @rtype: Database
+        """
         return self.__databases.get(name)
 
     @property
     def databases(self):
-        """Return a list of databases in the domain"""
+        """
+        Return a list of databases in the domain
+        @rtype: list[Database]
+        """
         return self.__databases.values()
+
+    def create_template(self, template_name, summary, requirements):
+        """Create template by name"""
+        response = self._send_domain_message(**Template.build_create_request(template_name, summary, requirements))
+        return ElementTree.fromstring(response).tag == Template.success_message
+
+    def update_template(self, template_name, summary, requirements):
+        """Update template by name"""
+        response = self._send_domain_message(**Template.build_update_request(template_name, summary, requirements))
+        return ElementTree.fromstring(response).tag == Template.success_message
+
+    def delete_template(self, template_name):
+        """Delete template by name"""
+        response = self._send_domain_message(**Template.build_delete_request(template_name))
+        return ElementTree.fromstring(response).tag == Template.success_message
+
+    def get_template(self, template_name):
+        """Return a template by name"""
+        response = self._send_domain_message(**Template.build_get_request(template_name))
+        return Template.from_message(response)
+
+    @property
+    def templates(self):
+        """Return a list of templates in the domain"""
+        response = self._send_domain_message(**Template.build_list_request())
+        return Template.from_list_message(response)
+
+    def create_description(self, name, template_name, variables, dba_user, dba_password):
+        response = self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password))
+        return ElementTree.fromstring(response).tag == Description.success_message
+
+    def update_description(self, name, template_name, variables):
+        response = self._send_domain_message(**Description.build_update_request(name, template_name, variables))
+        return ElementTree.fromstring(response).tag == Description.success_message
+
+    def delete_description(self, name):
+        response = self._send_domain_message(**Description.build_delete_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
+
+    def get_description(self, name):
+        response = self._send_domain_message(**Description.build_get_request(name))
+        return Description.from_message(response)
+
+    def start_description(self, name):
+        response = self._send_domain_message(**Description.build_start_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
+
+    def stop_description(self, name):
+        response = self._send_domain_message(**Description.build_stop_request(name))
+        return ElementTree.fromstring(response).tag == Description.success_message
+
+    @property
+    def descriptions(self):
+        response = self._send_domain_message(**Description.build_list_request())
+        return Description.from_list_message(response)
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
@@ -314,11 +406,20 @@ class Domain(BaseListener):
 
         self.__session.send(ElementTree.tostring(root))
 
+
 class Peer:
-    
     """Represents a peer (or host) in the domain."""
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
+        """
+        @type domain Domain
+        @type address str
+        @type agent_id str
+        @type broker bool
+        @type port int
+        @type hostname str
+        @type version str
+        """
         self.__domain = domain
         self.__address = address
         self.__id = agent_id
@@ -338,7 +439,7 @@ class Peer:
                     peer_element.get("Hostname"), peer_element.get("Version"))
 
     def __hash__(self):
-        return self.__id.hash()
+        return hash(self.__id)
 
     def __eq__(self, other):
         if not other:
@@ -354,43 +455,105 @@ class Peer:
 
     @property
     def domain(self):
-        """Return the domain that contains this peer."""
+        """
+        Return the domain that contains this peer.
+        @rtype: Domain
+        """
         return self.__domain
 
     @property
     def address(self):
-        """Return the address of this peer."""
+        """
+        Return the address of this peer.
+        @rtype: str
+        """
         return self.__address
 
     @property
     def connect_str(self):
-        """Return the connect string for this peer."""
+        """
+        Return the connect string for this peer.
+        @rtype: str
+        """
         return self.__address + ":" + str(self.__port)
 
     @property
     def port(self):
-        """Return the port that this peer is using."""
+        """
+        Return the port that this peer is using.
+        @rtype: int
+        """
         return self.__port
 
     @property
     def id(self):
-        """Return the id of this peer (agent_id)."""
+        """
+        Return the id of this peer (agent_id).
+        @rtype: str
+        """
         return self.__id
 
     @property
     def hostname(self):
-        """Return the hostname of this peer."""
+        """
+        Return the hostname of this peer.
+        @rtype: str
+        """
         return self.__hostname
     
     @property
     def version(self):
-        """Return the NuoDB release version of this peer."""
+        """
+        Return the NuoDB release version of this peer.
+        @rtype: str
+        """
         return self.__version
 
     @property
     def is_broker(self):
-        """Return True if this peer is a broker."""
+        """
+        Return True if this peer is a broker.
+        @rtype: bool
+        """
         return self.__is_broker
+
+    @property
+    def tags(self):
+        """
+        Return all host tags
+        @rtype: dict[str,str]
+        """
+        message = self.__domain._send_domain_message("Tag", {'Action': 'GetHostTags', 'AgentId': self.id})
+        tags = ElementTree.fromstring(message)
+        data = {}
+        for tag in tags:
+            data[tag.get('Key')] = tag.get('Value')
+
+        return data        
+    
+    def get_tag(self, tag):
+        """
+        Return host tag
+        @rtype: str
+        """
+        return self.tags[tag]
+
+    def set_tag(self, key, value):
+        """
+        Set host tag
+        @type key str
+        @type value str
+        """
+        element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
+        self.__domain._send_domain_message("Tag", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
+        
+    def delete_tag(self, key):
+        """
+        Delete host tag
+        @type key str
+        """
+        element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key))
+        self.__domain._send_domain_message("Tag", {'Action': 'DeleteHostTags', 'AgentId': self.id}, children=[element])
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
@@ -407,7 +570,11 @@ class Peer:
         Specifying a wait_seconds value will cause this function to block 
         until a response is received indicating success or failure. If the
         time elapses without a response a SessionException will be raised.
-        
+
+        @type db_name str
+        @type options list[tuple[str]]
+        @type wait_seconds int
+        @rtype: Process
         """
         return self.__start_process(db_name, options, wait_seconds)
 
@@ -428,6 +595,13 @@ class Peer:
         Specifying a wait_seconds value will cause this function to block 
         until a response is received indicating success or failure. If the
         time elapses without a response, a SessionException will be raised.
+
+        @type db_name str
+        @type archive str
+        @type initialize bool
+        @type options list[tuple[str]]
+        @type wait_seconds int
+        @rtype: Process
         """
         if not options:
             options = []
@@ -439,9 +613,14 @@ class Peer:
 
         return self.__start_process(db_name, options, wait_seconds)
 
-
     def __start_process(self, db_name, options, wait_seconds):
-        if wait_seconds == None:
+        """
+        @type db_name str
+        @type options list[tuple[str]]
+        @type wait_seconds int
+        @rtype: Process | None
+        """
+        if wait_seconds is None:
             startProcess(self.connect_str, self.__domain.user, self.__domain.password, db_name, options)
             return
 
@@ -497,9 +676,11 @@ class Peer:
         db_name -- (default None) if not None, only return processes on this peer that belong
         to a given database. Note that if the database spans multiple peers
         this method will only return the subset of processes that are on this 
-        peer. 
+        peer.
+
+        @rtype: list[Process]
         """
-        if db_name == None:
+        if db_name is None:
             return self.__processes.values()
 
         processes = []
@@ -510,12 +691,22 @@ class Peer:
         return processes
 
     def _get_process(self, pid):
+        """
+        @type pid int
+        @rtype: Process
+        """
         return self.__processes.get(pid)
 
     def _add_process(self, process):
+        """
+        @type process Process
+        """
         self.__processes[process.pid] = process
 
     def _remove_process(self, process):
+        """
+        @type process Process
+        """
         try:
             del self.__processes[process.pid]
         except:
@@ -527,13 +718,18 @@ class Database:
     """Represents a NuoDB database."""
 
     def __init__(self, domain, name):
+        """
+        @type domain Domain
+        @type name str
+        """
         self.__domain = domain
         self.__name = name
 
         self.__processes = dict()
+        """ @type : dict[str, Process] """
 
     def __hash__(self):
-        return self.__name.hash()
+        return hash(self.__name)
 
     def __eq__(self, other):
         if not other:
@@ -548,13 +744,50 @@ class Database:
 
     @property
     def domain(self):
-        """Return the domain that contains this database."""
+        """
+        Return the domain that contains this database.
+        @rtype: Domain
+        """
         return self.__domain
 
     @property
     def name(self):
-        """Return the name of this database."""
+        """
+        Return the name of this database.
+        @rtype: str
+        """
         return self.__name
+
+    @property
+    def description(self):
+        """Return the description of this database."""
+        message = self.__domain._send_domain_message("Description", {'Action': 'GetDatabaseDescription', 'DatabaseName': self.__name})
+        return json.loads(ElementTree.fromstring(message).text)
+
+    @property
+    def status(self):
+        """Return the status of the database."""
+        #TODO: hack to determine database state
+        data = {'RUNNING': 0, 'QUIESCED': 0}
+        for process in self.processes:
+            if process.status == "RUNNING":
+                data['RUNNING'] = data['RUNNING'] + 1
+            if process.status == "QUIESCED":
+                data['QUIESCED'] = data['QUIESCED'] + 1
+        if data['RUNNING'] > data['QUIESCED']:
+            return "RUNNING"
+        if data['QUIESCED'] > data['RUNNING']:
+            return "QUIESCED"
+
+    @property
+    def storage_managers(self):
+        """Return storage managers."""
+        return [process for process in self.__processes.values() if not process.is_transactional]
+      
+    @property
+    def transaction_engines(self):
+        """Return transaction engines."""
+        return [process for process in self.__processes.values() if process.is_transactional]
 
     def _add_process(self, process):
         self.__processes[self.__process_id(process)] = process
@@ -573,19 +806,15 @@ class Database:
     def shutdown(self, graceful=True):
         """Shutdown this database.
         
-        graceful -- (default True) if True, the database will first
-        be quiesced and then shutdown.
+        graceful -- (default True) if True, the database processes will be shutdown gracefully.
         """
         if len(self.__processes) == 0:
             return
 
-        if graceful:
-            self.quiesce()
-
         failure_count = 0
         failure_text = ""
 
-        for process in self.__processes.itervalues():
+        for process in self.__processes.values():
             if process.is_transactional:
                 try:
                     if graceful:
@@ -597,7 +826,7 @@ class Database:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
-        for process in self.__processes.itervalues():
+        for process in self.__processes.values():
             if not process.is_transactional:
                 try:
                     if graceful:
@@ -622,8 +851,8 @@ class Database:
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
-                       self.__domain.user, self.__domain.password,
-                       self.__name, DatabaseAction.Quiesce)
+                         self.__domain.user, self.__domain.password,
+                         self.__name, DatabaseAction.Quiesce)
         if wait_seconds == 0:
             return
 
@@ -641,8 +870,8 @@ class Database:
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
-                       self.__domain.user, self.__domain.password,
-                       self.__name, DatabaseAction.Unquiesce)
+                         self.__domain.user, self.__domain.password,
+                         self.__name, DatabaseAction.Unquiesce)
         if wait_seconds == 0:
             return
 
@@ -678,7 +907,18 @@ class Process:
     
     """Represents a NuoDB process (TE or SM)"""
 
-    def __init__(self, peer, database, port, pid, transactional, status, hostname=None, version=None):
+    def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
+        """
+        @type peer Peer
+        @type database Database
+        @type port int
+        @type pid int
+        @type transactional bool
+        @type status str
+        @type hostname str
+        @type version str
+        @type node_id int
+        """
         self.__peer = peer
         self.__database = database
         self.__port = port
@@ -686,8 +926,14 @@ class Process:
         self.__transactional = transactional
         self.__hostname = hostname
         self.__version = version
+
+        if node_id is not None:
+            self.__node_id = int(node_id)
+        else:
+            self.__node_id = None
+
         peer._add_process(self)
-        if status != None:
+        if status is not None:
             self.__status = status
         else:
             self.__status = "UNKNOWN"
@@ -696,17 +942,18 @@ class Process:
     def from_message(database, process_element):
         """Construct a new process from an XML message."""
         peer = database.domain.get_peer(process_element.get("AgentId"))
-        if peer == None:
+        if peer is None:
             raise Exception("Process is for an unknown peer")
 
         pid = int(process_element.get("ProcessId"))
         process = peer._get_process(pid)
-        if process != None:
+        if process is not None:
             return process
 
         return Process(peer, database, int(process_element.get("Port")),
                     pid, int(process_element.get("NodeType")) == 1,
-                     process_element.get("State"), process_element.get("Hostname"), process_element.get("Version"))
+                     process_element.get("State"), process_element.get("Hostname"),
+                     process_element.get("Version"), process_element.get("NodeId"))
 
     def __hash__(self):
         return self.__pid
@@ -747,6 +994,11 @@ class Process:
     def pid(self):
         """Return the process id of this process."""
         return self.__pid
+
+    @property
+    def node_id(self):
+        """Return the NodeId of this process."""
+        return self.__node_id
     
     @property
     def is_transactional(self):
@@ -829,13 +1081,213 @@ class Process:
     # many moving pieces to implement and test
     def query(self, query_type, msg_body=None):
         session = Session(self.peer.connect_str, service="Manager")
-        session.authorize(self.peer.domain.user,
-                    self.peer.domain.password)
-        pwd_response = session.doRequest(attributes={ "Type" : "GetDatabaseCredentials",
-                                               "Database" : self.database.name })
+        session.authorize(self.peer.domain.user, self.peer.domain.password)
+        pwd_response = session.doRequest(attributes={"Type": "GetDatabaseCredentials",
+                                                     "Database": self.database.name})
 
         pwd_xml = ElementTree.fromstring(pwd_response)
         pwd = pwd_xml.find("Password").text.strip()
 
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
-    
+
+
+class Template:
+    success_message = "Success"
+
+    @staticmethod
+    def build_create_request(name, summary, requirements):
+        summary_element = ElementTree.Element("Summary")
+        summary_element.text = summary
+        requirements_element = ElementTree.Element("Requirements")
+        requirements_element.text = requirements
+        return {"service": "Description",
+                "attributes": {'Action': 'CreateTemplate', 'TemplateName': name},
+                "children": [summary_element, requirements_element]}
+
+    @staticmethod
+    def build_update_request(name, summary, requirements):
+        summary_element = ElementTree.Element("Summary")
+        summary_element.text = summary
+        requirements_element = ElementTree.Element("Requirements")
+        requirements_element.text = requirements
+        return {"service": "Description",
+                "attributes": {'Action': 'UpdateTemplate', 'TemplateName': name},
+                "children": [summary_element, requirements_element]}
+
+    @staticmethod
+    def build_delete_request(name):
+        return {"service": "Description", "attributes": {'Action': 'DeleteTemplate', 'TemplateName': name}}
+
+    @staticmethod
+    def build_get_request(name):
+        return {"service": "Description", "attributes": {'Action': 'GetTemplate', 'TemplateName': name}}
+
+    @staticmethod
+    def build_list_request():
+        return {"service": "Description", "attributes": {'Action': 'ListTemplates'}}
+
+    @staticmethod
+    def from_message(message):
+        root = ElementTree.fromstring(message)
+        name = root.get("TemplateName")
+
+        summary = ""
+        summary_element = root.find("Summary")
+        if summary_element is not None:
+            summary = summary_element.text
+
+        requirements = ""
+        requirements_element = root.find("Requirements")
+        if requirements_element is not None:
+            requirements = requirements_element.text
+
+        return Template(name, summary, requirements)
+
+    @staticmethod
+    def from_list_message(message):
+        names = list()
+        root = ElementTree.fromstring(message)
+        for child in root:
+            names.append(child.get("TemplateName"))
+
+        return names
+
+    def __init__(self, name, summary, requirements):
+        """
+        @type name str
+        @type summary str
+        @type requirements str
+        """
+        self._name = name
+        self._summary = summary
+        self._requirements = requirements
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def summary(self):
+        return self._summary
+
+    @property
+    def requirements(self):
+        return self._requirements
+
+
+class Description:
+    success_message = "Success"
+
+    @staticmethod
+    def build_create_request(name, template_name, variables, dba_user, dba_password):
+        template_element = ElementTree.Element("Template")
+        template_element.text = template_name
+        variables_element = ElementTree.Element("Variables")
+        for key in variables:
+            variable_child = ElementTree.SubElement(variables_element, "Variable")
+            variable_child.set("Key", key)
+            variable_child.text = variables[key]
+
+        return {"service": "Description",
+                "attributes": {'Action': 'CreateDescription',
+                               'DatabaseName': name,
+                               'DbaUser': dba_user,
+                               'DbaPassword': dba_password},
+                "children": [template_element, variables_element]}
+
+    @staticmethod
+    def build_update_request(name, template_name, variables):
+        template_element = ElementTree.Element("Template")
+        template_element.text = template_name
+        variables_element = ElementTree.Element("Variables")
+        for key in variables:
+            variable_child = ElementTree.SubElement(variables_element, "Variable")
+            variable_child.set("Key", key)
+            variable_child.text = variables[key]
+
+        return {"service": "Description",
+                "attributes": {'Action': 'UpdateDescription',
+                               'DatabaseName': name},
+                "children": [template_element, variables_element]}
+
+    @staticmethod
+    def build_delete_request(name):
+        return {"service": "Description", "attributes": {'Action': 'DeleteDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_get_request(name):
+        return {"service": "Description", "attributes": {'Action': 'GetDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_list_request():
+        return {"service": "Description", "attributes": {'Action': 'ListDescriptions'}}
+
+    @staticmethod
+    def build_start_request(name):
+        return {"service": "Description", "attributes": {'Action': 'StartDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def build_stop_request(name):
+        return {"service": "Description", "attributes": {'Action': 'StopDescription', 'DatabaseName': name}}
+
+    @staticmethod
+    def from_message(message):
+        root = ElementTree.fromstring(message)
+        name = root.get("DatabaseName")
+
+        template_name = ""
+        template_element = root.find("Template")
+        if template_element is not None:
+            template_name = template_element.text
+
+        variables = {}
+        variables_element = root.find("Variables")
+        if variables_element is not None:
+            for var in variables_element:
+                key = var.get("Key")
+                value = var.text
+                variables[key] = value
+
+        status = ""
+        status_element = root.find("Status")
+        if status_element is not None:
+            status = status_element.text
+
+        return Description(name, template_name, variables, status)
+
+    @staticmethod
+    def from_list_message(message):
+        names = list()
+        root = ElementTree.fromstring(message)
+        for child in root:
+            names.append(child.get("DatabaseName"))
+
+        return names
+
+    def __init__(self, name, template_name, variables, status):
+        """
+        @type name str
+        @type template_name str
+        @type variables dict[str,str]
+        @type status str
+        """
+        self._name = name
+        self._template_name = template_name
+        self._variables = variables
+        self._status = status
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def template_name(self):
+        return self._template_name
+
+    @property
+    def variables(self):
+        return self._variables
+
+    @property
+    def status(self):
+        return self._status

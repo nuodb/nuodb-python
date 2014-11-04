@@ -3,7 +3,7 @@ NuoDB - Python
 
 [![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-This is the official Python package for [NuoDB](http://www.nuodb.com). Please note that this driver is currently in beta.
+This is the official Python package for [NuoDB](http://www.nuodb.com).
 
 ### Requirements
 
@@ -80,7 +80,7 @@ For further information on getting started with NuoDB, please refer to the [NuoD
 
 ### License
 
-[NuoDB License](https://github.com/nuodb/nuodb-drivers/blob/master/LICENSE)
+[NuoDB License](https://github.com/nuodb/nuodb-python/blob/master/LICENSE)
 
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/b9c6afe4ffa75ebbb78f07ac04c750a7 "githalytics.com")](http://githalytics.com/nuodb/nuodb-python)
 

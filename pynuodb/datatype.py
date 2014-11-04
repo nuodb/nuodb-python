@@ -108,6 +108,8 @@ DATETIME     = TypeObject(Timestamp, Date, Time)
 ROWID         = TypeObject()
 
 def TypeObjectFromNuodb(nuodb_type_name):
+    """TODO:  this is very fragile.  The driver should map type numbers not typenames."""
+
     """Returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
     supplied NuoDB column type name
     """
@@ -162,7 +164,7 @@ def TypeObjectFromNuodb(nuodb_type_name):
         
     elif nuodb_type_name == "bytes":
         return BINARY
-        
+
     elif nuodb_type_name == "binarystring":
         return BINARY
         
@@ -173,6 +175,9 @@ def TypeObjectFromNuodb(nuodb_type_name):
         #TODO: Not sure about this?
         return NUMBER
 
+    elif nuodb_type_name == "binary":
+        return BINARY
+
     else:
-        raise DataError('received unknown column type from the database')
+        raise DataError('received unknown column type (%s) from the database' % nuodb_type_name)
 
