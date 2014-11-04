@@ -298,6 +298,9 @@ stringifyError = {
                       INVALID_OPERATION               : 'INVALID_OPERATION'
                  }
 
+def lookup_code(error_code):
+    return stringifyError.get(error_code, '[UNKNOWN ERROR CODE]')
+
 #
 # NuoDB Client-Server Protocol Version #'s
 #
