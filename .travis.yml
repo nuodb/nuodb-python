@@ -22,7 +22,7 @@ before_install:
   - wget ${NUODB_DOWNLOAD_URL} --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
   - sleep 4
-  - if [[ "${NUODB_ADD_DOMAIN_PASS}" == "yes" ]] ; then sudo chmod 777 $NUODB_ROOT/etc/default.properties; echo "domainPassword = bird" >> $NUODB_ROOT/etc/default.properties; sudo chmod 600 $NUODB_ROOT/etc/default.properties; fi
+  - if [[ "${NUODB_ADD_DOMAIN_PASS}" == "yes" ]] ; then sudo chmod 777 /opt/nuodb/etc/default.properties; echo "domainPassword = bird" >> /opt/nuodb/etc/default.properties; sudo chmod 600 /opt/nuodb/etc/default.properties; fi
   - if [[ "${NUODB_START_AGENT}" == "yes" ]]; then sudo service nuoagent start; fi
 
   
