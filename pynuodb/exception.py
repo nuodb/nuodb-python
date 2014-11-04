@@ -81,17 +81,20 @@ def db_error_handler(error_code, error_string):
     @type error_code int
     @type error_string str
     """
-    if error_code in protocol.DATA_ERRORS:
-        raise DataError(protocol.stringifyError[error_code] + ': ' + error_string)
-    elif error_code in protocol.OPERATIONAL_ERRORS:
-        raise OperationalError(protocol.stringifyError[error_code] + ': ' + error_string)
-    # elif errorCode in []:
-    #     raise IntegrityError(protocol.stringifyError[errorCode] + ': ' + errorString)
-    elif error_code in protocol.INTERNAL_ERRORS:
-        raise InternalError(protocol.stringifyError[error_code] + ': ' + error_string)
-    elif error_code in protocol.PROGRAMMING_ERRORS:
-        raise ProgrammingError(protocol.stringifyError[error_code] + ': ' + error_string)
-    elif error_code in protocol.NOT_SUPPORTED_ERRORS:
-        raise NotSupportedError(protocol.stringifyError[error_code] + ': ' + error_string)
-    else:
-        raise DatabaseError(protocol.stringifyError[error_code] + ': ' + error_string)
+    try:
+        if error_code in protocol.DATA_ERRORS:
+            raise DataError(protocol.stringifyError[error_code] + ': ' + error_string)
+        elif error_code in protocol.OPERATIONAL_ERRORS:
+            raise OperationalError(protocol.stringifyError[error_code] + ': ' + error_string)
+        # elif errorCode in []:
+        #     raise IntegrityError(protocol.stringifyError[errorCode] + ': ' + errorString)
+        elif error_code in protocol.INTERNAL_ERRORS:
+            raise InternalError(protocol.stringifyError[error_code] + ': ' + error_string)
+        elif error_code in protocol.PROGRAMMING_ERRORS:
+            raise ProgrammingError(protocol.stringifyError[error_code] + ': ' + error_string)
+        elif error_code in protocol.NOT_SUPPORTED_ERRORS:
+            raise NotSupportedError(protocol.stringifyError[error_code] + ': ' + error_string)
+        else:
+            raise DatabaseError(protocol.stringifyError[error_code] + ': ' + error_string)
+    except KeyError:
+        raise DatabaseError('[UNKNOWN ERROR CODE]: ' + error_string)

@@ -201,6 +201,10 @@ INVALID_STATEMENT               = -49
 IS_SHUTDOWN                     = -50
 IN_QUOTED_STRING                = -51
 BATCH_UPDATE_ERROR              = -52
+JAVA_ERROR                      = -53
+INVALID_FIELD                   = -54
+INVALID_INDEX_NULL              = -55
+INVALID_OPERATION               = -56
 
 DATA_ERRORS = {COMPILE_ERROR,
                RUNTIME_ERROR,
@@ -215,7 +219,8 @@ OPERATIONAL_ERRORS = {NETWORK_ERROR,
                       PLATFORM_ERROR,
                       BATCH_UPDATE_ERROR,
                       OPERATION_KILLED,
-                      INVALID_STATEMENT}
+                      INVALID_STATEMENT,
+                      INVALID_OPERATION}
 
 INTERNAL_ERRORS = {DATABASE_CORRUPTION,
                    INTERNAL_ERROR,
@@ -287,6 +292,10 @@ stringifyError = {
                       IS_SHUTDOWN                     : 'IS_SHUTDOWN',
                       IN_QUOTED_STRING                : 'IN_QUOTED_STRING',
                       BATCH_UPDATE_ERROR              : 'BATCH_UPDATE_ERROR',
+                      JAVA_ERROR                      : 'JAVA_ERROR',
+                      INVALID_FIELD                   : 'INVALID_FIELD',
+                      INVALID_INDEX_NULL              : 'INVALID_INDEX_NULL',
+                      INVALID_OPERATION               : 'INVALID_OPERATION'
                  }
 
 #
