@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
     name='pynuodb',
-    version='2.1',
+    version='2.2',
     author='NuoDB',
     author_email='info@nuodb.com',
     description='NuoDB Python driver',
