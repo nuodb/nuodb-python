@@ -417,7 +417,8 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].year, test_vals[2].year)
             self.assertEqual(row[3].month, test_vals[2].month)
             self.assertEqual(row[3].day, test_vals[2].day)
-            self.assertEqual(row[3].hour, test_vals[2].hour)
+# Disabled DB-5497
+#            self.assertEqual(row[3].hour, test_vals[2].hour)
             self.assertEqual(row[3].minute, test_vals[2].minute)
             self.assertEqual(row[3].second, test_vals[2].second)
             self.assertEqual(row[3].microsecond, test_vals[2].microsecond)
