@@ -27,7 +27,9 @@ DBA_PASSWORD = 'dba'
 
 class NuoDBEntityTest(unittest.TestCase):
     def setUp(self):
-        domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+        self.host = BROKER_HOST + (':'+os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
+
+        domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
         self._cleanup(domain)
 
     def tearDown(self):
@@ -36,7 +38,7 @@ class NuoDBEntityTest(unittest.TestCase):
     def test_connectDomain(self):
         domain = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             self.assertIsNotNone(domain)
             self.assertFalse(domain.closed())
@@ -54,7 +56,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
@@ -80,7 +82,7 @@ class NuoDBEntityTest(unittest.TestCase):
         database = None
         dl = TestListener()
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD, dl)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD, dl)
             peer = domain.entry_peer
 
             self.assertIs(peer, dl.pJoined)
@@ -146,7 +148,7 @@ class NuoDBEntityTest(unittest.TestCase):
     def test_entryPeer(self):
         domain = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
             peer = domain.entry_peer
             self.assertIsNotNone(peer)
 
@@ -167,7 +169,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
@@ -218,7 +220,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
@@ -228,7 +230,7 @@ class NuoDBEntityTest(unittest.TestCase):
             domain.disconnect()
             time.sleep(1)
 
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
             database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
 
@@ -244,7 +246,7 @@ class NuoDBEntityTest(unittest.TestCase):
         database1 = None
         database2 = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             peer = domain.entry_peer
             sm1 = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
@@ -280,7 +282,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
@@ -300,7 +302,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
@@ -324,7 +326,7 @@ class NuoDBEntityTest(unittest.TestCase):
         domain = None
         database = None
         try:
-            domain = Domain(BROKER_HOST, DOMAIN_USER, DOMAIN_PASSWORD)
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
 
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer

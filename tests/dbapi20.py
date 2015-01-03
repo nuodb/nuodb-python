@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-''' Python DB API 2.0 driver compliance unit test suite. 
-    
+''' Python DB API 2.0 driver compliance unit test suite.
+
     This software is Public Domain and may be used without restrictions.
 
  "Now we have booze and barflies entering the discussion, plus rumours of
@@ -79,8 +79,8 @@ def str2bytes(sval):
 class DatabaseAPI20Test(unittest.TestCase):
     ''' Test a database self.driver for DB API 2.0 compatibility.
         This implementation tests Gadfly, but the TestCase
-        is structured so that other self.drivers can subclass this 
-        test case to ensure compiliance with the DB-API. It is 
+        is structured so that other self.drivers can subclass this
+        test case to ensure compiliance with the DB-API. It is
         expected that this TestCase may be expanded in the future
         if ambiguities or edge conditions are discovered.
 
@@ -90,9 +90,9 @@ class DatabaseAPI20Test(unittest.TestCase):
         self.driver, connect_args and connect_kw_args. Class specification
         should be as follows:
 
-        import dbapi20 
+        import dbapi20
         class mytest(dbapi20.DatabaseAPI20Test):
-           [...] 
+           [...]
 
         Don't 'import DatabaseAPI20Test from dbapi20', or you will
         confuse the unit tester - just 'import dbapi20'.
@@ -111,7 +111,7 @@ class DatabaseAPI20Test(unittest.TestCase):
     xddl2 = 'drop table %sbarflys' % table_prefix
 
     lowerfunc = 'lower' # Name of stored procedure to convert string->lowercase
-        
+
     # Some drivers may need to override these helpers, for example adding
     # a 'commit' after the execute.
     def executeDDL1(self, cursor):
@@ -135,10 +135,10 @@ class DatabaseAPI20Test(unittest.TestCase):
         try:
             cur = con.cursor()
             for ddl in (self.xddl1,self.xddl2):
-                try: 
+                try:
                     cur.execute(ddl)
                     con.commit()
-                except self.driver.Error: 
+                except self.driver.Error:
                     # Assume table didn't exist. Other tests will check if
                     # execute is busted.
                     pass
@@ -156,7 +156,7 @@ class DatabaseAPI20Test(unittest.TestCase):
     def test_connect(self):
         con = self._connect()
         con.close()
- 
+
     def test_apilevel(self):
         try:
             # Must exist
@@ -165,7 +165,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(apilevel,'2.0')
         except AttributeError:
             self.fail("Driver doesn't define apilevel")
- 
+
     def test_threadsafety(self):
         try:
             # Must exist
@@ -174,7 +174,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.failUnless(threadsafety in (0,1,2,3))
         except AttributeError:
             self.fail("Driver doesn't define threadsafety")
- 
+
     def test_paramstyle(self):
         try:
             # Must exist
@@ -185,7 +185,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 ))
         except AttributeError:
             self.fail("Driver doesn't define paramstyle")
- 
+
     def test_Exceptions(self):
         # Make sure required exceptions exist, and are in the
         # defined heirarchy.
@@ -195,7 +195,7 @@ class DatabaseAPI20Test(unittest.TestCase):
         else:
             self.failUnless(issubclass(self.driver.Warning,StandardError))
             self.failUnless(issubclass(self.driver.Error,StandardError))
- 
+
         self.failUnless(
             issubclass(self.driver.InterfaceError,self.driver.Error)
             )
@@ -217,7 +217,7 @@ class DatabaseAPI20Test(unittest.TestCase):
         self.failUnless(
             issubclass(self.driver.NotSupportedError,self.driver.Error)
             )
- 
+
     def test_ExceptionsAsConnectionAttributes(self):
         # OPTIONAL EXTENSION
         # Test for the optional DB API 2.0 extension, where the exceptions
@@ -236,8 +236,8 @@ class DatabaseAPI20Test(unittest.TestCase):
         self.failUnless(con.InternalError is drv.InternalError)
         self.failUnless(con.ProgrammingError is drv.ProgrammingError)
         self.failUnless(con.NotSupportedError is drv.NotSupportedError)
- 
- 
+
+
     def test_commit(self):
         con = self._connect()
         try:
@@ -245,7 +245,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             con.commit()
         finally:
             con.close()
- 
+
     def test_rollback(self):
         con = self._connect()
         # If rollback is defined, it should either work or throw
@@ -255,14 +255,14 @@ class DatabaseAPI20Test(unittest.TestCase):
                 con.rollback()
             except self.driver.NotSupportedError:
                 pass
-     
+
     def test_cursor(self):
         con = self._connect()
         try:
             cur = con.cursor()
         finally:
             con.close()
- 
+
     def test_cursor_isolation(self):
         con = self._connect()
         try:
@@ -281,7 +281,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(booze[0][0],'Victoria Bitter')
         finally:
             con.close()
- 
+
     def test_description(self):
         con = self._connect()
         try:
@@ -305,7 +305,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 'cursor.description[x][1] must return column type. Got %r'
                     % cur.description[0][1]
                 )
- 
+
             # Make sure self.description gets reset
             self.executeDDL2(cur)
             self.assertEqual(cur.description,None,
@@ -314,7 +314,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 )
         finally:
             con.close()
- 
+
     def test_rowcount(self):
         con = self._connect()
         try:
@@ -343,7 +343,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 )
         finally:
             con.close()
- 
+
     lower_func = 'lower'
     def test_callproc(self):
         con = self._connect()
@@ -370,18 +370,18 @@ class DatabaseAPI20Test(unittest.TestCase):
             cur = con.cursor()
         finally:
             con.close()
- 
+
         # cursor.execute should raise an Error if called after connection
         # closed
         self.assertRaises(self.driver.Error,self.executeDDL1,cur)
- 
+
         # connection.commit should raise an Error if called after connection'
         # closed.'
         self.assertRaises(self.driver.Error,con.commit)
- 
+
         # connection.close should raise an Error if called more than once
         self.assertRaises(self.driver.Error,con.close)
- 
+
     def test_execute(self):
         con = self._connect()
         try:
@@ -389,14 +389,14 @@ class DatabaseAPI20Test(unittest.TestCase):
             self._paraminsert(cur)
         finally:
             con.close()
- 
+
     def _paraminsert(self,cur):
         self.executeDDL1(cur)
         cur.execute("insert into %sbooze values ('Victoria Bitter')" % (
             self.table_prefix
             ))
         self.failUnless(cur.rowcount in (-1,1))
- 
+
         if self.driver.paramstyle == 'qmark':
             cur.execute(
                 'insert into %sbooze values (?)' % self.table_prefix,
@@ -409,7 +409,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 )
         elif self.driver.paramstyle == 'named':
             cur.execute(
-                'insert into %sbooze values (:beer)' % self.table_prefix, 
+                'insert into %sbooze values (:beer)' % self.table_prefix,
                 {'beer':"Cooper's"}
                 )
         elif self.driver.paramstyle == 'format':
@@ -425,7 +425,7 @@ class DatabaseAPI20Test(unittest.TestCase):
         else:
             self.fail('Invalid paramstyle')
         self.failUnless(cur.rowcount in (-1,1))
- 
+
         cur.execute('select name from %sbooze' % self.table_prefix)
         res = cur.fetchall()
         self.assertEqual(len(res),2,'cursor.fetchall returned too few rows')
@@ -490,35 +490,35 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(beers[1],"Cooper's",'incorrect data retrieved')
         finally:
             con.close()
- 
+
     def test_fetchone(self):
         con = self._connect()
         try:
             cur = con.cursor()
- 
+
             # cursor.fetchone should raise an Error if called before
             # executing a select-type query
             self.assertRaises(self.driver.Error,cur.fetchone)
- 
+
             # cursor.fetchone should raise an Error if called after
             # executing a query that cannnot return rows
             self.executeDDL1(cur)
             self.assertRaises(self.driver.Error,cur.fetchone)
- 
+
             cur.execute('select name from %sbooze' % self.table_prefix)
             self.assertEqual(cur.fetchone(),None,
                 'cursor.fetchone should return None if a query retrieves '
                 'no rows'
                 )
             self.failUnless(cur.rowcount in (-1,0))
- 
+
             # cursor.fetchone should raise an Error if called after
             # executing a query that cannnot return rows
             cur.execute("insert into %sbooze values ('Victoria Bitter')" % (
                 self.table_prefix
                 ))
             self.assertRaises(self.driver.Error,cur.fetchone)
- 
+
             cur.execute('select name from %sbooze' % self.table_prefix)
             r = cur.fetchone()
             self.assertEqual(len(r),1,
@@ -548,7 +548,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             tests.
         '''
         populate = [
-            "insert into %sbooze values ('%s')" % (self.table_prefix,s) 
+            "insert into %sbooze values ('%s')" % (self.table_prefix,s)
                 for s in self.samples
             ]
         return populate
@@ -609,7 +609,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(len(rows),6)
             rows = [r[0] for r in rows]
             rows.sort()
-          
+
             # Make sure we get the right data back out
             for i in range(0,6):
                 self.assertEqual(rows[i],self.samples[i],
@@ -634,7 +634,7 @@ class DatabaseAPI20Test(unittest.TestCase):
 
         finally:
             con.close()
- 
+
     def test_fetchall(self):
         con = self._connect()
         try:
@@ -643,15 +643,15 @@ class DatabaseAPI20Test(unittest.TestCase):
             # without executing a query that may return rows (such
             # as a select)
             self.assertRaises(self.driver.Error, cur.fetchall)
- 
+
             self.executeDDL1(cur)
             for sql in self._populate():
                 cur.execute(sql)
- 
+
             # cursor.fetchall should raise an Error if called
             # after executing a a statement that cannot return rows
             self.assertRaises(self.driver.Error,cur.fetchall)
- 
+
             cur.execute('select name from %sbooze' % self.table_prefix)
             rows = cur.fetchall()
             self.failUnless(cur.rowcount in (-1,len(self.samples)))
@@ -671,7 +671,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 'after the whole result set has been fetched'
                 )
             self.failUnless(cur.rowcount in (-1,len(self.samples)))
- 
+
             self.executeDDL2(cur)
             cur.execute('select name from %sbarflys' % self.table_prefix)
             rows = cur.fetchall()
@@ -680,10 +680,10 @@ class DatabaseAPI20Test(unittest.TestCase):
                 'cursor.fetchall should return an empty list if '
                 'a select query returns no rows'
                 )
-             
+
         finally:
             con.close()
-     
+
     def test_mixedfetch(self):
         con = self._connect()
         try:
@@ -691,7 +691,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.executeDDL1(cur)
             for sql in self._populate():
                 cur.execute(sql)
- 
+
             cur.execute('select name from %sbooze' % self.table_prefix)
             rows1  = cur.fetchone()
             rows23 = cur.fetchmany(2)
@@ -704,7 +704,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(len(rows56),2,
                 'fetchall returned incorrect number of rows'
                 )
- 
+
             rows = [rows1[0]]
             rows.extend([rows23[0][0],rows23[1][0]])
             rows.append(rows4[0])
@@ -719,8 +719,8 @@ class DatabaseAPI20Test(unittest.TestCase):
 
     def help_nextset_setUp(self,cur):
         ''' Should create a procedure called deleteme
-            that returns two result sets, first the 
-	    number of rows in booze then "name from booze"
+            that returns two result sets, first the
+            number of rows in booze then "name from booze"
         '''
         raise NotImplementedError('Helper not implemented')
         #sql="""
@@ -738,37 +738,39 @@ class DatabaseAPI20Test(unittest.TestCase):
         #cur.execute("drop procedure deleteme")
 
     def test_nextset(self):
-        con = self._connect()
-        try:
-            cur = con.cursor()
-            if not hasattr(cur,'nextset'):
-                return
- 
-            try:
-                self.executeDDL1(cur)
-                sql=self._populate()
-                for sql in self._populate():
-                    cur.execute(sql)
- 
-                self.help_nextset_setUp(cur)
- 
-                cur.callproc('deleteme')
-                numberofrows=cur.fetchone()
-                assert numberofrows[0]== len(self.samples)
-                assert cur.nextset()
-                names=cur.fetchall()
-                assert len(names) == len(self.samples)
-                s=cur.nextset()
-                assert s == None,'No more return sets, should return None'
-            finally:
-                self.help_nextset_tearDown(cur)
- 
-        finally:
-            con.close()
- 
-    def test_nextset(self):
         raise NotImplementedError('Drivers need to override this test')
- 
+
+# Alternative implementation:
+#
+#    def test_nextset(self):
+#        con = self._connect()
+#        try:
+#            cur = con.cursor()
+#            if not hasattr(cur,'nextset'):
+#                return
+#
+#            try:
+#                self.executeDDL1(cur)
+#                sql=self._populate()
+#                for sql in self._populate():
+#                    cur.execute(sql)
+#
+#                self.help_nextset_setUp(cur)
+#
+#                cur.callproc('deleteme')
+#                numberofrows=cur.fetchone()
+#                assert numberofrows[0]== len(self.samples)
+#                assert cur.nextset()
+#                names=cur.fetchall()
+#                assert len(names) == len(self.samples)
+#                s=cur.nextset()
+#                assert s == None,'No more return sets, should return None'
+#            finally:
+#                self.help_nextset_tearDown(cur)
+#
+#        finally:
+#            con.close()
+
     def test_arraysize(self):
         # Not much here - rest of the tests for this are in test_fetchmany
         con = self._connect()
@@ -779,7 +781,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                 )
         finally:
             con.close()
- 
+
     def test_setinputsizes(self):
         con = self._connect()
         try:
@@ -788,7 +790,7 @@ class DatabaseAPI20Test(unittest.TestCase):
             self._paraminsert(cur) # Make sure cursor still works
         finally:
             con.close()
- 
+
     def test_setoutputsize_basic(self):
         # Basic test is to make sure setoutputsize doesn't blow up
         con = self._connect()
@@ -799,11 +801,11 @@ class DatabaseAPI20Test(unittest.TestCase):
             self._paraminsert(cur) # Make sure the cursor still works
         finally:
             con.close()
- 
+
     def test_setoutputsize(self):
         # Real test for setoutputsize is driver dependant
         raise NotImplementedError('Driver needed to override this test')
- 
+
     def test_None(self):
         con = self._connect()
         try:
@@ -817,19 +819,19 @@ class DatabaseAPI20Test(unittest.TestCase):
             self.assertEqual(r[0][0],None,'NULL value not returned as None')
         finally:
             con.close()
- 
+
     def test_Date(self):
         d1 = self.driver.Date(2002,12,25)
         d2 = self.driver.DateFromTicks(time.mktime((2002,12,25,0,0,0,0,0,0)))
         # Can we assume this? API doesn't specify, but it seems implied
         # self.assertEqual(str(d1),str(d2))
- 
+
     def test_Time(self):
         t1 = self.driver.Time(13,45,30)
         t2 = self.driver.TimeFromTicks(time.mktime((2001,1,1,13,45,30,0,0,0)))
         # Can we assume this? API doesn't specify, but it seems implied
         # self.assertEqual(str(t1),str(t2))
- 
+
     def test_Timestamp(self):
         t1 = self.driver.Timestamp(2002,12,25,13,45,30)
         t2 = self.driver.TimestampFromTicks(
@@ -837,33 +839,32 @@ class DatabaseAPI20Test(unittest.TestCase):
             )
         # Can we assume this? API doesn't specify, but it seems implied
         # self.assertEqual(str(t1),str(t2))
- 
+
     def test_Binary(self):
         b = self.driver.Binary(str2bytes('Something'))
         b = self.driver.Binary(str2bytes(''))
- 
+
     def test_STRING(self):
         self.failUnless(hasattr(self.driver,'STRING'),
             'module.STRING must be defined'
             )
- 
+
     def test_BINARY(self):
         self.failUnless(hasattr(self.driver,'BINARY'),
             'module.BINARY must be defined.'
             )
- 
+
     def test_NUMBER(self):
         self.failUnless(hasattr(self.driver,'NUMBER'),
             'module.NUMBER must be defined.'
             )
- 
+
     def test_DATETIME(self):
         self.failUnless(hasattr(self.driver,'DATETIME'),
             'module.DATETIME must be defined.'
             )
- 
+
     def test_ROWID(self):
         self.failUnless(hasattr(self.driver,'ROWID'),
             'module.ROWID must be defined.'
             )
-

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
- 
+
 import pynuodb;
 import unittest;
 import os;
@@ -10,16 +10,16 @@ from pynuodb.exception import ProgrammingError;
 from pynuodb.session import SessionException;
 
 class NuoDBConnectTest(NuoBase):
-    
+
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
-        
+
     def test_nosuchdatabase(self):
         try:
-            con = pynuodb.connect("nosuchdatabase", "localhost", "dba", "dba_password");
+            con = pynuodb.connect("nosuchdatabase", self.host, "dba", "dba_password");
             self.fail();
         except SessionException:
             pass;
@@ -42,7 +42,7 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchuser(self):
         try:
-            con = pynuodb.connect("pynuodb_test", "localhost", "nosuchuser", "dba_password")
+            con = pynuodb.connect("pynuodb_test", self.host, "nosuchuser", "dba_password")
             self.fail();
         except ProgrammingError:
             pass;
@@ -51,7 +51,7 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchpassword(self):
         try:
-            con = pynuodb.connect("pynuodb_test", "localhost", "dba", "nosuchpassword")
+            con = pynuodb.connect("pynuodb_test", self.host, "dba", "nosuchpassword")
             self.fail();
         except ProgrammingError:
             pass;
