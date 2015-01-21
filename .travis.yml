@@ -4,8 +4,8 @@ python:
   - "2.7"
 
 env:
-  - NUODB_VERSION=2.1.1.10 NUODB_ADD_DOMAIN_PASS=yes NUODB_START_AGENT=yes
-  - NUODB_VERSION=2.0.4.24 NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
+  - NUODB_VERSION=2.1 NUOVERSION=2.1.1.10 NUODB_ADD_DOMAIN_PASS=yes NUODB_START_AGENT=yes
+  - NUODB_VERSION=2.0.4 NUOVERSION=2.0.4.24 NUODB_ADD_DOMAIN_PASS=no NUODB_START_AGENT=no
 
 notifications:
   recipients:
@@ -15,7 +15,7 @@ notifications:
     - tgates@nuodb.com
 
 before_install:
-  - wget http://download.nuohub.org/nuodb_${NUODB_VERSION}_amd64.deb --output-document=/var/tmp/nuodb.deb
+  - wget http://download.nuohub.org/nuodb_${NUOVERSION}_amd64.deb --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
   - sleep 4
   - if [[ "${NUODB_ADD_DOMAIN_PASS}" == "yes" ]] ; then sudo chmod 777 /opt/nuodb/etc/default.properties; echo "domainPassword = bird" >> /opt/nuodb/etc/default.properties; sudo chmod 600 /opt/nuodb/etc/default.properties; fi
