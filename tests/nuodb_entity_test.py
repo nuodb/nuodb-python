@@ -100,10 +100,12 @@ class NuoDBEntityTest(unittest.TestCase):
             i = 0
             while dl.nJoined is not sm and i < 10:
                 time.sleep(1)
+                i += 1
             self.assertIs(sm, dl.nJoined)
             i = 0
             while dl.nStatusChanged[0] is not sm and i < 10:
                 time.sleep(1)
+                i += 1
             self.assertIs(sm, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
 
@@ -111,7 +113,12 @@ class NuoDBEntityTest(unittest.TestCase):
             i = 0
             while dl.nJoined is not te and i < 10:
                 time.sleep(1)
+                i += 1
             self.assertIs(te, dl.nJoined)
+            i = 0
+            while dl.nStatusChanged[0] is not te and i < 10:
+                time.sleep(1)
+                i += 1
             self.assertIs(te, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
 
@@ -127,6 +134,7 @@ class NuoDBEntityTest(unittest.TestCase):
             i = 0
             while dl.nLeft is not te and i < 10:
                 time.sleep(1)
+                i += 1
             self.assertIs(te, dl.nLeft)
             self.assertIsNone(dl.dLeft)
 
@@ -134,6 +142,7 @@ class NuoDBEntityTest(unittest.TestCase):
             i = 0
             while dl.nLeft is not sm and i < 10:
                 time.sleep(1)
+                i += 1
             self.assertIs(sm, dl.nLeft)
 
             self.assertIs(database, dl.dLeft)
