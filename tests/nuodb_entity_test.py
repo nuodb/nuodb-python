@@ -112,6 +112,9 @@ class NuoDBEntityTest(unittest.TestCase):
             while dl.nJoined is not te and i < 10:
                 time.sleep(1)
             self.assertIs(te, dl.nJoined)
+            i = 0
+            while dl.nStatusChanged[0] is not te and i < 10:
+                time.sleep(1)
             self.assertIs(te, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
 
