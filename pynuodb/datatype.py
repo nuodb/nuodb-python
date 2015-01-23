@@ -107,77 +107,37 @@ NUMBER         = TypeObject(int, decimal.Decimal)
 DATETIME     = TypeObject(Timestamp, Date, Time)
 ROWID         = TypeObject()
 
-def TypeObjectFromNuodb(nuodb_type_name):
-    """TODO:  this is very fragile.  The driver should map type numbers not typenames."""
+TYPEMAP={"<null>":None,
+      "string":STRING,
+      "char":STRING,
+      "varchar":STRING,
+      "text":STRING,      
+      "smallint":NUMBER,
+      "integer":NUMBER,
+      "bigint":NUMBER,
+      "float":NUMBER,
+      "double":NUMBER,
+      "date":DATETIME,
+      "timestamp":DATETIME,
+      "time":DATETIME,
+      "clob":BINARY,
+      "blob":BINARY,
+      "numeric":NUMBER,
+      "number":NUMBER,
+      "bytes":BINARY, 
+      "binarystring":BINARY,
+      "binaryvaryingstring":BINARY,
+      "boolean":NUMBER,
+      "binary":BINARY
+      }
 
+def TypeObjectFromNuodb(nuodb_type_name):
     """Returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the 
     supplied NuoDB column type name
     """
-    
-    if nuodb_type_name == "<null>":
-        return None
-        
-    elif nuodb_type_name == "string":
-        return STRING
-        
-    elif nuodb_type_name == "char":
-        return STRING
-        
-    elif nuodb_type_name == "varchar":
-        return STRING
-        
-    elif nuodb_type_name == "smallint":
-        return NUMBER
-        
-    elif nuodb_type_name == "integer":
-        return NUMBER
-        
-    elif nuodb_type_name == "bigint":
-        return NUMBER
-        
-    elif nuodb_type_name == "float":
-        return NUMBER
-        
-    elif nuodb_type_name == "double":
-        return NUMBER
-        
-    elif nuodb_type_name == "date":
-        return DATETIME
-        
-    elif nuodb_type_name == "timestamp":
-        return DATETIME
-        
-    elif nuodb_type_name == "time":
-        return DATETIME
-        
-    elif nuodb_type_name == "clob":
-        return BINARY
-        
-    elif nuodb_type_name == "blob":
-        return BINARY
-        
-    elif nuodb_type_name == "numeric":
-        return NUMBER
-        
-    elif nuodb_type_name == "number":
-        return NUMBER
-        
-    elif nuodb_type_name == "bytes":
-        return BINARY
-
-    elif nuodb_type_name == "binarystring":
-        return BINARY
-        
-    elif nuodb_type_name == "binaryvaryingstring":
-        return BINARY
-        
-    elif nuodb_type_name == "boolean":
-        #TODO: Not sure about this?
-        return NUMBER
-
-    elif nuodb_type_name == "binary":
-        return BINARY
-
-    else:
-        raise DataError('received unknown column type (%s) from the database' % nuodb_type_name)
+    nuodb_type_name=nuodb_type_name.strip()
+    try:
+        return TYPEMAP[nuodb_type_name]
+    except:
+        raise DataError('received unknown column type from the database "%s"'%(nuodb_type_name,))
 
