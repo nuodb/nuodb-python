@@ -12,6 +12,7 @@ notifications:
     - buck.robert.j@gmail.com
     - rbuck@nuodb.com
     - jgetto@nuodb.com
+    - khicks@nuodb.com
     - tgates@nuodb.com
 
 before_install:
@@ -21,6 +22,8 @@ before_install:
   - if [[ "${NUODB_ADD_DOMAIN_PASS}" == "yes" ]] ; then sudo chmod 777 /opt/nuodb/etc/default.properties; echo "domainPassword = bird" >> /opt/nuodb/etc/default.properties; sudo chmod 600 /opt/nuodb/etc/default.properties; fi
   - if [[ "${NUODB_START_AGENT}" == "yes" ]]; then sudo service nuoagent start; fi
 
+install:
+  - pip install -r requirements.txt
   
 script:
   - make all
