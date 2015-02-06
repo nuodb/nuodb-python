@@ -1253,7 +1253,12 @@ class Description:
         if status_element is not None:
             status = status_element.text
 
-        return Description(name, template_name, variables, status)
+        live_status = ""
+        live_status_element = root.find("LiveStatus")
+        if live_status_element is not None:
+            live_status = live_status_element.text
+
+        return Description(name, template_name, variables, status, live_status)
 
     @staticmethod
     def from_list_message(message):
@@ -1264,17 +1269,19 @@ class Description:
 
         return names
 
-    def __init__(self, name, template_name, variables, status):
+    def __init__(self, name, template_name, variables, status, live_status=""):
         """
         @type name str
         @type template_name str
         @type variables dict[str,str]
         @type status str
+        @type live_status str
         """
         self._name = name
         self._template_name = template_name
         self._variables = variables
         self._status = status
+        self._live_status = live_status
 
     @property
     def name(self):
@@ -1291,3 +1298,7 @@ class Description:
     @property
     def status(self):
         return self._status
+
+    @property
+    def live_status(self):
+        return self._live_status
