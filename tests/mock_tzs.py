@@ -9,7 +9,7 @@ import pytz
 
 import pynuodb
 
-Eastern = pytz.timezone('America/New_York')
+Local = pytz.timezone(open('/etc/timezone').read().strip())
 UTC = pytz.timezone('UTC')
 
 class _MyOffset(tzinfo):
@@ -20,7 +20,7 @@ class _MyOffset(tzinfo):
     This class can be used to do exactly the same thing to the test val.
     '''
     def utcoffset(self, dt):
-        return Eastern.localize(datetime.now()).utcoffset()
+        return Local.localize(datetime.now()).utcoffset()
 
 MyOffset = _MyOffset()
 
@@ -50,7 +50,7 @@ class EscapingTimestamp(pynuodb.Timestamp):
         return "DATE_FROM_STR('%s', '%s')" % (self.strftime(pyformat), sqlformat)
 
 if __name__ == '__main__':
-    print(str(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Eastern)))
-    print(repr(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Eastern)))
-    print(str(EscapingTimestamp(2014, 12, 15, 23, 59, 58, 72, Eastern)))
+    print(str(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Local)))
+    print(repr(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Local)))
+    print(str(EscapingTimestamp(2014, 12, 15, 23, 59, 58, 72, Local)))
 

@@ -16,7 +16,7 @@ import sys
 
 from nuodb_base import NuoBase
 from mock_tzs import EscapingTimestamp
-from mock_tzs import Eastern
+from mock_tzs import Local
 from mock_tzs import MyOffset
 from mock_tzs import UTC
 
@@ -406,8 +406,8 @@ class NuoDBBasicTest(NuoBase):
             test_vals = (
                 pynuodb.Date(2008, 1, 1), 
                 pynuodb.Time(8, 13, 34), 
-                Eastern.localize(EscapingTimestamp(2013, 3, 24, 12, 3, 26, 0)),
-                Eastern.localize(EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0)),
+                Local.localize(EscapingTimestamp(2013, 3, 24, 12, 3, 26, 0)),
+                Local.localize(EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0)),
                 )
             quoted_vals = ["'%s'" % str(val) for val in test_vals]
             for i, test_val in enumerate(test_vals):
@@ -426,10 +426,10 @@ class NuoDBBasicTest(NuoBase):
             row.pop(0)
             
             for res_val, test_val in zip(row, test_vals):
-                self.assertIsInstance(res_val, type(test_val))
+                self.assertIsInstance(test_val, type(res_val))
                 if isinstance(test_val, pynuodb.Timestamp):
                     test_val = UTC.normalize(test_val.replace(tzinfo=MyOffset))
-                    res_val = UTC.normalize(Eastern.localize(res_val))
+                    res_val = UTC.normalize(Local.localize(res_val))
 
                 if 'year' in dir(test_val):
                     self.assertEqual(res_val.year, test_val.year)
@@ -466,8 +466,8 @@ class NuoDBBasicTest(NuoBase):
             test_vals = (
                 pynuodb.Date(2008, 1, 1), 
                 pynuodb.Time(8, 13, 34), 
-                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Eastern), 
-                pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Eastern),
+                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Local), 
+                pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Local),
                 )
             quoted_vals = ["'%s'" % str(val) for val in test_vals]
             for i, test_val in enumerate(test_vals):
