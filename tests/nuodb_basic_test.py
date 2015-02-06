@@ -15,6 +15,10 @@ import os
 import sys
 
 from nuodb_base import NuoBase
+from mock_tzs import EscapingTimestamp
+from mock_tzs import Eastern
+from mock_tzs import MyOffset
+from mock_tzs import UTC
 
 class NuoDBBasicTest(NuoBase):
 
@@ -386,17 +390,96 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    def test_date_types(self):
+    def test_date_types_softly(self):
+        '''
+        Just like ``test_date_types'' only this one uses EscapingTimestamps to
+        make sure that we're testing the datetime data type, and not the
+        implicit string conversion involved in it.
+        '''
         con = self._connect()
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
-                           "time_col time, timestamp_col timestamp)")
+                           "time_col time, timestamp_col_EDT timestamp, timestamp_col_EST timestamp)")
 
-            test_vals = (pynuodb.Date(2008, 1, 1), pynuodb.Time(8, 13, 34), pynuodb.Timestamp(2013, 3, 24, 12, 3, 26))
-            cursor.execute("insert into typetest (date_col, time_col, timestamp_col) " +
-                           "values ('" + str(test_vals[0]) + "','" + str(test_vals[1]) + "','" + str(test_vals[2]) + "')")
+            test_vals = (
+                pynuodb.Date(2008, 1, 1), 
+                pynuodb.Time(8, 13, 34), 
+                Eastern.localize(EscapingTimestamp(2013, 3, 24, 12, 3, 26, 0)),
+                Eastern.localize(EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0)),
+                )
+            quoted_vals = ["'%s'" % str(val) for val in test_vals]
+            for i, test_val in enumerate(test_vals):
+                if "'" in str(test_val):
+                    quoted_vals[i] = str(test_val)
+            exc_str = ("insert into typetest ("
+                "date_col, "
+                "time_col, "
+                "timestamp_col_EDT, "
+                "timestamp_col_EST) "
+                "values (" + ', '.join(quoted_vals) + ")")
+            cursor.execute(exc_str)
+
+            cursor.execute("select * from typetest order by id desc limit 1")
+            row = list(cursor.fetchone())
+            row.pop(0)
+            
+            for res_val, test_val in zip(row, test_vals):
+                self.assertIsInstance(res_val, type(test_val))
+                if isinstance(test_val, pynuodb.Timestamp):
+                    test_val = UTC.normalize(test_val.replace(tzinfo=MyOffset))
+                    res_val = UTC.normalize(Eastern.localize(res_val))
+
+                if 'year' in dir(test_val):
+                    self.assertEqual(res_val.year, test_val.year)
+                if 'month' in dir(test_val):
+                    self.assertEqual(res_val.month, test_val.month)
+                if 'day' in dir(test_val):
+                    self.assertEqual(res_val.day, test_val.day)
+
+                if 'hour' in dir(test_val):
+                    self.assertEqual(res_val.hour, test_val.hour)
+                if 'minute' in dir(test_val):
+                    self.assertEqual(res_val.minute, test_val.minute)
+                if 'second' in dir(test_val):
+                    self.assertEqual(res_val.second, test_val.second)
+                if 'microsecond' in dir(test_val):
+                    self.assertEqual(res_val.microsecond, test_val.microsecond)
+
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
+
+    def test_date_types(self):
+        # Disabled until [DB-2251] gets fixed.
+        return None
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        try:
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
+                           "time_col time, timestamp_col_EDT timestamp, timestamp_col_EST timestamp)")
+
+            test_vals = (
+                pynuodb.Date(2008, 1, 1), 
+                pynuodb.Time(8, 13, 34), 
+                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Eastern), 
+                pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Eastern),
+                )
+            quoted_vals = ["'%s'" % str(val) for val in test_vals]
+            for i, test_val in enumerate(test_vals):
+                if "'" in str(test_val):
+                    quoted_vals[i] = str(test_val)
+            exc_str = ("insert into typetest ("
+                "date_col, "
+                "time_col, "
+                "timestamp_col_EDT, "
+                "timestamp_col_EST) "
+                "values (" + ', '.join(quoted_vals) + ")")
+            cursor.execute(exc_str)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -404,6 +487,7 @@ class NuoDBBasicTest(NuoBase):
             self.assertIsInstance(row[1], pynuodb.Date)
             self.assertIsInstance(row[2], pynuodb.Time)
             self.assertIsInstance(row[3], pynuodb.Timestamp)
+            self.assertIsInstance(row[4], pynuodb.Timestamp)
 
             self.assertEqual(row[1].year, test_vals[0].year)
             self.assertEqual(row[1].month, test_vals[0].month)
@@ -422,6 +506,14 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].minute, test_vals[2].minute)
             self.assertEqual(row[3].second, test_vals[2].second)
             self.assertEqual(row[3].microsecond, test_vals[2].microsecond)
+
+            self.assertEqual(row[4].year, test_vals[3].year)
+            self.assertEqual(row[4].month, test_vals[3].month)
+            self.assertEqual(row[4].day, test_vals[3].day)
+            self.assertEqual(row[4].hour, test_vals[3].hour)
+            self.assertEqual(row[4].minute, test_vals[3].minute)
+            self.assertEqual(row[4].second, test_vals[3].second)
+            self.assertEqual(row[4].microsecond, test_vals[3].microsecond)
 
         finally:
             try:
