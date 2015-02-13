@@ -22,6 +22,7 @@ __all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
 import hashlib
 import random
 import string
+import binascii
 
 def toHex(bigInt):
     hexStr = (hex(bigInt)[2:])[:-1]
@@ -139,7 +140,7 @@ class RemotePassword:
         hash1 = md.digest()
 
         md = hashlib.sha1()
-        md.update(toByteString(fromHex(salt)))
+        md.update(binascii.a2b_hex(salt))
         md.update(hash1)
 
         return fromByteString(md.digest())
