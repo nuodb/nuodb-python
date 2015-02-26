@@ -578,7 +578,7 @@ class Peer:
         """
         return self.__start_process(db_name, options, wait_seconds)
 
-    def start_storage_manager(self, db_name, archive, initialize, options=None, wait_seconds=None):
+    def start_storage_manager(self, db_name, archive, initialize, options=None, wait_seconds=None, snapshot_archive=None):
         """Start a storage manager on this peer for a given database.
               
         archive -- the archive location for the new storage manager. 
@@ -596,11 +596,15 @@ class Peer:
         until a response is received indicating success or failure. If the
         time elapses without a response, a SessionException will be raised.
 
+        snapshot_archive -- if not None, this storage manager will be a snapshot
+        storage manager with specified snapshot archive location.
+
         @type db_name str
         @type archive str
         @type initialize bool
         @type options list[tuple[str]]
         @type wait_seconds int
+        @type snapshot_archive str
         @rtype: Process
         """
         if not options:
@@ -610,6 +614,10 @@ class Peer:
 
         if initialize:
             options.append(("--initialize", None))
+
+        if snapshot_archive:
+            options.append(("--snapshot", None))
+            options.append(("--snapshot-archive", snapshot_archive))
 
         return self.__start_process(db_name, options, wait_seconds)
 
@@ -904,16 +912,20 @@ class Database:
         return False
 
 class Process:
-    
-    """Represents a NuoDB process (TE or SM)"""
+    TE_NODE_TYPE = 1
+    SM_NODE_TYPE = 2
+    SSM_NODE_TYPE = 6
+    TYPE_NAMES = {TE_NODE_TYPE: "TE", SM_NODE_TYPE: "SM", SSM_NODE_TYPE: "SSM"}
 
-    def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
+    """Represents a NuoDB process (TE, SM, or SSM)"""
+
+    def __init__(self, peer, database, port, pid, type_num, status, hostname, version, node_id):
         """
         @type peer Peer
         @type database Database
         @type port int
         @type pid int
-        @type transactional bool
+        @type type_num int
         @type status str
         @type hostname str
         @type version str
@@ -923,7 +935,11 @@ class Process:
         self.__database = database
         self.__port = port
         self.__pid = pid
-        self.__transactional = transactional
+
+        if type_num not in Process.TYPE_NAMES:
+            raise ValueError("Unknown NodeType: {}".format(type_num))
+
+        self.__type_num = type_num
         self.__hostname = hostname
         self.__version = version
 
@@ -951,7 +967,7 @@ class Process:
             return process
 
         return Process(peer, database, int(process_element.get("Port")),
-                    pid, int(process_element.get("NodeType")) == 1,
+                    pid, int(process_element.get("NodeType")),
                      process_element.get("State"), process_element.get("Hostname"),
                      process_element.get("Version"), process_element.get("NodeId"))
 
@@ -967,7 +983,7 @@ class Process:
         return self.__eq__(other) != True
 
     def __str__(self):
-        process_type = "(TE)" if self.is_transactional else "(SM)"
+        process_type = "({})".format(self.get_type())
         return self.address + ":" + str(self.port) + " [pid=" + str(self.pid)+ "] " + process_type
 
     @property
@@ -1004,9 +1020,9 @@ class Process:
     def is_transactional(self):
         """Return True if this process is a Transaction Engine.
         
-        Return False if it is a Storage Manager.
+        Return False if it is a Storage Manager or Snapshot Storage Manager.
         """
-        return self.__transactional
+        return self.__type_num == Process.TE_NODE_TYPE
 
     @property
     def hostname(self):
@@ -1017,6 +1033,10 @@ class Process:
     def version(self):
         """Return the NuoDB release version of this process."""
         return self.__version
+
+    def get_type(self):
+        """Return the type name (TE, SM, SSM)"""
+        return Process.TYPE_NAMES[self.__type_num]
 
     def shutdown(self, wait_time=0):
         """Shutdown this process.
