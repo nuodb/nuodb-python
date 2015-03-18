@@ -173,6 +173,22 @@ class NuoDBEntityTest(unittest.TestCase):
         finally:
             self._cleanup(domain)
 
+    def test_find_peer(self):
+        domain = None
+        try:
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
+            found_peer = domain.find_peer('localhost')
+            self.assertIsNotNone(found_peer)
+            self.assertIs(domain.entry_peer, found_peer)
+            found_peer = domain.find_peer('localhost', os.environ['NUODB_PORT'])
+            self.assertIsNotNone(found_peer)
+            self.assertIs(domain.entry_peer, found_peer)
+            found_peer = domain.find_peer('google.com')
+            self.assertIsNone(found_peer)
+        finally:
+            self._cleanup(domain)
+        
+
     def test_startDatabase(self):
         """Starts a TE and SM for a new database on a single host"""
         domain = None
