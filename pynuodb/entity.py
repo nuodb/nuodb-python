@@ -126,6 +126,7 @@ class Domain(BaseListener):
         """
         Find a peer by address
         @type: address str
+        @type: port int or str
         @rtype: Peer
         """
         if port is None:
