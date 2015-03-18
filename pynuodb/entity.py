@@ -605,6 +605,8 @@ class Peer:
         """
         if not options:
             options = []
+        else:
+            options = list(options)
 
         options.append(("--archive", archive))
 
