@@ -43,7 +43,7 @@ should be raised to help the caller make this happen.
 from session import BaseListener, Session, SessionMonitor, SessionException
 from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
 
-import time, json
+import time, json, socket
 from threading import Event, Lock
 import xml.etree.ElementTree as ElementTree
 
@@ -72,6 +72,8 @@ class Domain(BaseListener):
         self.__password = domain_pwd
         self.__listener = listener
         self.__peers = dict()
+        """ @type : dict[str, Peer] """
+        self.__peers_by_addr = dict()
         """ @type : dict[str, Peer] """
         self.__databases = dict()
         """ @type : dict[str, Database] """
@@ -120,12 +122,42 @@ class Domain(BaseListener):
         """Return the domain name."""
         return self.__domain_name
 
-    def find_peer(self, address):
+    def find_peer(self, address, port=None):
         """
         Find a peer by address
         @type: address str
+        @type: port int or str
         @rtype: Peer
         """
+        if port is None:
+            if ":" in address:
+                address, port = address.split(':', 2)
+            else:
+                port = self.__entry_peer.port
+        else:
+            if ":" in address:
+                address, _ = address.split(':', 2)
+
+        ip = socket.gethostbyname(address)
+        inet_sock_addr = ":".join([ip, str(port)])
+        try:
+            return self.__peers_by_addr[inet_sock_addr]
+        except:
+            pass
+
+        session = Session(address, port=port, service="Identity")
+        session.authorize(self.__user, self.__password)
+        response = session.doRequest()
+        try:
+            root = ElementTree.fromstring(response)
+            if self.__domain_name != root.get("Domain"):
+                return None
+            peer =  self.get_peer(root.get("AgentId"))
+            if peer:
+                self.__peers_by_addr[peer._get_normalized_addr()] = peer
+            return peer
+        except:
+            return None
 
     def get_peer(self, agent_id):
         """
@@ -328,6 +360,7 @@ class Domain(BaseListener):
     def __peer_joined(self, peer):
         """Called when a peer joins the domain."""
         self.__peers[peer.id] = peer
+        self.__peers_by_addr[peer._get_normalized_addr()] = peer
         if self.__listener:
             try:
                 self.__listener.peer_joined(peer)
@@ -337,6 +370,7 @@ class Domain(BaseListener):
     def __peer_left(self, peer):
         """Called when a peer leaves the domain."""
         del self.__peers[peer.id]
+        del self.__peers_by_addr[peer._get_normalized_addr()]
         if self.__listener:
             try:
                 self.__listener.peer_left(peer)
@@ -430,6 +464,7 @@ class Peer:
         self.__processes = dict()
         self.__version = version
         self.__start_id_slots = dict()
+        self.__inet_sock_addr = None
 
     @staticmethod
     def from_message(domain, peer_element):
@@ -714,6 +749,16 @@ class Peer:
         except:
             pass
 
+    def _get_normalized_addr(self):
+        """
+        Return ip_address:port
+        @rtype: str
+        """
+        if self.__inet_sock_addr is None:
+            ip = socket.gethostbyname(self.__address)
+            inet_sock_addr = ":".join([ip, str(self.__port)])
+            self.__inet_sock_addr = inet_sock_addr
+        return self.__inet_sock_addr
 
 class Database:
     
