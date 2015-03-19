@@ -403,11 +403,15 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
                            "time_col time, timestamp_col_EDT timestamp, timestamp_col_EST timestamp)")
 
+            test_daylight = Local.localize(
+                EscapingTimestamp(2013,  3, 24, 12, 3, 26, 0))
+            test_standard = Local.localize(
+                EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0))
             test_vals = (
                 pynuodb.Date(2008, 1, 1), 
                 pynuodb.Time(8, 13, 34), 
-                Local.localize(EscapingTimestamp(2013, 3, 24, 12, 3, 26, 0)),
-                Local.localize(EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0)),
+                test_daylight,
+                test_standard
                 )
             quoted_vals = ["'%s'" % str(val) for val in test_vals]
             for i, test_val in enumerate(test_vals):
@@ -424,12 +428,15 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = list(cursor.fetchone())
             row.pop(0)
+            res_daylight = row[2]
+            res_standard = row[3]
+
+            self.assertEqual(
+                test_daylight - test_standard, 
+                res_daylight - res_standard)
             
             for res_val, test_val in zip(row, test_vals):
                 self.assertIsInstance(test_val, type(res_val))
-                if isinstance(test_val, pynuodb.Timestamp):
-                    test_val = UTC.normalize(test_val.replace(tzinfo=MyOffset))
-                    res_val = UTC.normalize(Local.localize(res_val))
 
                 if 'year' in dir(test_val):
                     self.assertEqual(res_val.year, test_val.year)
