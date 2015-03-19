@@ -140,9 +140,10 @@ class Domain(BaseListener):
 
         ip = socket.gethostbyname(address)
         inet_sock_addr = ":".join([ip, str(port)])
-        peer = self.__peers_by_addr[inet_sock_addr]
-        if peer:
-            return peer
+        try:
+            return self.__peers_by_addr[inet_sock_addr]
+        except:
+            pass
 
         session = Session(address, port=port, service="Identity")
         session.authorize(self.__user, self.__password)
