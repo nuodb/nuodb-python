@@ -180,7 +180,7 @@ class NuoDBEntityTest(unittest.TestCase):
             found_peer = domain.find_peer('localhost')
             self.assertIsNotNone(found_peer)
             self.assertIs(domain.entry_peer, found_peer)
-            found_peer = domain.find_peer('localhost', os.environ['NUODB_PORT'])
+            found_peer = domain.find_peer('localhost', os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else domain.entry_peer.port)
             self.assertIsNotNone(found_peer)
             self.assertIs(domain.entry_peer, found_peer)
             found_peer = domain.find_peer('google.com')
