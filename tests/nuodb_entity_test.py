@@ -321,6 +321,28 @@ class NuoDBEntityTest(unittest.TestCase):
         finally:
             self._cleanup(domain)
 
+    def test_addSsm(self):
+        domain = None
+        database = None
+        try:
+            domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
+
+            num_dbs_before = len(domain.databases)
+            peer = domain.entry_peer
+            sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            database = domain.get_database(TEST_DB_NAME)
+            self.assertEqual(len(database.processes), 2)
+
+            ssm_archive = gen_archive_path()
+            ssm = peer.start_storage_manager(TEST_DB_NAME, ssm_archive, True, wait_seconds=10, snapshot_archive=ssm_archive)
+            self.assertTrue(ssm.wait_for_status('RUNNING', 10))
+            self.assertEqual(len(database.processes), 3)
+            self.assertEqual("SSM", ssm.get_type())
+
+        finally:
+            self._cleanup(domain)
+
     def test_shutdownProcess(self):
         domain = None
         database = None
