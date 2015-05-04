@@ -4,12 +4,19 @@
 from datetime import timedelta
 from datetime import tzinfo
 from datetime import datetime
+import os
 
 import pytz
 
 import pynuodb
 
-Local = pytz.timezone(open('/etc/timezone').read().strip())
+if os.path.exists('/etc/timezone'):
+    with open('/etc/timezone') as file_:
+        Local = pytz.timezone(file_.read().strip())
+else:
+    with open('/etc/localtime', 'rb') as file_:
+        Local = pytz.build_tzinfo('localtime', file_)
+
 UTC = pytz.timezone('UTC')
 
 class _MyOffset(tzinfo):
