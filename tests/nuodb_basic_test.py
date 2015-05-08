@@ -390,7 +390,7 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    def test_date_types_softly(self):
+    def DISABLE_DB10321test_date_types_softly(self):
         '''
         Just like ``test_date_types'' only this one uses EscapingTimestamps to
         make sure that we're testing the datetime data type, and not the
