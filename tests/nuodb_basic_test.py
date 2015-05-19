@@ -156,6 +156,7 @@ class NuoDBBasicTest(NuoBase):
     #
     #   py.test -k "test_many_significant_digits"
     #
+    @unittest.skip("produces invalid UTF-8 code sequence")
     def test_many_significant_digits(self):
         self._test_decimal_fixture(decimal.Decimal("31943874831932418390.01"), 38, 12)
 
