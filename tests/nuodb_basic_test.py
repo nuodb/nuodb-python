@@ -172,6 +172,23 @@ class NuoDBBasicTest(NuoBase):
     def test_numeric_no_decimal(self):
         self._test_decimal_fixture(decimal.Decimal("1.000"), 5, 3)
 
+    # This test case produces at least three different defects, perhaps
+    # more under the covers.
+    @unittest.skip("produces data errors for e-notations")
+    def test_enotation_decimal_large(self):
+        numbers = (
+            # Yields:  AssertionError: '400000000.00' != '4E+8'
+            decimal.Decimal('4E+8'),
+            # Yields:  DataError: 'CONVERSION_ERROR: conversion from type "bytes" to "numeric" is not implemented'
+            decimal.Decimal("5748E+15"),
+            # Yields:  DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
+            decimal.Decimal('1.521E+15'),
+            # Yields:  DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
+            decimal.Decimal('00000000000000.1E+12'),
+        )
+        for number in numbers:
+            self._test_decimal_fixture(number, 25, 2)
+
     def test_param_numeric_types_neg(self):
         con = self._connect()
         cursor = con.cursor()
