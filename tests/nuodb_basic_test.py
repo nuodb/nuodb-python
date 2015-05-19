@@ -130,6 +130,48 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
+    def _test_decimal_fixture(self, value, precision, scale):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("DROP TABLE CASCADE t IF EXISTS")
+        try:
+            cursor.execute("CREATE TABLE t (x NUMERIC(%s,%s))" % (precision, scale))
+            cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
+            cursor.execute("SELECT * FROM t")
+            row = cursor.fetchone()
+            self.assertEqual(row[0], value)
+            self.assertEqual(str(row[0]), str(value))
+        finally:
+            try:
+                cursor.execute("DROP TABLE t IF EXISTS")
+            finally:
+                con.close()
+
+    # This test demonstrates the broken implementation of putScaledInt
+    # which results in:
+    #
+    #   DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
+    #
+    # Run separately via:
+    #
+    #   py.test -k "test_many_significant_digits"
+    #
+    @unittest.skip("produces invalid UTF-8 code sequence")
+    def test_many_significant_digits(self):
+        self._test_decimal_fixture(decimal.Decimal("31943874831932418390.01"), 38, 12)
+
+    # This test demonstrates the broken implementation of getScaledInt
+    # which results in:
+    #
+    #   "1" instead of "1.000"
+    #
+    # Run separately via:
+    #
+    #   py.test -k "test_numeric_no_decimal"
+    #
+    def test_numeric_no_decimal(self):
+        self._test_decimal_fixture(decimal.Decimal("1.000"), 5, 3)
+
     def test_param_numeric_types_neg(self):
         con = self._connect()
         cursor = con.cursor()

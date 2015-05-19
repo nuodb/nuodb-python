@@ -566,7 +566,10 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             value = fromSignedByteString(self._takeBytes(typeCode - 60))
-            return decimal.Decimal(value) / decimal.Decimal(10**scale)
+            # preserves Decimal sign, exp, int...
+            sign = 1 if value < 0 else 0
+            value = tuple(int(i) for i in str(abs(value)))
+            return decimal.Decimal((sign, value, -1 * scale))
 
         raise DataError('Not a scaled integer')
 
