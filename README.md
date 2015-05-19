@@ -27,7 +27,8 @@ sudo python setup.py install
 Or install from pip
 
 ```
-pip install pynuodb
+sudo pip install pynuodb
+sudo pip install --upgrade pynuodb
 ```
 
 ### Example
