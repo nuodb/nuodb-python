@@ -22,8 +22,7 @@ sudo python setup.py install
 Or install from pip
 
 ```
-sudo pip install pynuodb
-sudo pip install --upgrade pynuodb
+pip install pynuodb
 ```
 
 ### Example
@@ -85,7 +84,9 @@ To run the tests, you will also need [pytz](http://pytz.sourceforge.net/).
 pip install pytz
 ```
 
-Once installed, all tests can be run with 
+Once installed, make sure you are running an unpeered broker with default domain name set to "domain" and the domain password set to "bird". As well please be sure all other database instances are shutdown.
+
+All tests can be run with 
 ```
 make test	
 ```
