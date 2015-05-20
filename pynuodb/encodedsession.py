@@ -719,9 +719,19 @@ class EncodedSession(Session):
         """
         typeCode = self._peekTypeCode()
         
-        # get null type
-        if typeCode is protocol.NULL:
-            return self.getNull()
+
+        # get string type
+        if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1) or \
+             typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
+            return self.getString()
+
+        # get integer type
+        elif typeCode in range(protocol.INTMINUS10, protocol.INTLEN8 + 1):
+            return self.getInt()
+
+        # get double precision type
+        elif typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
+            return self.getDouble()
         
         # get boolean type
         elif typeCode in [protocol.TRUE, protocol.FALSE]:
@@ -731,22 +741,9 @@ class EncodedSession(Session):
         elif typeCode in [protocol.UUID, protocol.SCALEDCOUNT1, protocol.SCALEDCOUNT2]:
             return self.getUUID()
         
-        # get integer type
-        elif typeCode in range(protocol.INTMINUS10, protocol.INTLEN8 + 1):
-            return self.getInt()
-        
         # get scaled int type
         elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
-        
-        # get double precision type
-        elif typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
-            return self.getDouble()
-        
-        # get string type
-        elif typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1) or \
-             typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
-            return self.getString()
         
         # get opaque type
         elif typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1) or \
@@ -773,6 +770,10 @@ class EncodedSession(Session):
         elif typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             return self.getScaledDate()
         
+        # get null type
+        elif typeCode is protocol.NULL:
+            return self.getNull()
+
         else:
             raise NotImplementedError("not implemented")
 
