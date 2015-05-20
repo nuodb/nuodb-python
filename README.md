@@ -3,7 +3,7 @@ NuoDB - Python
 
 [![Build Status](https://travis-ci.org/nuodb/nuodb-python.png?branch=master)](https://travis-ci.org/nuodb/nuodb-python)
 
-This is the official Python package for [NuoDB](http://www.nuodb.com).
+This is the official Python package for [NuoDB](http://www.nuodb.com). Compliant with [PEP 249](https://www.python.org/dev/peps/pep-0249/) standard for Python database APIs.
 
 ### Requirements
 
