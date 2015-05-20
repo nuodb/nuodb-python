@@ -9,11 +9,6 @@ This is the official Python package for [NuoDB](http://www.nuodb.com).
 
 If you haven't already, [Download and Install NuoDB](http://nuodb.com/download-nuodb/). Currently the driver supports Python version 2.7 only.
 
-To run the tests, you will also need [pytz](http://pytz.sourceforge.net/).
-```
-pip install pytz
-```
-
 ### Install
 
 Install from source by running
@@ -82,6 +77,24 @@ print cursor.fetchone()
 
 For further information on getting started with NuoDB, please refer to the [NuoDB wiki](http://doc.nuodb.com/display/DOC/Getting+Started) 
 
+### Testing
+
+To run the tests, you will also need [pytz](http://pytz.sourceforge.net/).
+```
+pip install pytz
+```
+
+Once installed, make sure you are running an unpeered broker with default domain name set to "domain" and the domain password set to "bird". As well please be sure all other database instances are shutdown.
+
+All tests can be run with 
+```
+make test	
+```
+
+Alternatively individual tests can be run with python [nuodb_test_name]. For example 
+```
+python tests/nuodb_blob_test.py
+```
 
 ### License
 

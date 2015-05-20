@@ -22,9 +22,6 @@ from datatype import TypeObjectFromNuodb
 from statement import Statement, PreparedStatement, ExecutionResult
 from result_set import ResultSet
 
-# from nuodb.util import getCloudEntry
-# (host, port) = getCloudEntry(broker, dbName, connectionKeys)
-
 class EncodedSession(Session):
 
     """Class for representing an encoded session with the database.
@@ -131,6 +128,7 @@ class EncodedSession(Session):
 
         self._putMessageId(protocol.CLOSE)
         self._exchangeMessages()
+        self.close()
 
     def send_commit(self):
         self._putMessageId(protocol.COMMITTRANSACTION)
