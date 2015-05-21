@@ -14,6 +14,7 @@ DATABASE_NAME   = 'pynuodb_test'
 
 class NuoDBStressTest(NuoBase):
 
+	@unittest.skip("Too long for Bamboo")
 	def test_million_reads(self):
 		connection = pynuodb.connect(DATABASE_NAME, HOST, DBA_USER, DBA_PASSWORD, options={'schema':'hockey'})
 		cursor = connection.cursor()
@@ -35,8 +36,9 @@ class NuoDBStressTest(NuoBase):
 
 		cursor.close()
 		connection.close()
-
-	def test_hundred_connection(self):
+		
+	@unittest.skip("Too long for Bamboo")
+	def test_thousand_connection(self):
 		for i in range(0, 1000):
 			connection = pynuodb.connect(DATABASE_NAME, HOST, DBA_USER, DBA_PASSWORD, options={'schema':'hockey'})
 			connection.close()
