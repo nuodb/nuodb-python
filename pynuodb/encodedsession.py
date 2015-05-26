@@ -93,7 +93,7 @@ class EncodedSession(Session):
         @type cp crypt.ClientPassword
         """
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
-        for (k, v) in parameters.iteritems():
+        for (k, v) in parameters.items():
             self.putString(k).putString(v)
         self.putNull().putString(cp.genClientKey())
 

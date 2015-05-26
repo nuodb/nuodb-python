@@ -49,7 +49,7 @@ DatabaseAction = _DatabaseActions(["Quiesce", "Unquiesce", "Validate",
 
 class _StandardOutListener(BaseListener):
     def message_received(self, root):
-        print ElementTree.tostring(root)
+        print(ElementTree.tostring(root))
 
 
 class EngineMonitor:

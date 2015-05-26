@@ -869,7 +869,7 @@ class Database:
                     else:
                         process.kill()
                     
-                except Exception, e:
+                except Exception as e:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
@@ -880,7 +880,7 @@ class Database:
                         process.shutdown()
                     else:
                         process.kill()
-                except Exception, e:
+                except Exception as e:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
