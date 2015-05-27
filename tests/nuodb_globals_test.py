@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import pynuodb
 import unittest
 
-from nuodb_base import NuoBase
-from pynuodb.exception import Error, DataError
+import pynuodb
+from .nuodb_base import NuoBase
+
 
 class NuoDBGlobalsTest(NuoBase):
     def test_module_globals(self):

@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-import pynuodb
 import unittest
 
-from nuodb_base import NuoBase
+from .nuodb_base import NuoBase
 from pynuodb.exception import DataError, ProgrammingError, BatchError
 
 
@@ -34,8 +33,8 @@ class NuoDBCursorTest(NuoBase):
     def test_insufficient_parameters(self):
         con = self._connect()
         cursor = con.cursor()
-#       cursor.execute("SELECT ? FROM DUAL")
-#       cursor.execute("SELECT ? FROM DUAL", [0])
+        #       cursor.execute("SELECT ? FROM DUAL")
+        #       cursor.execute("SELECT ? FROM DUAL", [0])
 
         try:
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
@@ -54,7 +53,7 @@ class NuoDBCursorTest(NuoBase):
             self.assertIsNotNone(e)
 
         try:
-            cursor.execute("SELECT ? FROM DUAL", [1,2])
+            cursor.execute("SELECT ? FROM DUAL", [1, 2])
             self.fail()
         except ProgrammingError as e:
             self.assertIsNotNone(e)
@@ -75,7 +74,7 @@ class NuoDBCursorTest(NuoBase):
 
         cursor.execute("DROP TABLE IF EXISTS executemany_table")
         cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)")
-        cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1 , 2 ], [ 3, 4 ] ])
+        cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4]])
 
         cursor.execute("SELECT * FROM executemany_table")
 
@@ -95,7 +94,7 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)")
         # 3rd tuple has too many params
         try:
-            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2, 3] ])
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2, 3]])
             self.fail()
         except ProgrammingError as e:
             self.assertIsNotNone(e)
@@ -110,7 +109,7 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute('CREATE UNIQUE INDEX "f1idx" ON "executemany_table" ("f1");')
         # 3rd tuple has uniqueness conflict
         try:
-            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [ [ 1, 2 ], [ 3, 4 ], [ 1, 2], [5,6], [5,6] ])
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
             self.fail()
         except BatchError as e:
             self.assertEquals(e.results[0], 1)

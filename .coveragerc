@@ -1,0 +1,5 @@
+[run]
+include=sqlalchemy_nuodb/*
+
+[report]
+omit=test/*

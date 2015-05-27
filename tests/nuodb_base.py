@@ -49,7 +49,7 @@ class NuoBase(unittest.TestCase):
                 for process in database.processes:
                     process.shutdown()
 
-                for i in xrange(1, 20):
+                for i in range(1, 20):
                     time.sleep(0.25)
                     if listener.db_left:
                         time.sleep(1)

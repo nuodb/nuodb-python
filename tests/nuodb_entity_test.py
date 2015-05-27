@@ -12,9 +12,9 @@ import time
 import random
 import string
 import os
-from pynuodb.entity import Domain
 import warnings
 
+from pynuodb.entity import Domain
 
 BROKER_HOST = 'localhost'
 DOMAIN_USER = 'domain'
@@ -27,7 +27,7 @@ DBA_PASSWORD = 'dba'
 
 class NuoDBEntityTest(unittest.TestCase):
     def setUp(self):
-        self.host = BROKER_HOST + (':'+os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
+        self.host = BROKER_HOST + (':' + os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
 
         domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD)
         self._cleanup(domain)
@@ -61,11 +61,13 @@ class NuoDBEntityTest(unittest.TestCase):
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
             domain.shutdown()
-            for _ in xrange(0,10):
+            for _ in range(0, 10):
                 time.sleep(1)
                 database = domain.get_database(TEST_DB_NAME)
                 if database is None:
@@ -109,7 +111,9 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertIs(sm, dl.nStatusChanged[0])
             self.assertEqual("RUNNING", dl.nStatusChanged[1])
 
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             i = 0
             while dl.nJoined is not te and i < 10:
                 time.sleep(1)
@@ -180,12 +184,12 @@ class NuoDBEntityTest(unittest.TestCase):
             found_peer = domain.find_peer('localhost')
             self.assertIsNotNone(found_peer)
             self.assertIs(domain.entry_peer, found_peer)
-            found_peer = domain.find_peer('localhost', os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else domain.entry_peer.port)
+            found_peer = domain.find_peer('localhost', os.environ[
+                'NUODB_PORT'] if 'NUODB_PORT' in os.environ else domain.entry_peer.port)
             self.assertIsNotNone(found_peer)
             self.assertIs(domain.entry_peer, found_peer)
         finally:
             self._cleanup(domain)
-        
 
     def test_startDatabase(self):
         """Starts a TE and SM for a new database on a single host"""
@@ -217,7 +221,9 @@ class NuoDBEntityTest(unittest.TestCase):
             self.assertEqual(len(database.processes), 1)
             self.assertIn(sm, database.processes)
 
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             self.assertIsNotNone(te)
             self.assertIs(te.peer, peer)
             self.assertIsNotNone(te.address)
@@ -247,7 +253,9 @@ class NuoDBEntityTest(unittest.TestCase):
 
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             database = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database)
             domain.disconnect()
@@ -263,7 +271,6 @@ class NuoDBEntityTest(unittest.TestCase):
         finally:
             self._cleanup(domain)
 
-
     def test_twoDatabase(self):
         domain = None
         database1 = None
@@ -273,12 +280,16 @@ class NuoDBEntityTest(unittest.TestCase):
 
             peer = domain.entry_peer
             sm1 = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te1 = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te1 = peer.start_transaction_engine(TEST_DB_NAME,
+                                                [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                                wait_seconds=10)
             database1 = domain.get_database(TEST_DB_NAME)
             self.assertIsNotNone(database1)
 
             sm2 = peer.start_storage_manager(TEST_DB_NAME2, gen_archive_path(), True, wait_seconds=10)
-            te2 = peer.start_transaction_engine(TEST_DB_NAME2, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te2 = peer.start_transaction_engine(TEST_DB_NAME2,
+                                                [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                                wait_seconds=10)
             database2 = domain.get_database(TEST_DB_NAME2)
             self.assertIsNotNone(database2)
             self.assertNotEqual(database1, database2)
@@ -310,7 +321,9 @@ class NuoDBEntityTest(unittest.TestCase):
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             database = domain.get_database(TEST_DB_NAME)
             self.assertEqual(len(database.processes), 2)
 
@@ -330,12 +343,14 @@ class NuoDBEntityTest(unittest.TestCase):
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             new_te = peer.start_transaction_engine(TEST_DB_NAME, wait_seconds=10)
             database = domain.get_database(TEST_DB_NAME)
             self.assertEqual(len(database.processes), 3)
             new_te.shutdown()
-            for _ in xrange(0,10):
+            for _ in range(0, 10):
                 time.sleep(1)
                 if len(database.processes) == 2:
                     break
@@ -354,7 +369,9 @@ class NuoDBEntityTest(unittest.TestCase):
             num_dbs_before = len(domain.databases)
             peer = domain.entry_peer
             sm = peer.start_storage_manager(TEST_DB_NAME, gen_archive_path(), True, wait_seconds=10)
-            te = peer.start_transaction_engine(TEST_DB_NAME, [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+            te = peer.start_transaction_engine(TEST_DB_NAME,
+                                               [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                               wait_seconds=10)
             new_te = peer.start_transaction_engine(TEST_DB_NAME, wait_seconds=10)
             database = domain.get_database(TEST_DB_NAME)
             self.assertEqual(len(database.processes), 3)
@@ -383,6 +400,7 @@ class NuoDBEntityTest(unittest.TestCase):
 
             finally:
                 domain.disconnect()
+
 
 class TestListener(object):
     def __init__(self):
@@ -427,6 +445,7 @@ class TestListener(object):
 
 def gen_archive_path():
     return os.path.join(tempfile.gettempdir(), ''.join([random.choice(string.ascii_lowercase) for _ in range(10)]))
+
 
 if __name__ == '__main__':
     warnings.simplefilter("always")
