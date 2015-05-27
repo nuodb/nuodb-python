@@ -21,5 +21,5 @@ setup(
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),
-    install_requires=['pytz'],
+    install_requires=['pytz>=2015.4'],
 )
