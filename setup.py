@@ -19,7 +19,7 @@ setup(
     packages=['pynuodb'],
     package_dir={'pynuodb': 'pynuodb'},
     url='https://github.com/nuodb/nuodb-python',
-    license='BSD Licence',
+    license='BSD License',
     long_description=open(readme).read(),
     install_requires=['pytz'],
 )
