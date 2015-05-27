@@ -1,9 +1,17 @@
-# -*- coding: utf-8 -*-
-from distutils.core import setup
+import os
+import re
+
+from setuptools import setup
+
+v = open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py'))
+VERSION = re.compile(r".*__version__ = '(.*?)'", re.S).match(v.read()).group(1)
+v.close()
+
+readme = os.path.join(os.path.dirname(__file__), 'README.rst')
 
 setup(
     name='pynuodb',
-    version='2.2',
+    version=VERSION,
     author='NuoDB',
     author_email='info@nuodb.com',
     description='NuoDB Python driver',
@@ -11,7 +19,7 @@ setup(
     packages=['pynuodb'],
     package_dir={'pynuodb': 'pynuodb'},
     url='https://github.com/nuodb/nuodb-python',
-    license='BSD licence, see LICENCE.txt',
-    long_description=open('README.md').read(),
+    license='BSD Licence',
+    long_description=open(readme).read(),
+    install_requires=['pytz'],
 )
-
