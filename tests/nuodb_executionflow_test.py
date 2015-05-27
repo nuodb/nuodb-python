@@ -18,8 +18,8 @@ from nuodb_base import NuoBase
 from pynuodb.session import Session, SessionException
 from pynuodb.exception import Error
 
-class NuoDBExecutionFlowTest(NuoBase):
 
+class NuoDBExecutionFlowTest(NuoBase):
     def test_commit_after_disconnect(self):
         con = self._connect()
 
@@ -194,6 +194,7 @@ def version_lt(version):
         return True
 
     return False
+
 
 if __name__ == '__main__':
     unittest.main()

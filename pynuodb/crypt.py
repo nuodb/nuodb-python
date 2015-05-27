@@ -50,7 +50,7 @@ def toSignedByteString(value):
     elif value == -1 and (ord(resultBytes[-1]) & 0x80) == 0x00:
         resultBytes.append(chr(0xFF))
     
-    resultBytes.reverse();
+    resultBytes.reverse()
     result = ''.join(resultBytes)
     
     return result
@@ -79,7 +79,7 @@ def toByteString(bigInt):
         resultBytes.append(chr(bigInt & 0xFF))
         bigInt >>= 8
  
-    resultBytes.reverse();
+    resultBytes.reverse()
     result = ''.join(resultBytes)
     
     return result
@@ -164,7 +164,7 @@ class ClientPassword(RemotePassword):
         group = self._getGroup()
 
         self.__privateKey = random.getrandbits(256)
-        self.__publicKey = pow(group.getGenerator(), self.__privateKey, group.getPrime());
+        self.__publicKey = pow(group.getGenerator(), self.__privateKey, group.getPrime())
 
         return toHex(self.__publicKey)
 

@@ -14,7 +14,6 @@ from nuodb_base import NuoBase
 
 
 class NuoDBStatementManagementTest(NuoBase):
-
     def test_stable_statement(self):
         con = self._connect()
         cursor = con.cursor()
@@ -288,6 +287,7 @@ def extract_statement_handle(cursor):
 
 def extract_prepared_statement_dict(cursor):
     return cursor._statement_cache._ps_cache
+
 
 if __name__ == '__main__':
     unittest.main()
