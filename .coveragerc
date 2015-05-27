@@ -1,5 +1,5 @@
 [run]
-include=sqlalchemy_nuodb/*
+include=pynuodb/*
 
 [report]
-omit=test/*
+omit=tests/*

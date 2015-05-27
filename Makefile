@@ -36,7 +36,7 @@ install:
 
 test:
 	pip install -r test_requirements.txt
-	py.test tests
+	py.test --cov=pynuodb --cov-report html --cov-report term-missing
 	
 deploy:
 	python setup.py register
