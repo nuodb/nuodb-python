@@ -1,8 +1,6 @@
 """Classes containing the exceptions for reporting errors."""
 
 from . import protocol
-import sys
-import traceback
 
 __all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError', 'DataError',
            'OperationalError', 'IntegrityError', 'InternalError',
@@ -34,11 +32,14 @@ class DatabaseError(Error):
     def __init__(self, value):
         Error.__init__(self, value)
 
+
 class BatchError(DatabaseError):
     results = None
+
     def __init__(self, value, results):
         Error.__init__(self, value)
         self.results = results
+
 
 class DataError(DatabaseError):
     def __init__(self, value):
@@ -63,6 +64,7 @@ class InternalError(DatabaseError):
 class ProgrammingError(DatabaseError):
     def __init__(self, value):
         DatabaseError.__init__(self, value)
+
 
 class NotSupportedError(DatabaseError):
     def __init__(self, value):

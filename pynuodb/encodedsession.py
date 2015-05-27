@@ -6,24 +6,20 @@ EncodedSession -- Class for representing an encoded session with the database.
 
 __all__  = [ 'EncodedSession' ]
 
-from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
-from .session import Session, SessionException
-
 import uuid
 import struct
+import decimal
+
+from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
+from .session import Session, SessionException
 from . import protocol
 from . import datatype
-import decimal
-import sys
-
 from .exception import DataError, EndOfStream, ProgrammingError, db_error_handler, BatchError
 from .datatype import TypeObjectFromNuodb
-
 from .statement import Statement, PreparedStatement, ExecutionResult
 from .result_set import ResultSet
 
 class EncodedSession(Session):
-
     """Class for representing an encoded session with the database.
     
     Public Functions:

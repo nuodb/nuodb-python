@@ -9,10 +9,10 @@ connect -- Creates a connection object.
 
 __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
 
-from cursor import Cursor
-from encodedsession import EncodedSession
-from crypt import ClientPassword, RC4Cipher
-from util import getCloudEntry
+from .cursor import Cursor
+from .encodedsession import EncodedSession
+from .crypt import ClientPassword, RC4Cipher
+from .util import getCloudEntry
 
 import time
 import string
@@ -63,7 +63,7 @@ class Connection(object):
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
 
-    from exception import Warning, Error, InterfaceError, DatabaseError, DataError, \
+    from .exception import Warning, Error, InterfaceError, DatabaseError, DataError, \
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
     

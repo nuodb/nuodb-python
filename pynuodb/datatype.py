@@ -26,7 +26,7 @@ __all__ = [ 'Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
 
 from datetime import datetime as Timestamp, date as Date, time as Time, timedelta as TimeDelta
 import decimal, time
-from exception import DataError
+from .exception import DataError
 
 class Binary(object):
     

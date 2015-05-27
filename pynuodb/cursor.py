@@ -8,8 +8,8 @@ Cursor -- Class for representing a database cursor.
 
 from collections import deque
 
-from statement import Statement, PreparedStatement
-from exception import Error, NotSupportedError, ProgrammingError
+from .statement import Statement, PreparedStatement
+from .exception import Error, NotSupportedError, ProgrammingError
 
 
 class Cursor(object):

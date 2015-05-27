@@ -32,7 +32,7 @@ __all__ = [ "DatabaseAction", "EngineMonitor",
 # to monitor (for now, see Platform/Log.h for the values). There should also
 # be a utility listener that parses the stat/log XML and pretty-prints it.
 
-from session import Session, SessionMonitor, SessionException, checkForError, BaseListener
+from .session import Session, SessionMonitor, SessionException, checkForError, BaseListener
 
 from xml.etree import ElementTree
 
