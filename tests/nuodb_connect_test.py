@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import pynuodb
 import unittest
-import os
 
-from nuodb_base import NuoBase
+import pynuodb
+from .nuodb_base import NuoBase
 from pynuodb.exception import ProgrammingError
 from pynuodb.session import SessionException
 
-class NuoDBConnectTest(NuoBase):
 
+class NuoDBConnectTest(NuoBase):
     def setUp(self):
         pass
 

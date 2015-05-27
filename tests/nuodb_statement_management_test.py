@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
- 
+
 """
 These tests assume that the quickstart database exists.
 
@@ -10,7 +10,7 @@ To create it run /opt/nuodb/run-quickstart or use the web console.
 import unittest
 import decimal
 
-from nuodb_base import NuoBase
+from .nuodb_base import NuoBase
 
 
 class NuoDBStatementManagementTest(NuoBase):
@@ -32,7 +32,7 @@ class NuoDBStatementManagementTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], 0)
 
             current_handle = extract_statement_handle(cursor)
@@ -77,7 +77,7 @@ class NuoDBStatementManagementTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
             ps_cache = extract_prepared_statement_dict(cursor)
@@ -104,13 +104,13 @@ class NuoDBStatementManagementTest(NuoBase):
             query = "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " \
                     "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
 
-            for _ in xrange(0, 20):
+            for _ in range(0, 20):
                 cursor.execute(query, test_vals)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
             ps_cache = extract_prepared_statement_dict(cursor)
@@ -138,13 +138,13 @@ class NuoDBStatementManagementTest(NuoBase):
                     "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
 
             handle = None
-            for _ in xrange(0, 20):
+            for _ in range(0, 20):
                 cursor.execute(query, test_vals)
 
                 cursor.execute("select * from typetest order by id desc limit 1")
                 row = cursor.fetchone()
 
-                for i in xrange(1, len(row)):
+                for i in range(1, len(row)):
                     self.assertEqual(row[i], test_vals[i - 1])
 
                 ps_cache = extract_prepared_statement_dict(cursor)
@@ -184,8 +184,8 @@ class NuoDBStatementManagementTest(NuoBase):
                        "insert into typetest (smallint_col, integer_col) values (?, ?)",
                        "insert into typetest (smallint_col) values (?)"]
 
-            for _ in xrange(0, 10):
-                for i in xrange(0, len(queries)):
+            for _ in range(0, 10):
+                for i in range(0, len(queries)):
                     cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)
@@ -223,7 +223,7 @@ class NuoDBStatementManagementTest(NuoBase):
                        "insert into typetest (smallint_col, integer_col) values (?, ?)",
                        "insert into typetest (smallint_col) values (?)"]
 
-            for i in xrange(0, len(queries)):
+            for i in range(0, len(queries)):
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)

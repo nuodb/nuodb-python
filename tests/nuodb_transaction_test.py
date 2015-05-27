@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-import pynuodb
 import unittest
 
-from nuodb_base import NuoBase
+from .nuodb_base import NuoBase
 
 
 class NuoDBTransactionTest(NuoBase):
