@@ -7,21 +7,19 @@ These tests assume that the quickstart database exists.
 To create it run /opt/nuodb/run-quickstart or use the web console.
 """
 
-import pynuodb
 import unittest
 import decimal
 import time
 import os
 import sys
 
-from nuodb_base import NuoBase
-from mock_tzs import EscapingTimestamp
-from mock_tzs import Local
-from mock_tzs import MyOffset
-from mock_tzs import UTC
+import pynuodb
+from .nuodb_base import NuoBase
+from .mock_tzs import EscapingTimestamp
+from .mock_tzs import Local
+
 
 class NuoDBBasicTest(NuoBase):
-
     def test_noop(self):
         con = self._connect()
         cursor = con.cursor()
@@ -213,7 +211,6 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-
     def test_overflow_numeric_types(self):
         con = self._connect()
         cursor = con.cursor()
@@ -237,7 +234,6 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("insert into typetest (bigint_col,) " +
                                "values (?)", test_vals)
 
-
             with self.assertRaises(pynuodb.DatabaseError):
                 test_vals = (-(10**99),)
                 cursor.execute("insert into typetest (smallint_col) " +
@@ -258,7 +254,6 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
 
     def test_int_into_decimal(self):
         con = self._connect()
@@ -281,7 +276,6 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-
     def test_float_into_number(self):
         con = self._connect()
         cursor = con.cursor()
@@ -302,7 +296,6 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
 
     def test_string_into_decimal(self):
         con = self._connect()
@@ -676,8 +669,6 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-
-
     def test_param_binary_types(self):
         con = self._connect()
         cursor = con.cursor()
@@ -715,11 +706,10 @@ class NuoDBBasicTest(NuoBase):
             cursor = con.cursor()
             cursor.execute("drop table typetest if exists")
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, timestamp_col timestamp)")
-            vals = (pynuodb.Timestamp(2013, 05, 24, 0, 0, 1),)
+            vals = (pynuodb.Timestamp(2013, 5, 24, 0, 0, 1),)
             cursor.execute("insert into typetest (timestamp_col) values (?)", vals)
             con.commit()
             con.close()
-
 
             os.environ['TZ'] = 'PST+08PDT,M4.1.0,M10.5.0'
             time.tzset()
@@ -736,7 +726,6 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(vals[0].second, row[1].second)
             self.assertEqual(vals[0].microsecond, row[1].microsecond)
             con.close()
-
 
             os.environ['TZ'] = 'CET-01CEST,M4.1.0,M10.5.0'
             time.tzset()
@@ -879,6 +868,7 @@ class NuoDBBasicTest(NuoBase):
 
         with self.assertRaises(pynuodb.DataError):
             cursor.execute("insert into typetest (date_col) values (?)", test_vals)
+
 
 if __name__ == '__main__':
     unittest.main()

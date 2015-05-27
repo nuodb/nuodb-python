@@ -57,7 +57,7 @@ class EscapingTimestamp(pynuodb.Timestamp):
         return "DATE_FROM_STR('%s', '%s')" % (self.strftime(pyformat), sqlformat)
 
 if __name__ == '__main__':
-    print(str(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Local)))
-    print(repr(EscapingTimestamp(2014, 07, 15, 23, 59, 58, 72, Local)))
+    print(str(EscapingTimestamp(2014, 7, 15, 23, 59, 58, 72, Local)))
+    print(repr(EscapingTimestamp(2014, 7, 15, 23, 59, 58, 72, Local)))
     print(str(EscapingTimestamp(2014, 12, 15, 23, 59, 58, 72, Local)))
 
