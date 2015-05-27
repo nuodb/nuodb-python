@@ -30,12 +30,13 @@ all:
 	make install
 	make test
 
-install:	
-	sudo python setup.py install
-	sudo rm -rf build
+install:
+	python setup.py install
+	rm -rf build
 
 test:
-	python run_tests.py
+	pip install -r test_requirements.txt
+	py.test tests
 	
 deploy:
 	python setup.py register
