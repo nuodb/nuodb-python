@@ -1,13 +1,15 @@
 """Classes containing the exceptions for reporting errors."""
 
-import protocol
+from . import protocol
+import sys
+import traceback
 
 __all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError', 'DataError',
            'OperationalError', 'IntegrityError', 'InternalError',
            'ProgrammingError', 'NotSupportedError', 'EndOfStream', 'db_error_handler']
 
 
-class Warning(StandardError):
+class Warning(Exception):
     def __init__(self, value):
         self.__value = value
 
@@ -15,7 +17,7 @@ class Warning(StandardError):
         return repr(self.__value)
 
 
-class Error(StandardError):
+class Error(Exception):
     def __init__(self, value):
         self.__value = value
 
@@ -62,13 +64,12 @@ class ProgrammingError(DatabaseError):
     def __init__(self, value):
         DatabaseError.__init__(self, value)
 
-
 class NotSupportedError(DatabaseError):
     def __init__(self, value):
         DatabaseError.__init__(self, value)
 
 
-class EndOfStream(StandardError):
+class EndOfStream(Exception):
     def __init__(self, value):
         self.__value = value
 

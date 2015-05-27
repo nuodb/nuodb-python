@@ -39,7 +39,7 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 # module which use this directly. For an example of how to communicate with
 # directly with an engine see the sql module.
 
-from crypt import ClientPassword, RC4Cipher
+from .crypt import ClientPassword, RC4Cipher
 
 import socket
 import string
@@ -129,7 +129,7 @@ class Session:
             root = ElementTree.fromstring(verifyMessage)
         except Exception as e:
             self.close()
-            raise SessionException("Failed to establish session with password: " + str(e)), None, sys.exc_info()[2]
+            raise SessionException("Failed to establish session with password: " + str(e))
 
         if root.tag != "PasswordVerify":
             self.close()

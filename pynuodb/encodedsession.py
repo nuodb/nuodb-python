@@ -6,21 +6,21 @@ EncodedSession -- Class for representing an encoded session with the database.
 
 __all__  = [ 'EncodedSession' ]
 
-from crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
-from session import Session, SessionException
+from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
+from .session import Session, SessionException
 
 import uuid
 import struct
-import protocol
-import datatype
+from . import protocol
+from . import datatype
 import decimal
 import sys
 
-from exception import DataError, EndOfStream, ProgrammingError, db_error_handler, BatchError
-from datatype import TypeObjectFromNuodb
+from .exception import DataError, EndOfStream, ProgrammingError, db_error_handler, BatchError
+from .datatype import TypeObjectFromNuodb
 
-from statement import Statement, PreparedStatement, ExecutionResult
-from result_set import ResultSet
+from .statement import Statement, PreparedStatement, ExecutionResult
+from .result_set import ResultSet
 
 class EncodedSession(Session):
 
@@ -110,7 +110,7 @@ class EncodedSession(Session):
             self._putMessageId(protocol.AUTHENTICATION).putString(protocol.AUTH_TEST_STR)
             self._exchangeMessages()
         except SessionException as e:
-            raise ProgrammingError('Failed to authenticate: ' + str(e)), None, sys.exc_info()[2]
+            raise ProgrammingError('Failed to authenticate: ' + str(e))
 
 
     def get_autocommit(self):
@@ -269,7 +269,7 @@ class EncodedSession(Session):
         handle = self.getInt()
         colcount = self.getInt()
 
-        col_num_iter = xrange(colcount)
+        col_num_iter = range(colcount)
         for _ in col_num_iter:
             self.getString()
 
@@ -302,7 +302,7 @@ class EncodedSession(Session):
         self._putMessageId(protocol.NEXT).putInt(result_set.handle)
         self._exchangeMessages()
 
-        col_num_iter = xrange(result_set.col_count)
+        col_num_iter = range(result_set.col_count)
 
         result_set.clear_results()
 
@@ -331,7 +331,7 @@ class EncodedSession(Session):
         self._exchangeMessages()
 
         description = [None] * self.getInt()
-        for i in xrange(result_set.col_count):
+        for i in range(result_set.col_count):
             self.getString()    # catalog_name
             self.getString()    # schema_name
             self.getString()    # table_name
@@ -610,7 +610,7 @@ class EncodedSession(Session):
         if typeCode in range(protocol.DOUBLELEN0 + 1, protocol.DOUBLELEN8 + 1):
             test = self._takeBytes(typeCode - 77)
             if typeCode < protocol.DOUBLELEN8:
-                for i in xrange(0, protocol.DOUBLELEN8 - typeCode):
+                for i in range(0, protocol.DOUBLELEN8 - typeCode):
                     test = test + chr(0)
             return struct.unpack('!d', test)[0]
             
