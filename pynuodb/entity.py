@@ -40,8 +40,8 @@ to another broker. Either this should be added, or some clear exception
 should be raised to help the caller make this happen.
 """
 
-from session import BaseListener, Session, SessionMonitor, SessionException
-from util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
+from .session import BaseListener, Session, SessionMonitor, SessionException
+from .util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
 
 import time, json, socket
 from threading import Event, Lock

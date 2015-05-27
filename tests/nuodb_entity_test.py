@@ -369,14 +369,15 @@ class NuoDBEntityTest(unittest.TestCase):
     def _cleanup(self, domain):
         if domain is not None:
             try:
-                db_names = [db.name for db in domain.databases]
+                db_names = [TEST_DB_NAME, TEST_DB_NAME2]
                 for name in db_names:
                     db = domain.get_database(name)
-                    db.shutdown()
-                    i = 0
-                    while len(db.processes) > 0 and i < 10:
-                        time.sleep(1)
-                        i += 1
+                    if db is not None:
+                        db.shutdown()
+                        i = 0
+                        while len(db.processes) > 0 and i < 10:
+                            time.sleep(1)
+                            i += 1
                     if domain.get_database(name) is not None:
                         raise Exception("Could not shutdown existing test database %s" % (name))
 
