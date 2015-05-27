@@ -33,8 +33,6 @@ class NuoDBCursorTest(NuoBase):
     def test_insufficient_parameters(self):
         con = self._connect()
         cursor = con.cursor()
-        #       cursor.execute("SELECT ? FROM DUAL")
-        #       cursor.execute("SELECT ? FROM DUAL", [0])
 
         try:
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
