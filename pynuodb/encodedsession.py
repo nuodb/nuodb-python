@@ -521,7 +521,7 @@ class EncodedSession(Session):
 
     def putValue(self, value):
         """Determines the probable type of the value and calls the supporting function."""
-        if value == None:
+        if value is None:
             return self.putNull()
         elif type(value) == int:
             return self.putInt(value)

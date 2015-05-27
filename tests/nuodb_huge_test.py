@@ -5,8 +5,8 @@ import unittest
 
 from nuodb_base import NuoBase
 
-class NuoDBHugeTest(NuoBase):
 
+class NuoDBHugeTest(NuoBase):
     def test_wide_select(self):
 
         con = self._connect()
@@ -70,7 +70,7 @@ class NuoDBHugeTest(NuoBase):
         total_rows = 0
         while (1):
             rows = cursor.fetchmany(10000)
-            if rows == None or len(rows) == 0:
+            if rows is None or len(rows) == 0:
                 break
             total_rows = total_rows + len(rows)
 
@@ -78,6 +78,7 @@ class NuoDBHugeTest(NuoBase):
 
         cursor.execute("DROP TABLE ten")
         cursor.execute("DROP TABLE huge_select")
+
 
 if __name__ == '__main__':
     unittest.main()

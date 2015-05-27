@@ -58,5 +58,6 @@ class NuoDBConnectTest(NuoBase):
         except:
             self.fail()
 
+
 if __name__ == '__main__':
     unittest.main()

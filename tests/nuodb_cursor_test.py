@@ -6,8 +6,8 @@ import unittest
 from nuodb_base import NuoBase
 from pynuodb.exception import DataError, ProgrammingError, BatchError
 
-class NuoDBCursorTest(NuoBase):
 
+class NuoDBCursorTest(NuoBase):
     def test_cursor_description(self):
         con = self._connect()
         cursor = con.cursor()
@@ -20,7 +20,6 @@ class NuoDBCursorTest(NuoBase):
         self.assertEquals(descriptions[0][1], self.driver.STRING)
         self.assertEquals(descriptions[0][2], 3)
 
-
         self.assertEquals(descriptions[1][0], '123')
         self.assertEquals(descriptions[1][1], self.driver.NUMBER)
         self.assertEquals(descriptions[1][2], 11)
@@ -31,7 +30,6 @@ class NuoDBCursorTest(NuoBase):
 
         cursor.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         self.assertEquals(cursor.rowcount, -1)
-
 
     def test_insufficient_parameters(self):
         con = self._connect()
@@ -128,6 +126,7 @@ class NuoDBCursorTest(NuoBase):
         self.assertEquals(len(cursor.fetchall()), 3)
 
         cursor.execute("DROP TABLE executemany_table")
+
 
 if __name__ == '__main__':
     unittest.main()

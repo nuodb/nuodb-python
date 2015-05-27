@@ -5,10 +5,9 @@ import unittest
 
 from nuodb_base import NuoBase
 
+
 class NuoDBTransactionTest(NuoBase):
-
     def test_connection_isolation(self):
-
         con1 = self._connect()
         con2 = self._connect()
 
@@ -25,7 +24,6 @@ class NuoDBTransactionTest(NuoBase):
         self.assertEquals(cursor2.fetchone()[0], 4)
 
     def test_cursor_isolation(self):
-
         con = self._connect()
 
         cursor1 = con.cursor()
@@ -41,7 +39,6 @@ class NuoDBTransactionTest(NuoBase):
         self.assertEquals(cursor2.fetchone()[0], 4)
 
     def test_rollback(self):
-
         con = self._connect()
         cursor = con.cursor()
 
@@ -59,7 +56,6 @@ class NuoDBTransactionTest(NuoBase):
         cursor.execute("DROP TABLE rollback_table")
 
     def test_commit(self):
-
         con1 = self._connect()
         con2 = self._connect()
 
@@ -85,7 +81,6 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("DROP TABLE commit_table")
 
     def test_rollback_disconnect(self):
-
         con1 = self._connect()
         cursor1 = con1.cursor()
 
@@ -139,6 +134,7 @@ class NuoDBTransactionTest(NuoBase):
         self.assertEquals(cursor2.fetchone()[0], 1)
 
         cursor1.execute("DROP TABLE autocommit_set")
+
 
 if __name__ == '__main__':
     unittest.main()
