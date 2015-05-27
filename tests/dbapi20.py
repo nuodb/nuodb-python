@@ -189,12 +189,8 @@ class DatabaseAPI20Test(unittest.TestCase):
     def test_Exceptions(self):
         # Make sure required exceptions exist, and are in the
         # defined heirarchy.
-        if sys.version[0] == '3': #under Python 3 StardardError no longer exists
-            self.failUnless(issubclass(self.driver.Warning,Exception))
-            self.failUnless(issubclass(self.driver.Error,Exception))
-        else:
-            self.failUnless(issubclass(self.driver.Warning,StandardError))
-            self.failUnless(issubclass(self.driver.Error,StandardError))
+        self.failUnless(issubclass(self.driver.Warning,Exception))
+        self.failUnless(issubclass(self.driver.Error,Exception))
 
         self.failUnless(
             issubclass(self.driver.InterfaceError,self.driver.Error)
