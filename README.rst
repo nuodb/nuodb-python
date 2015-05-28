@@ -75,7 +75,7 @@ or using variables::
     print cursor.fetchone()
 
 For further information on getting started with NuoDB, please refer to the
-`NuoDB wiki <http://doc.nuodb.com/display/DOC/Getting+Started>`_.
+`NuoDB Documentation <http://doc.nuodb.com/display/doc/NuoDB+at+a+Glance>`_.
 
 License
 -------
