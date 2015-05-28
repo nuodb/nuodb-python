@@ -3,6 +3,11 @@ NuoDB - Python
 
 .. image:: https://travis-ci.org/nuodb/nuodb-python.svg?branch=master
     :target: https://travis-ci.org/nuodb/nuodb-python
+.. image:: https://gemnasium.com/nuodb/nuodb-python.svg
+    :target: https://gemnasium.com/nuodb/nuodb-python
+.. image:: https://landscape.io/github/nuodb/nuodb-python/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/nuodb/nuodb-python/master
+   :alt: Code Health
 
 This is the official Python package for `NuoDB <http://www.nuodb.com>`_.
 

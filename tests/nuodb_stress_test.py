@@ -25,7 +25,7 @@ class NuoDBStressTest(NuoBase):
 
         for i in range(100):
             cursor.execute("INSERT INTO hundred VALUES (?)", [i])
-        connection.commit();
+        connection.commit()
 
         cursor.execute("SELECT ? FROM hundred AS a1, hundred AS a2, hundred AS a3", [alphabet])
 
