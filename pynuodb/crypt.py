@@ -23,6 +23,9 @@ import hashlib
 import random
 import string
 import binascii
+import sys
+
+systemVersion = sys.version[0]
 
 def toHex(bigInt):
     hexStr = (hex(bigInt)[2:])[:-1]
@@ -30,7 +33,7 @@ def toHex(bigInt):
     # character that some platforms assume, so force an even length encoding
     if len(hexStr) % 2 == 1:
         hexStr = "0" + hexStr
-    return string.upper(hexStr)
+    return hexStr.upper()
 
 def fromHex(hexStr):
     return int(hexStr, 16)
@@ -87,6 +90,8 @@ def toByteString(bigInt):
 def fromByteString(byteStr):
     result = 0
     shiftCount = 0
+    if systemVersion == '3':
+        byteStr = byteStr.decode('unicode_escape')
     for b in reversed(byteStr):
         result = result | ((ord(b) & 0xff) << shiftCount)
         shiftCount = shiftCount + 8
@@ -107,15 +112,23 @@ class RemoteGroup:
     def __init__(self, primeStr=defaultPrime, generatorStr=defaultGenerator):
         self.__primeInt = fromHex(primeStr)
         self.__generatorInt = fromHex(generatorStr)
+        self.__version = sys.version[0]
+
 
         primeBytes = toByteString(self.__primeInt)
         generatorBytes = toByteString(self.__generatorInt)
         paddingLength = len(primeBytes) - len(generatorBytes)
+        paddingBuffer = chr(0) * paddingLength
 
         md = hashlib.sha1()
+        if self.__version == '3':
+            primeBytes = primeBytes.encode('utf-8')
+            generatorBytes = generatorBytes.encode('utf-8')
+            paddingBuffer = paddingBuffer.encode('utf-8')
+
         md.update(primeBytes)
         if paddingLength > 0:
-            md.update(chr(0) * paddingLength)
+            md.update(paddingBuffer)
         md.update(generatorBytes)
 
         self.__k = fromByteString(md.digest())
@@ -133,10 +146,15 @@ class RemotePassword:
 
     def __init__(self):
         self.__group = RemoteGroup()
+        self.__version = sys.version[0]
+
 
     def _getUserHash(self, account, password, salt):
         md = hashlib.sha1()
-        md.update(account + ":" + password)
+        userInfo = account + ":" + password
+        if systemVersion == '3':
+            userInfo = userInfo.encode('utf-8')
+        md.update(userInfo)
         hash1 = md.digest()
 
         md = hashlib.sha1()
@@ -150,6 +168,11 @@ class RemotePassword:
         serverBytes = toByteString(serverPublicKey)
 
         md = hashlib.sha1()
+
+        if self.__version == '3':
+            clientBytes = clientBytes.encode('utf-8')
+            serverBytes = serverBytes.encode('utf-8')
+
         md.update(clientBytes)
         md.update(serverBytes)
 
@@ -186,6 +209,8 @@ class ClientPassword(RemotePassword):
         secretBytes = toByteString(sessionSecret)
 
         md = hashlib.sha1()
+        if systemVersion == '3':
+            secretBytes = secretBytes.encode('utf-8')
         md.update(secretBytes)
 
         return md.digest()
@@ -235,7 +260,10 @@ class ServerPassword(RemotePassword):
 class RC4Cipher:
 
     def __init__(self, key):
-        self.__S = range(256)
+        if systemVersion == '3':
+            self.__S = list(range(256))
+        else:
+            self.__S = range(256)
         self.__s1 = 0
         self.__s2 = 0
 
@@ -243,7 +271,11 @@ class RC4Cipher:
 
         j = 0
         for i in range(256):
-            j = (j + state[i] + ord(key[i % len(key)])) % 256
+            byteString = key[i % len(key)]
+            if systemVersion == '2':
+                byteString = ord(byteString)
+
+            j = (j + state[i] + byteString) % 256
             state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
@@ -259,3 +291,10 @@ class RC4Cipher:
 
         return ''.join(transformed)
 
+class NoCipher:
+
+    def __init__(self):
+        pass
+
+    def transform(self, data):
+        return data

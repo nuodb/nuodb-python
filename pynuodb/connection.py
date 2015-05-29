@@ -11,17 +11,18 @@ __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
 
 from .cursor import Cursor
 from .encodedsession import EncodedSession
-from .crypt import ClientPassword, RC4Cipher
+from .crypt import ClientPassword, RC4Cipher, NoCipher
 from .util import getCloudEntry
 
 import time
 import string
-
+import sys
 # http://www.python.org/dev/peps/pep-0249
 
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
+
 #schema='user', auto_commit=False
 
 def connect(database, host, user, password, options=None):
@@ -91,17 +92,22 @@ class Connection(object):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
         self._trans_id = None
+        unencrypted = None
 
         cp = ClientPassword()
         
         parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
         if options:
             parameters.update(options)
+            if 'cipher' in options and options['cipher'] == 'None':
+                unencrypted = password
 
-        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
-
-        sessionKey = cp.computeSessionKey(string.upper(username), password, salt, serverKey)
-        self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp, unencrypted)
+        if unencrypted is None:
+            sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
+            self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+        else: 
+            self.__session.setCiphers(NoCipher(), NoCipher())
 
         self.__session.check_auth()
 

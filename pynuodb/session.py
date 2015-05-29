@@ -93,6 +93,8 @@ class Session:
 
         self.__service = service
 
+        self.__version = sys.version[0]
+
     @property
     def address(self):
         return self.__address
@@ -195,7 +197,14 @@ class Session:
         lenStr = struct.pack("!I", len(message))
 
         try:
-            self.__sock.send(lenStr + message)
+            messageBuilder = None
+            if self.__version == '3':
+                lenStr = lenStr.decode('utf-8')
+                messageBuilder = bytes(lenStr + message, 'utf-8')
+            else:
+                messageBuilder = lenStr + message
+            self.__sock.send(messageBuilder)
+
         except Exception:
             self.close()
             raise
@@ -206,6 +215,8 @@ class Session:
 
         try:
             lengthHeader = self.__readFully(4)
+            if self.__version == '3':
+                lengthHeader = bytes(lengthHeader, 'utf-8')
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
             
             msg = self.__readFully(msgLength)
@@ -232,9 +243,17 @@ class Session:
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
-
-            msg = msg + received
-            msgLength = msgLength - len(received)
+            if self.__version == '3':
+                print("GOT ")
+                print(received)
+                print(" END ")
+                clean = received.decode('unicode_escape')
+                print(clean)
+                msg = clean
+                msgLength = msgLength - len(clean)
+            else:
+                msg = msg + received
+                msgLength = msgLength - len(received)
 
         return msg
 

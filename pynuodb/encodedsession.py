@@ -82,7 +82,7 @@ class EncodedSession(Session):
         self.closed = False
 
     # Mostly for connections
-    def open_database(self, db_name, parameters, cp):
+    def open_database(self, db_name, parameters, cp, unencrypted=None):
         """
         @type db_name str
         @type parameters dict[str,str]
@@ -91,7 +91,10 @@ class EncodedSession(Session):
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
         for (k, v) in parameters.items():
             self.putString(k).putString(v)
-        self.putNull().putString(cp.genClientKey())
+        if unencrypted is not None:
+            self.putNull().putString(unencrypted)           
+        else:
+            self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
 
