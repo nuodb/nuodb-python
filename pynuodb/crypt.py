@@ -91,7 +91,8 @@ def fromByteString(byteStr):
     result = 0
     shiftCount = 0
     if systemVersion == '3':
-        byteStr = byteStr.decode('unicode_escape')
+        if type(byteStr) is bytes:
+            byteStr = byteStr.decode('unicode_escape')
     for b in reversed(byteStr):
         result = result | ((ord(b) & 0xff) << shiftCount)
         shiftCount = shiftCount + 8
