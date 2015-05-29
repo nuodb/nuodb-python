@@ -1,3 +1,4 @@
+==============
 NuoDB - Python
 ==============
 
@@ -9,30 +10,38 @@ NuoDB - Python
    :target: https://landscape.io/github/nuodb/nuodb-python/master
    :alt: Code Health
 
-This is the official Python package for `NuoDB <http://www.nuodb.com>`_.
+.. contents::
+
+This package contains the official pure-Python NuoDB_ client library that
+provides both a standard `PEP 249`_ SQL API, a NuoDB administration API.
 
 Requirements
 ------------
 
-If you haven't already, `Download and Install NuoDB <http://nuodb.com/download-nuodb/>`_.
-Currently the driver supports Python version 2.7 only.
+* Python -- one of the following:
 
-To run the tests, you will also need `pytz <http://pytz.sourceforge.net/>`_::
+  - CPython_ >= 2.7 or <= 3.4
 
-    pip install pytz
+* NuoDB -- one of the following:
 
-Install
--------
+  - NuoDB_ >= 2.0.4
 
-Install from source by running::
+If you haven't done so already, `Download and Install NuoDB <http://dev.nuodb.com/download-nuodb/request/download/>`_.
 
-    git clone git://github.com/nuodb/nuodb-python.git
-    cd nuodb-python
-    sudo python setup.py install
+Installation
+------------
 
-Or install from pip::
+The last stable release is available on PyPI and can be installed with ``pip``::
 
-    pip install pynuodb
+    $ pip install pynuodb
+
+Alternatively (e.g. if ``pip`` is not available), a tarball can be downloaded
+from GitHub and installed with Setuptools::
+
+    $ curl -L https://github.com/nuodb/nuodb-python/archive/master.tar.gz | tar xz
+    $ cd nuodb-python*
+    $ python setup.py install
+    $ # The folder nuodb-python* can be safely removed now.
 
 Example
 -------
@@ -40,7 +49,9 @@ Example
 The following examples assume that you have the quickstart database running (test@localhost).
 If you don't, you can start it by running /opt/nuodb/run-quickstart.
 
-Simple example for connecting and reading from an existing table::
+Simple example for connecting and reading from an existing table:
+
+.. code:: python
 
     import pynuodb
 
@@ -50,7 +61,9 @@ Simple example for connecting and reading from an existing table::
     cursor.execute("select * from hockey")
     print cursor.fetchone()
 
-Data can be inserted into a table either explicitly within the execute method::
+Data can be inserted into a table either explicitly within the execute method:
+
+.. code:: python
 
     import pynuodb
 
@@ -64,7 +77,9 @@ Data can be inserted into a table either explicitly within the execute method::
     cursor.execute("select * from typetest")
     print cursor.fetchone()
 
-or using variables::
+or using variables:
+
+.. code:: python
 
     import pynuodb
 
@@ -79,10 +94,21 @@ or using variables::
     cursor.execute("select * from variabletest")
     print cursor.fetchone()
 
-For further information on getting started with NuoDB, please refer to the
-`NuoDB Documentation <http://doc.nuodb.com/display/doc/NuoDB+at+a+Glance>`_.
+For further information on getting started with NuoDB, please refer to the Documentation_.
+
+Resources
+---------
+
+DB-API 2.0: http://www.python.org/dev/peps/pep-0249/
+
+NuoDB Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
 
 License
 -------
 
 PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
+
+.. _Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
+.. _NuoDB: http://www.nuodb.com/
+.. _CPython: http://www.python.org/
+.. _PEP 249: https://www.python.org/dev/peps/pep-0249/
