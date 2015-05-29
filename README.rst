@@ -46,53 +46,80 @@ from GitHub and installed with Setuptools::
 Example
 -------
 
-The following examples assume that you have the quickstart database running (test@localhost).
-If you don't, you can start it by running /opt/nuodb/run-quickstart.
-
-Simple example for connecting and reading from an existing table:
+Here is an example using the `PEP 249`_ API that creates some tables, inserts
+some data, runs a query, and cleans up after itself:
 
 .. code:: python
 
     import pynuodb
 
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
-    cursor = connection.cursor()
-    cursor.arraysize = 3
-    cursor.execute("select * from hockey")
-    print cursor.fetchone()
+    options = {"schema": "test"}
+    connect_kw_args = {'database': "test", 'host': "localhost", 'user': "dba", 'password': "dba", 'options': options}
 
-Data can be inserted into a table either explicitly within the execute method:
+    connection = pynuodb.connect(**connect_kw_args)
+    cursor = connection.cursor()
+
+    stmt_drop = "DROP TABLE IF EXISTS names"
+    cursor.execute(stmt_drop)
+
+    stmt_create = """
+    CREATE TABLE names (
+        id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name VARCHAR(30) DEFAULT '' NOT NULL,
+        age INTEGER DEFAULT 0
+    )"""
+    cursor.execute(stmt_create)
+
+    names = (('Greg', 17,), ('Marsha', 16,), ('Jan', 14,))
+    stmt_insert = "INSERT INTO names (name, age) VALUES (?, ?)"
+    cursor.executemany(stmt_insert, names)
+
+    connection.commit()
+
+    age_limit = 15
+    stmt_select = "SELECT id, name FROM names where age > ? ORDER BY id"
+    cursor.execute(stmt_select, (age_limit,))
+    print("Results:")
+    for row in cursor.fetchall():
+        print("%d | %s" % (row[0], row[1]))
+
+    cursor.execute(stmt_drop)
+    cursor.close()
+    connection.close()
+
+All sorts of management and monitoring operations may be performed through the
+NuoDB Python API, a few below include listening to database state, and shutting
+down a database:
 
 .. code:: python
 
-    import pynuodb
+    import time
+    from pynuodb import entity
 
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
-    cursor = connection.cursor()
+    class DatabaseListener(object):
+        def __init__(self):
+            self.db_left = False
 
-    cursor.execute("create table typetest (bool_col boolean, date_col date, " +
-                   "string_col string, integer_col integer)")
+        def process_left(self, process):
+            print("process left: %s" % process)
 
-    cursor.execute("insert into typetest values ('False', '2012-10-03', 'hello world', 42)")
-    cursor.execute("select * from typetest")
-    print cursor.fetchone()
+        def database_left(self, database):
+            print("database shutdown: %s" % database)
+            self.db_left = True
 
-or using variables:
-
-.. code:: python
-
-    import pynuodb
-
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
-    cursor = connection.cursor()
-
-    cursor.execute("create table variabletest (bool_col boolean, date_col date, " +
-                   "string_col string, integer_col integer)")
-
-    test_vals = (False, pynuodb.Date(2012,10,3), "hello world", 42)
-    cursor.execute("insert into variabletest values (?, ?, ?, ?)", test_vals)
-    cursor.execute("select * from variabletest")
-    print cursor.fetchone()
+    listener = DatabaseListener()
+    domain = entity.Domain("localhost", "domain", "bird", listener)
+    try:
+        database = domain.get_database("test")
+        if database is not None:
+            database.shutdown(graceful=True)
+            for i in range(1, 20):
+                time.sleep(0.25)
+                if listener.db_left:
+                    time.sleep(1)
+                    break
+    finally:
+        domain.disconnect()
 
 For further information on getting started with NuoDB, please refer to the Documentation_.
 
