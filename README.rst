@@ -100,6 +100,7 @@ Resources
 ---------
 
 DB-API 2.0: http://www.python.org/dev/peps/pep-0249/
+
 NuoDB Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
 
 License
