@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, NuoDB, Inc.
+# Copyright (c) 2015, NuoDB, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@ all:
 
 install:
 	python setup.py install
-	rm -rf build
+	make clean
 
 test:
 	pip install -r test_requirements.txt
@@ -41,5 +41,8 @@ test:
 deploy:
 	python setup.py register
 	python setup.py sdist upload
-	
+
+clean:	
+	rm -vrf build/ dist/ *.egg-info htmlcov/
+
 .PHONY: all install test
