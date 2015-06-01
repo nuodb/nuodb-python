@@ -262,32 +262,33 @@ class RC4Cipher:
 
     def __init__(self, key):
         if systemVersion == '3':
-            self.__S = list(range(256))
+            self.__state = list(range(256))
+            key = key.decode('unicode_escape')
         else:
-            self.__S = range(256)
-        self.__s1 = 0
-        self.__s2 = 0
+            self.__state = range(256)
+        self.__idx1 = 0
+        self.__idx2 = 0
 
-        state = self.__S
+        state = self.__state
 
         j = 0
         for i in range(256):
             byteString = key[i % len(key)]
-            if systemVersion == '2':
-                byteString = ord(byteString)
+            byteString = ord(byteString)
 
             j = (j + state[i] + byteString) % 256
             state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
         transformed = []
-        state = self.__S
+        state = self.__state
 
         for char in data:
-            self.__s1 = (self.__s1 + 1) % 256
-            self.__s2 = (self.__s2 + state[self.__s1]) % 256
-            state[self.__s1], state[self.__s2] = state[self.__s2], state[self.__s1]
-            cipherByte = ord(char) ^ state[(state[self.__s1] + state[self.__s2]) % 256]
+            print(char)
+            self.__idx1 = (self.__idx1 + 1) % 256
+            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
+            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
+            cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
             transformed.append(chr(cipherByte))
 
         return ''.join(transformed)
