@@ -230,13 +230,11 @@ class Session:
                 msg = string.strip(self.__cipherIn.transform(msg))
             else:
                 msg = self.__cipherIn.transform(msg)
-
         return msg
 
 
     def __readFully(self, msgLength):
         msg = ""
-        
         while msgLength > 0:
             received = self.__sock.recv(msgLength)
 
@@ -244,17 +242,11 @@ class Session:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
             if self.__version == '3':
-                print("GOT ")
-                print(received)
-                print(" END ")
-                clean = received.decode('unicode_escape')
-                print(clean)
-                msg = clean
-                msgLength = msgLength - len(clean)
+                msg = received.decode('unicode_escape')
+                msgLength = msgLength - len(msg)
             else:
                 msg = msg + received
                 msgLength = msgLength - len(received)
-
         return msg
 
     def close(self, force=False):
