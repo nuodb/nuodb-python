@@ -284,7 +284,6 @@ class RC4Cipher:
         state = self.__state
 
         for char in data:
-            print(char)
             self.__idx1 = (self.__idx1 + 1) % 256
             self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
             state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
