@@ -109,7 +109,6 @@ class EncodedSession(Session):
             self._exchangeMessages()
             if self.__encryption is False:
                 self._setCiphers(NoCipher(), NoCipher())
-                print("Removing ciphers")
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
 
@@ -784,7 +783,7 @@ class EncodedSession(Session):
     def _exchangeMessages(self, getResponse=True):
         """Exchange the pending message for an optional response from the server."""
         try:
-            print("message to server: %s" %  (self.__output))
+            #print("message to server: %s" %  (self.__output))
             self.send(self.__output)
         finally:
             self.__output = None
