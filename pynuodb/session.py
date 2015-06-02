@@ -67,7 +67,7 @@ class SessionException(Exception):
 class Session:
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
-    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>"
+    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>" #Why is this hard coded...
 
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
@@ -237,7 +237,6 @@ class Session:
         msg = ""
         while msgLength > 0:
             received = self.__sock.recv(msgLength)
-
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))

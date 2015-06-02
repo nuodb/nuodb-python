@@ -11,7 +11,7 @@ __all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
 
 from .cursor import Cursor
 from .encodedsession import EncodedSession
-from .crypt import ClientPassword, RC4Cipher, NoCipher
+from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
 
 import time
@@ -92,7 +92,6 @@ class Connection(object):
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
         self._trans_id = None
-        unencrypted = None
 
         cp = ClientPassword()
         
@@ -100,14 +99,12 @@ class Connection(object):
         if options:
             parameters.update(options)
             if 'cipher' in options and options['cipher'] == 'None':
-                unencrypted = password
+                self.__session.set_encryption(False)
 
-        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp, unencrypted)
-        if unencrypted is None:
-            sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
-            self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
-        else: 
-            self.__session.setCiphers(NoCipher(), NoCipher())
+        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
+            
+        sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
+        self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
         self.__session.check_auth()
 

@@ -10,7 +10,7 @@ import uuid
 import struct
 import decimal
 
-from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString
+from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString, NoCipher
 from .session import Session, SessionException
 from . import protocol
 from . import datatype
@@ -59,7 +59,7 @@ class EncodedSession(Session):
                 supporting function.
     exchangeMessages -- Exchange the pending message for an optional response from the server.
     setCiphers -- Re-sets the incoming and outgoing ciphers for the session.
-    
+
     Private Functions:
     __init__ -- Constructor for the EncodedSession class.
     _peekTypeCode -- Looks at the next Type Code off the session. (Does not move inpos)
@@ -80,9 +80,11 @@ class EncodedSession(Session):
         self.__inpos = 0
         """ @type : int """
         self.closed = False
+        """ @type : boolean """
+        self.__encryption = True
 
     # Mostly for connections
-    def open_database(self, db_name, parameters, cp, unencrypted=None):
+    def open_database(self, db_name, parameters, cp):
         """
         @type db_name str
         @type parameters dict[str,str]
@@ -91,10 +93,7 @@ class EncodedSession(Session):
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
         for (k, v) in parameters.items():
             self.putString(k).putString(v)
-        if unencrypted is not None:
-            self.putNull().putString(unencrypted)           
-        else:
-            self.putNull().putString(cp.genClientKey())
+        self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
 
@@ -108,6 +107,9 @@ class EncodedSession(Session):
         try:
             self._putMessageId(protocol.AUTHENTICATION).putString(protocol.AUTH_TEST_STR)
             self._exchangeMessages()
+            if self.__encryption is False:
+                self._setCiphers(NoCipher(), NoCipher())
+                print("Removing ciphers")
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
 
@@ -138,6 +140,9 @@ class EncodedSession(Session):
     def send_rollback(self):
         self._putMessageId(protocol.ROLLBACKTRANSACTION)
         self._exchangeMessages()
+
+    def set_encryption(self, value):
+        self.__encryption = value
 
     def test_connection(self):
         # Create a statement handle
@@ -779,7 +784,7 @@ class EncodedSession(Session):
     def _exchangeMessages(self, getResponse=True):
         """Exchange the pending message for an optional response from the server."""
         try:
-            # print "message to server: %s" %  (self.__output)
+            print("message to server: %s" %  (self.__output))
             self.send(self.__output)
         finally:
             self.__output = None

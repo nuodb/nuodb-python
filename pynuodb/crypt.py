@@ -113,8 +113,6 @@ class RemoteGroup:
     def __init__(self, primeStr=defaultPrime, generatorStr=defaultGenerator):
         self.__primeInt = fromHex(primeStr)
         self.__generatorInt = fromHex(generatorStr)
-        self.__version = sys.version[0]
-
 
         primeBytes = toByteString(self.__primeInt)
         generatorBytes = toByteString(self.__generatorInt)
@@ -122,7 +120,7 @@ class RemoteGroup:
         paddingBuffer = chr(0) * paddingLength
 
         md = hashlib.sha1()
-        if self.__version == '3':
+        if systemVersion == '3':
             primeBytes = primeBytes.encode('utf-8')
             generatorBytes = generatorBytes.encode('utf-8')
             paddingBuffer = paddingBuffer.encode('utf-8')
@@ -147,7 +145,6 @@ class RemotePassword:
 
     def __init__(self):
         self.__group = RemoteGroup()
-        self.__version = sys.version[0]
 
 
     def _getUserHash(self, account, password, salt):
@@ -170,7 +167,7 @@ class RemotePassword:
 
         md = hashlib.sha1()
 
-        if self.__version == '3':
+        if systemVersion == '3':
             clientBytes = clientBytes.encode('utf-8')
             serverBytes = serverBytes.encode('utf-8')
 
@@ -289,7 +286,6 @@ class RC4Cipher:
             state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
             cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
             transformed.append(chr(cipherByte))
-
         return ''.join(transformed)
 
 class NoCipher:
