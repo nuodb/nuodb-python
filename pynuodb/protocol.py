@@ -58,7 +58,7 @@ ROLLBACKTRANSACTION             = 8
 PREPARE                         = 9
 PREPAREDRL                      = 10
 CREATE                          = 11
-GENCONNECTIONHTML               = 12
+GENHTML                         = 12
 GETRESULTSET                    = 13
 SEARCH                          = 14
 CLOSESTATMENT                   = 15
@@ -126,8 +126,8 @@ GETHOLDERPRIVILEGES             = 76
 ATTACHDEBUGGER                  = 77 
 DEBUGREQUEST                    = 78 
 GETSEQUENCEVALUE2               = 79 
-GETLIMIT                        = 80 
-SETLIMIT                        = 81 
+GETCONNECTIONLIMIT              = 80 
+SETCONNECTIONLIMIT              = 81 
 DELETEBLOBDATA                  = 82 
 EXECUTEBATCH                    = 83
 EXECUTEBATCHPREPAREDSTATEMENT   = 84
@@ -149,6 +149,27 @@ ROLLBACKTOSAVEPOINT             = 99
 SUPPORTSTRANSACTIONISOLATION    = 100 
 GETCATALOG                      = 101 
 GETCURRENTSCHEMA                = 102 
+PREPARECALL                     = 103
+EXECUTECALLABLESTATEMENT        = 104 
+SETQUERYTIMEOUT                 = 105 
+GETPROCEDURES                   = 106 
+GETPROCEDURECOLUMNS             = 107 
+GETSUPERTABLES                  = 108
+GETSUPERTYPES                   = 109 
+GETFUNCTIONS                    = 110 
+GETFUNCTIONCOLUMNS              = 111 
+GETTABLEPRIVILEGES              = 112 
+GETCOLUMNPRIVILEGES             = 113 
+GETCROSSREFERENCE               = 114 
+ALLPROCEDURESARECALLABLE        = 115 
+ALLTABLESARESELECTABLE          = 116 
+GETATTRIBUTES                   = 117 
+GETUDTS                         = 118
+GETVERSIONCOLUMNS               = 119 
+GETLOBCHUNK                     = 120
+GETLASTSTATEMENTTIMEMICROS      = 121
+
+
 
 
 # Error code values
@@ -320,6 +341,10 @@ PROTOCOL_VERSION12         = 12  # 06/28/2013   Added setQueryTimeout/PrepareCal
 PROTOCOL_VERSION13         = 13  # 01/24/2013   Added some JDBC methods
 PROTOCOL_VERSION14         = 14  # 02/18/2014   Changed strings in Types/TypeUtil.cpp - affected Python driver
 PROTOCOL_VERSION15         = 15  # 04/22/2014   openDatabase returns server-side connection id in response
+PROTOCOL_VERSION16         = 16  # 07/01/2014
+PROTOCOL_VERSION17         = 17  # 11/03/2014 Support for client sending last commit info
+PROTOCOL_VERSION18         = 18  # 02/19/2015 JDBC metadata updates
+PROTOCOL_VERSION19         = 19  # 05/01/2015 Server timing of statements
 #
 # The current protocol version of THIS driver.  The server will negotiate the lowest compatible version.
 #
