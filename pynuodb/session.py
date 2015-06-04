@@ -42,7 +42,6 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 from .crypt import ClientPassword, RC4Cipher
 
 import socket
-import string
 import struct
 import threading
 import sys

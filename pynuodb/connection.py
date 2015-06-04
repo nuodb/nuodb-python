@@ -15,15 +15,10 @@ from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
 
 import time
-import string
-import sys
-# http://www.python.org/dev/peps/pep-0249
 
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
-
-#schema='user', auto_commit=False
 
 def connect(database, host, user, password, options=None):
     """Creates a connection object.

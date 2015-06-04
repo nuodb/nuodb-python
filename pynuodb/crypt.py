@@ -21,7 +21,6 @@ __all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
 
 import hashlib
 import random
-import string
 import binascii
 import sys
 
@@ -283,8 +282,12 @@ class RC4Cipher:
     def transform(self, data):
         transformed = []
         state = self.__state
-
+        if type(data) is bytes:
+            data.decode("latin-1")
+        print("Data is ")
+        print(data)
         for char in data:
+
             self.__idx1 = (self.__idx1 + 1) % 256
             self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
             state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
