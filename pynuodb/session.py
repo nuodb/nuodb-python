@@ -42,7 +42,6 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 from .crypt import ClientPassword, RC4Cipher
 
 import socket
-import string
 import struct
 import threading
 import sys
@@ -67,7 +66,7 @@ class SessionException(Exception):
 class Session:
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
-    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>"
+    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>" #Why is this hard coded...
 
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
@@ -92,6 +91,8 @@ class Session:
         self.__cipherIn = None
 
         self.__service = service
+
+        self.__version = sys.version[0]
 
     @property
     def address(self):
@@ -195,7 +196,14 @@ class Session:
         lenStr = struct.pack("!I", len(message))
 
         try:
-            self.__sock.send(lenStr + message)
+            messageBuilder = None
+            if self.__version == '3':
+                messageBuilder = lenStr + bytes(message, 'latin-1')
+
+            else:
+                messageBuilder = lenStr + message
+
+            self.__sock.send(messageBuilder)
         except Exception:
             self.close()
             raise
@@ -206,9 +214,12 @@ class Session:
 
         try:
             lengthHeader = self.__readFully(4)
+            if self.__version == '3':
+                lengthHeader = bytes(lengthHeader, 'latin-1')
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
             
             msg = self.__readFully(msgLength)
+
 
         except Exception:
             self.close()
@@ -216,26 +227,25 @@ class Session:
 
         if self.__cipherIn:
             if doStrip:
-                msg = string.strip(self.__cipherIn.transform(msg))
+                msg = self.__cipherIn.transform(msg).lstrip()
             else:
                 msg = self.__cipherIn.transform(msg)
-
         return msg
 
 
     def __readFully(self, msgLength):
         msg = ""
-        
         while msgLength > 0:
             received = self.__sock.recv(msgLength)
-
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
-
-            msg = msg + received
-            msgLength = msgLength - len(received)
-
+            if self.__version == '3':
+                msg = received.decode('latin-1')
+                msgLength = msgLength - len(msg)
+            else:
+                msg = msg + received
+                msgLength = msgLength - len(received)
         return msg
 
     def close(self, force=False):

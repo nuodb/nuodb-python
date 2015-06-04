@@ -6,9 +6,6 @@ AUTH_TEST_STR = 'Success!'
 NULL                            = 1
 TRUE                            = 2
 FALSE                           = 3
-UUID                            = 200
-SCALEDCOUNT1                    = 199
-SCALEDCOUNT2                    = 225
 INTMINUS10                      = 10
 INTMINUS1                       = 19
 INT0                            = 20
@@ -17,33 +14,35 @@ INTLEN1                         = 52
 INTLEN8                         = 59
 SCALEDLEN0                      = 60
 SCALEDLEN8                      = 68
-DOUBLELEN0                      = 77
-DOUBLELEN8                      = 85
 UTF8COUNT1                      = 69
 UTF8COUNT4                      = 72
-UTF8LEN0                        = 109
-UTF8LEN39                       = 148
 OPAQUECOUNT1                    = 73
 OPAQUECOUNT4                    = 76
-OPAQUELEN0                      = 149
-OPAQUELEN39                     = 188
-BLOBLEN0                        = 189
-BLOBLEN4                        = 193
-CLOBLEN0                        = 194
-CLOBLEN4                        = 198
+DOUBLELEN0                      = 77
+DOUBLELEN8                      = 85
 MILLISECLEN0                    = 86     # milliseconds since January 1, 1970
 MILLISECLEN8                    = 94
 NANOSECLEN0                     = 95     # nanoseconds since January 1, 1970
 NANOSECLEN8                     = 103
 TIMELEN0                        = 104    # milliseconds since midnight
 TIMELEN4                        = 108
+UTF8LEN0                        = 109
+UTF8LEN39                       = 148
+OPAQUELEN0                      = 149
+OPAQUELEN39                     = 188
+BLOBLEN0                        = 189
+BLOBLEN4                        = 193
+CLOBLEN0                        = 194
+CLOBLEN4                        = 198
+SCALEDCOUNT1                    = 199
+UUID                            = 200
+SCALEDDATELEN1                  = 201
+SCALEDDATELEN8                  = 208
 SCALEDTIMELEN1                  = 209
 SCALEDTIMELEN8                  = 216
 SCALEDTIMESTAMPLEN1             = 217
 SCALEDTIMESTAMPLEN8             = 224
-SCALEDDATELEN1                  = 201
-SCALEDDATELEN8                  = 208
-
+SCALEDCOUNT2                    = 225
 
 # Protocol Messages
 FAILURE                         = 0
@@ -126,8 +125,8 @@ GETHOLDERPRIVILEGES             = 76
 ATTACHDEBUGGER                  = 77 
 DEBUGREQUEST                    = 78 
 GETSEQUENCEVALUE2               = 79 
-GETLIMIT                        = 80 
-SETLIMIT                        = 81 
+GETCONNECTIONLIMIT              = 80 
+SETCONNECTIONLIMIT              = 81 
 DELETEBLOBDATA                  = 82 
 EXECUTEBATCH                    = 83
 EXECUTEBATCHPREPAREDSTATEMENT   = 84
@@ -149,6 +148,27 @@ ROLLBACKTOSAVEPOINT             = 99
 SUPPORTSTRANSACTIONISOLATION    = 100 
 GETCATALOG                      = 101 
 GETCURRENTSCHEMA                = 102 
+PREPARECALL                     = 103
+EXECUTECALLABLESTATEMENT        = 104 
+SETQUERYTIMEOUT                 = 105 
+GETPROCEDURES                   = 106 
+GETPROCEDURECOLUMNS             = 107 
+GETSUPERTABLES                  = 108
+GETSUPERTYPES                   = 109 
+GETFUNCTIONS                    = 110 
+GETFUNCTIONCOLUMNS              = 111 
+GETTABLEPRIVILEGES              = 112 
+GETCOLUMNPRIVILEGES             = 113 
+GETCROSSREFERENCE               = 114 
+ALLPROCEDURESARECALLABLE        = 115 
+ALLTABLESARESELECTABLE          = 116 
+GETATTRIBUTES                   = 117 
+GETUDTS                         = 118
+GETVERSIONCOLUMNS               = 119 
+GETLOBCHUNK                     = 120
+GETLASTSTATEMENTTIMEMICROS      = 121
+
+
 
 
 # Error code values
@@ -320,6 +340,10 @@ PROTOCOL_VERSION12         = 12  # 06/28/2013   Added setQueryTimeout/PrepareCal
 PROTOCOL_VERSION13         = 13  # 01/24/2013   Added some JDBC methods
 PROTOCOL_VERSION14         = 14  # 02/18/2014   Changed strings in Types/TypeUtil.cpp - affected Python driver
 PROTOCOL_VERSION15         = 15  # 04/22/2014   openDatabase returns server-side connection id in response
+PROTOCOL_VERSION16         = 16  # 07/01/2014
+PROTOCOL_VERSION17         = 17  # 11/03/2014 Support for client sending last commit info
+PROTOCOL_VERSION18         = 18  # 02/19/2015 JDBC metadata updates
+PROTOCOL_VERSION19         = 19  # 05/01/2015 Server timing of statements
 #
 # The current protocol version of THIS driver.  The server will negotiate the lowest compatible version.
 #

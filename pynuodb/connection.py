@@ -15,14 +15,10 @@ from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
 
 import time
-import string
-
-# http://www.python.org/dev/peps/pep-0249
 
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
-#schema='user', auto_commit=False
 
 def connect(database, host, user, password, options=None):
     """Creates a connection object.
@@ -97,10 +93,12 @@ class Connection(object):
         parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
         if options:
             parameters.update(options)
+            if 'cipher' in options and options['cipher'] == 'None':
+                self.__session.set_encryption(False)
 
         version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
-
-        sessionKey = cp.computeSessionKey(string.upper(username), password, salt, serverKey)
+            
+        sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
         self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
         self.__session.check_auth()

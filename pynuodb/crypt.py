@@ -21,16 +21,22 @@ __all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
 
 import hashlib
 import random
-import string
 import binascii
+import sys
+
+systemVersion = sys.version[0]
 
 def toHex(bigInt):
-    hexStr = (hex(bigInt)[2:])[:-1]
+    #Python 3 will no longer insert an L for type formatting
+    if systemVersion is '3':
+        hexStr = (hex(bigInt)[2:])
+    else:
+        hexStr = (hex(bigInt)[2:])[:-1]
     # if the number is the right size then the hex string will be missing one
     # character that some platforms assume, so force an even length encoding
     if len(hexStr) % 2 == 1:
         hexStr = "0" + hexStr
-    return string.upper(hexStr)
+    return hexStr.upper()
 
 def fromHex(hexStr):
     return int(hexStr, 16)
@@ -87,6 +93,9 @@ def toByteString(bigInt):
 def fromByteString(byteStr):
     result = 0
     shiftCount = 0
+    if systemVersion == '3':
+        if type(byteStr) is bytes:
+            byteStr = byteStr.decode('latin-1')
     for b in reversed(byteStr):
         result = result | ((ord(b) & 0xff) << shiftCount)
         shiftCount = shiftCount + 8
@@ -111,11 +120,17 @@ class RemoteGroup:
         primeBytes = toByteString(self.__primeInt)
         generatorBytes = toByteString(self.__generatorInt)
         paddingLength = len(primeBytes) - len(generatorBytes)
+        paddingBuffer = chr(0) * paddingLength
 
         md = hashlib.sha1()
+        if systemVersion == '3':
+            primeBytes = primeBytes.encode('latin-1') 
+            generatorBytes = generatorBytes.encode('latin-1') 
+            paddingBuffer = paddingBuffer.encode('latin-1') 
+
         md.update(primeBytes)
         if paddingLength > 0:
-            md.update(chr(0) * paddingLength)
+            md.update(paddingBuffer)
         md.update(generatorBytes)
 
         self.__k = fromByteString(md.digest())
@@ -134,9 +149,13 @@ class RemotePassword:
     def __init__(self):
         self.__group = RemoteGroup()
 
+
     def _getUserHash(self, account, password, salt):
         md = hashlib.sha1()
-        md.update(account + ":" + password)
+        userInfo = account + ":" + password
+        if systemVersion == '3':
+            userInfo = userInfo.encode('latin-1')
+        md.update(userInfo)
         hash1 = md.digest()
 
         md = hashlib.sha1()
@@ -150,6 +169,11 @@ class RemotePassword:
         serverBytes = toByteString(serverPublicKey)
 
         md = hashlib.sha1()
+
+        if systemVersion == '3':
+            clientBytes = clientBytes.encode('latin-1') 
+            serverBytes = serverBytes.encode('latin-1') 
+
         md.update(clientBytes)
         md.update(serverBytes)
 
@@ -186,6 +210,8 @@ class ClientPassword(RemotePassword):
         secretBytes = toByteString(sessionSecret)
 
         md = hashlib.sha1()
+        if systemVersion == '3':
+            secretBytes = secretBytes.encode('latin-1')
         md.update(secretBytes)
 
         return md.digest()
@@ -235,27 +261,42 @@ class ServerPassword(RemotePassword):
 class RC4Cipher:
 
     def __init__(self, key):
-        self.__S = range(256)
-        self.__s1 = 0
-        self.__s2 = 0
+        if systemVersion == '3':
+            self.__state = list(range(256))
+            key = key.decode('latin-1')
+        else:
+            self.__state = range(256)
+        self.__idx1 = 0
+        self.__idx2 = 0
 
-        state = self.__S
+        state = self.__state
 
         j = 0
         for i in range(256):
-            j = (j + state[i] + ord(key[i % len(key)])) % 256
+            byteString = key[i % len(key)]
+            byteString = ord(byteString)
+
+            j = (j + state[i] + byteString) % 256
             state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
         transformed = []
-        state = self.__S
-
+        state = self.__state
+        if type(data) is bytes:
+            data.decode("latin-1")
         for char in data:
-            self.__s1 = (self.__s1 + 1) % 256
-            self.__s2 = (self.__s2 + state[self.__s1]) % 256
-            state[self.__s1], state[self.__s2] = state[self.__s2], state[self.__s1]
-            cipherByte = ord(char) ^ state[(state[self.__s1] + state[self.__s2]) % 256]
-            transformed.append(chr(cipherByte))
 
+            self.__idx1 = (self.__idx1 + 1) % 256
+            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
+            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
+            cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
+            transformed.append(chr(cipherByte))
         return ''.join(transformed)
 
+class NoCipher:
+
+    def __init__(self):
+        pass
+
+    def transform(self, data):
+        return data
