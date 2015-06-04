@@ -199,12 +199,12 @@ class Session:
         try:
             messageBuilder = None
             if self.__version == '3':
-                lenStr = lenStr.decode('utf-8')
-                messageBuilder = bytes(lenStr + message, 'utf-8')
+                messageBuilder = lenStr + bytes(message, 'latin-1')
+
             else:
                 messageBuilder = lenStr + message
-            self.__sock.send(messageBuilder)
 
+            self.__sock.send(messageBuilder)
         except Exception:
             self.close()
             raise
@@ -216,10 +216,11 @@ class Session:
         try:
             lengthHeader = self.__readFully(4)
             if self.__version == '3':
-                lengthHeader = bytes(lengthHeader, 'utf-8')
+                lengthHeader = bytes(lengthHeader, 'latin-1')
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
             
             msg = self.__readFully(msgLength)
+
 
         except Exception:
             self.close()
@@ -227,7 +228,7 @@ class Session:
 
         if self.__cipherIn:
             if doStrip:
-                msg = string.strip(self.__cipherIn.transform(msg))
+                msg = self.__cipherIn.transform(msg).lstrip()
             else:
                 msg = self.__cipherIn.transform(msg)
         return msg
@@ -241,7 +242,7 @@ class Session:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
             if self.__version == '3':
-                msg = received.decode('unicode_escape')
+                msg = received.decode('latin-1')
                 msgLength = msgLength - len(msg)
             else:
                 msg = msg + received

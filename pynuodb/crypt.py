@@ -28,7 +28,11 @@ import sys
 systemVersion = sys.version[0]
 
 def toHex(bigInt):
-    hexStr = (hex(bigInt)[2:])[:-1]
+    #Python 3 will no longer insert an L for type formatting
+    if systemVersion is '3':
+        hexStr = (hex(bigInt)[2:])
+    else:
+        hexStr = (hex(bigInt)[2:])[:-1]
     # if the number is the right size then the hex string will be missing one
     # character that some platforms assume, so force an even length encoding
     if len(hexStr) % 2 == 1:
@@ -92,7 +96,7 @@ def fromByteString(byteStr):
     shiftCount = 0
     if systemVersion == '3':
         if type(byteStr) is bytes:
-            byteStr = byteStr.decode('unicode_escape')
+            byteStr = byteStr.decode('latin-1')
     for b in reversed(byteStr):
         result = result | ((ord(b) & 0xff) << shiftCount)
         shiftCount = shiftCount + 8
@@ -121,9 +125,9 @@ class RemoteGroup:
 
         md = hashlib.sha1()
         if systemVersion == '3':
-            primeBytes = primeBytes.encode('utf-8')
-            generatorBytes = generatorBytes.encode('utf-8')
-            paddingBuffer = paddingBuffer.encode('utf-8')
+            primeBytes = primeBytes.encode('latin-1') 
+            generatorBytes = generatorBytes.encode('latin-1') 
+            paddingBuffer = paddingBuffer.encode('latin-1') 
 
         md.update(primeBytes)
         if paddingLength > 0:
@@ -151,7 +155,7 @@ class RemotePassword:
         md = hashlib.sha1()
         userInfo = account + ":" + password
         if systemVersion == '3':
-            userInfo = userInfo.encode('utf-8')
+            userInfo = userInfo.encode('latin-1')
         md.update(userInfo)
         hash1 = md.digest()
 
@@ -168,8 +172,8 @@ class RemotePassword:
         md = hashlib.sha1()
 
         if systemVersion == '3':
-            clientBytes = clientBytes.encode('utf-8')
-            serverBytes = serverBytes.encode('utf-8')
+            clientBytes = clientBytes.encode('latin-1') 
+            serverBytes = serverBytes.encode('latin-1') 
 
         md.update(clientBytes)
         md.update(serverBytes)
@@ -208,7 +212,7 @@ class ClientPassword(RemotePassword):
 
         md = hashlib.sha1()
         if systemVersion == '3':
-            secretBytes = secretBytes.encode('utf-8')
+            secretBytes = secretBytes.encode('latin-1')
         md.update(secretBytes)
 
         return md.digest()
@@ -260,7 +264,7 @@ class RC4Cipher:
     def __init__(self, key):
         if systemVersion == '3':
             self.__state = list(range(256))
-            key = key.decode('unicode_escape')
+            key = key.decode('latin-1')
         else:
             self.__state = range(256)
         self.__idx1 = 0

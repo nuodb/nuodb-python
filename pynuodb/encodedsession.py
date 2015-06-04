@@ -59,7 +59,7 @@ class EncodedSession(Session):
                 supporting function.
     exchangeMessages -- Exchange the pending message for an optional response from the server.
     setCiphers -- Re-sets the incoming and outgoing ciphers for the session.
-
+    set_encryption -- Takes a value of type boolean. Setting encryption to False will result in disabling encryption after the handshake
     Private Functions:
     __init__ -- Constructor for the EncodedSession class.
     _peekTypeCode -- Looks at the next Type Code off the session. (Does not move inpos)
@@ -93,14 +93,13 @@ class EncodedSession(Session):
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
         for (k, v) in parameters.items():
             self.putString(k).putString(v)
+
         self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
-
         version = self.getInt()
         serverKey = self.getString()
         salt = self.getString()
-
         return version, serverKey, salt
 
     def check_auth(self):
