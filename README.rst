@@ -1,83 +1,141 @@
+==============
 NuoDB - Python
 ==============
 
 .. image:: https://travis-ci.org/nuodb/nuodb-python.svg?branch=master
     :target: https://travis-ci.org/nuodb/nuodb-python
+.. image:: https://gemnasium.com/nuodb/nuodb-python.svg
+    :target: https://gemnasium.com/nuodb/nuodb-python
+.. image:: https://landscape.io/github/nuodb/nuodb-python/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/nuodb/nuodb-python/master
+   :alt: Code Health
 
-This is the official Python package for `NuoDB <http://www.nuodb.com>`_.
+.. contents::
+
+This package contains the official pure-Python NuoDB_ client library that
+provides both a standard `PEP 249`_ SQL API, a NuoDB administration API.
 
 Requirements
 ------------
 
-If you haven't already, `Download and Install NuoDB <http://nuodb.com/download-nuodb/>`_.
-Currently the driver supports Python version 2.7 only.
+* Python -- one of the following:
 
-To run the tests, you will also need `pytz <http://pytz.sourceforge.net/>`_::
+  - CPython_ >= 2.7 or <= 3.4
 
-    pip install pytz
+* NuoDB -- one of the following:
 
-Install
--------
+  - NuoDB_ >= 2.0.4
 
-Install from source by running::
+If you haven't done so already, `Download and Install NuoDB <http://dev.nuodb.com/download-nuodb/request/download/>`_.
 
-    git clone git://github.com/nuodb/nuodb-python.git
-    cd nuodb-python
-    sudo python setup.py install
+Installation
+------------
 
-Or install from pip::
+The last stable release is available on PyPI and can be installed with ``pip``::
 
-    pip install pynuodb
+    $ pip install pynuodb
+
+Alternatively (e.g. if ``pip`` is not available), a tarball can be downloaded
+from GitHub and installed with Setuptools::
+
+    $ curl -L https://github.com/nuodb/nuodb-python/archive/master.tar.gz | tar xz
+    $ cd nuodb-python*
+    $ python setup.py install
+    $ # The folder nuodb-python* can be safely removed now.
 
 Example
 -------
 
-The following examples assume that you have the quickstart database running (test@localhost).
-If you don't, you can start it by running /opt/nuodb/run-quickstart.
+Here is an example using the `PEP 249`_ API that creates some tables, inserts
+some data, runs a query, and cleans up after itself:
 
-Simple example for connecting and reading from an existing table::
-
-    import pynuodb
-
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
-    cursor = connection.cursor()
-    cursor.arraysize = 3
-    cursor.execute("select * from hockey")
-    print cursor.fetchone()
-
-Data can be inserted into a table either explicitly within the execute method::
+.. code:: python
 
     import pynuodb
 
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
+    options = {"schema": "test"}
+    connect_kw_args = {'database': "test", 'host': "localhost", 'user': "dba", 'password': "dba", 'options': options}
+
+    connection = pynuodb.connect(**connect_kw_args)
     cursor = connection.cursor()
 
-    cursor.execute("create table typetest (bool_col boolean, date_col date, " +
-                   "string_col string, integer_col integer)")
+    stmt_drop = "DROP TABLE IF EXISTS names"
+    cursor.execute(stmt_drop)
 
-    cursor.execute("insert into typetest values ('False', '2012-10-03', 'hello world', 42)")
-    cursor.execute("select * from typetest")
-    print cursor.fetchone()
+    stmt_create = """
+    CREATE TABLE names (
+        id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name VARCHAR(30) DEFAULT '' NOT NULL,
+        age INTEGER DEFAULT 0
+    )"""
+    cursor.execute(stmt_create)
 
-or using variables::
+    names = (('Greg', 17,), ('Marsha', 16,), ('Jan', 14,))
+    stmt_insert = "INSERT INTO names (name, age) VALUES (?, ?)"
+    cursor.executemany(stmt_insert, names)
 
-    import pynuodb
+    connection.commit()
 
-    connection = pynuodb.connect("test", "localhost", "dba", "goalie", options={'schema':'hockey'})
-    cursor = connection.cursor()
+    age_limit = 15
+    stmt_select = "SELECT id, name FROM names where age > ? ORDER BY id"
+    cursor.execute(stmt_select, (age_limit,))
+    print("Results:")
+    for row in cursor.fetchall():
+        print("%d | %s" % (row[0], row[1]))
 
-    cursor.execute("create table variabletest (bool_col boolean, date_col date, " +
-                   "string_col string, integer_col integer)")
+    cursor.execute(stmt_drop)
+    cursor.close()
+    connection.close()
 
-    test_vals = (False, pynuodb.Date(2012,10,3), "hello world", 42)
-    cursor.execute("insert into variabletest values (?, ?, ?, ?)", test_vals)
-    cursor.execute("select * from variabletest")
-    print cursor.fetchone()
+All sorts of management and monitoring operations may be performed through the
+NuoDB Python API, a few below include listening to database state, and shutting
+down a database:
 
-For further information on getting started with NuoDB, please refer to the
-`NuoDB Documentation <http://doc.nuodb.com/display/doc/NuoDB+at+a+Glance>`_.
+.. code:: python
+
+    import time
+    from pynuodb import entity
+
+    class DatabaseListener(object):
+        def __init__(self):
+            self.db_left = False
+
+        def process_left(self, process):
+            print("process left: %s" % process)
+
+        def database_left(self, database):
+            print("database shutdown: %s" % database)
+            self.db_left = True
+
+    listener = DatabaseListener()
+    domain = entity.Domain("localhost", "domain", "bird", listener)
+    try:
+        database = domain.get_database("test")
+        if database is not None:
+            database.shutdown(graceful=True)
+            for i in range(1, 20):
+                time.sleep(0.25)
+                if listener.db_left:
+                    time.sleep(1)
+                    break
+    finally:
+        domain.disconnect()
+
+For further information on getting started with NuoDB, please refer to the Documentation_.
+
+Resources
+---------
+
+DB-API 2.0: http://www.python.org/dev/peps/pep-0249/
+
+NuoDB Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
 
 License
 -------
 
 PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
+
+.. _Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
+.. _NuoDB: http://www.nuodb.com/
+.. _CPython: http://www.python.org/
+.. _PEP 249: https://www.python.org/dev/peps/pep-0249/
