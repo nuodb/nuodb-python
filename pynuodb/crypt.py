@@ -293,7 +293,7 @@ class RC4Cipher:
             transformed.append(chr(cipherByte))
         return ''.join(transformed)
 
-class NoCipher:
+class NoCipher(object):
 
     def __init__(self):
         pass
