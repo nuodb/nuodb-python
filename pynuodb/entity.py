@@ -260,7 +260,7 @@ class Domain(BaseListener):
         graceful -- (default True) means that the database will first
         be quiesced and then shutdown.
         """
-        for database in self.__databases.itervalues():
+        for database in list(self.__databases.values()):
             database.shutdown(graceful)
 
     def message_received(self, root):
@@ -861,7 +861,7 @@ class Database:
         failure_count = 0
         failure_text = ""
 
-        for process in self.__processes.values():
+        for process in list(self.__processes.values()):
             if process.is_transactional:
                 try:
                     if graceful:
@@ -873,7 +873,7 @@ class Database:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
-        for process in self.__processes.values():
+        for process in list(self.__processes.values()):
             if not process.is_transactional:
                 try:
                     if graceful:

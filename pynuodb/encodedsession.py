@@ -9,6 +9,7 @@ __all__  = [ 'EncodedSession' ]
 import uuid
 import struct
 import decimal
+import sys
 
 from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString, NoCipher
 from .session import Session, SessionException
@@ -18,6 +19,8 @@ from .exception import DataError, EndOfStream, ProgrammingError, db_error_handle
 from .datatype import TypeObjectFromNuodb
 from .statement import Statement, PreparedStatement, ExecutionResult
 from .result_set import ResultSet
+
+systemVersion = sys.version[0]
 
 class EncodedSession(Session):
     """Class for representing an encoded session with the database.
@@ -437,6 +440,8 @@ class EncodedSession(Session):
             packed = chr(protocol.OPAQUELEN0 + length) + data
         else:
             lengthStr = toByteString(length)
+            if systemVersion is '3':
+                data = data.decode('latin-1')
             packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + data
         self.__output += packed
         return self
@@ -444,6 +449,8 @@ class EncodedSession(Session):
     def putDouble(self, value):
         """Appends a Double to the message."""
         valueStr = struct.pack('!d', value)
+        if systemVersion is '3':
+            valueStr = valueStr.decode('latin-1')
         packed = chr(protocol.DOUBLELEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
@@ -614,6 +621,8 @@ class EncodedSession(Session):
             if typeCode < protocol.DOUBLELEN8:
                 for i in range(0, protocol.DOUBLELEN8 - typeCode):
                     test = test + chr(0)
+                if systemVersion is '3':
+                    return struct.unpack('!d', bytes(test, 'latin-1'))
             return struct.unpack('!d', test)[0]
             
         raise DataError('Not a double')

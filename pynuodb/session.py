@@ -246,6 +246,7 @@ class Session:
             else:
                 msg = msg + received
                 msgLength = msgLength - len(received)
+
         return msg
 
     def close(self, force=False):
