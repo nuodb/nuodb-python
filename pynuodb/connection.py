@@ -59,7 +59,7 @@ class Connection(object):
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
 
-    from .exception import Warning, Error, InterfaceError, DatabaseError, DataError, \
+    from .exception import Warning, Error, InterfaceError, DatabaseError, \
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
     

@@ -103,7 +103,7 @@ def fromByteString(byteStr):
     return result
 
 
-class RemoteGroup:
+class RemoteGroup(object):
 
     defaultPrime = "EEAF0AB9ADB38DD69C33F80AFA8FC5E86072618775FF3C0B9EA2314C" + \
         "9C256576D674DF7496EA81D3383B4813D692C6E0E0D5D8E250B98BE4" + \
@@ -144,7 +144,7 @@ class RemoteGroup:
     def getK(self):
         return self.__k
 
-class RemotePassword:
+class RemotePassword(object):
 
     def __init__(self):
         self.__group = RemoteGroup()
@@ -258,7 +258,7 @@ class ServerPassword(RemotePassword):
 
         return md.digest()
 
-class RC4Cipher:
+class RC4Cipher(object):
 
     def __init__(self, key):
         if systemVersion == '3':

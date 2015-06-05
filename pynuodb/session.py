@@ -63,7 +63,7 @@ class SessionException(Exception):
         return repr(self.__value)
 
 
-class Session:
+class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
     __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>" #Why is this hard coded...
@@ -313,7 +313,7 @@ class SessionMonitor(threading.Thread):
         self.__session.close(force=True)
 
 
-class BaseListener:
+class BaseListener(object):
 
     def message_received(self, root):
         pass

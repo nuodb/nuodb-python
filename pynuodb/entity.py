@@ -441,7 +441,7 @@ class Domain(BaseListener):
         self.__session.send(ElementTree.tostring(root))
 
 
-class Peer:
+class Peer(object):
     """Represents a peer (or host) in the domain."""
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
@@ -760,7 +760,7 @@ class Peer:
             self.__inet_sock_addr = inet_sock_addr
         return self.__inet_sock_addr
 
-class Database:
+class Database(object):
     
     """Represents a NuoDB database."""
 
@@ -950,7 +950,7 @@ class Database:
 
         return False
 
-class Process:
+class Process(object):
     
     """Represents a NuoDB process (TE or SM)"""
 
@@ -1138,7 +1138,7 @@ class Process:
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
 
 
-class Template:
+class Template(object):
     success_message = "Success"
 
     @staticmethod
