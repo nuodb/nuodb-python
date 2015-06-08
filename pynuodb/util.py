@@ -52,7 +52,7 @@ class _StandardOutListener(BaseListener):
         print(ElementTree.tostring(root))
 
 
-class EngineMonitor:
+class EngineMonitor(object):
 
     def __init__(self, monitor, session):
         self.__monitor = monitor

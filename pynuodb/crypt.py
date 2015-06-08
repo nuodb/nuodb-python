@@ -103,7 +103,7 @@ def fromByteString(byteStr):
     return result
 
 
-class RemoteGroup:
+class RemoteGroup(object):
 
     defaultPrime = "EEAF0AB9ADB38DD69C33F80AFA8FC5E86072618775FF3C0B9EA2314C" + \
         "9C256576D674DF7496EA81D3383B4813D692C6E0E0D5D8E250B98BE4" + \
@@ -144,7 +144,7 @@ class RemoteGroup:
     def getK(self):
         return self.__k
 
-class RemotePassword:
+class RemotePassword(object):
 
     def __init__(self):
         self.__group = RemoteGroup()
@@ -258,7 +258,7 @@ class ServerPassword(RemotePassword):
 
         return md.digest()
 
-class RC4Cipher:
+class RC4Cipher(object):
 
     def __init__(self, key):
         if systemVersion == '3':
@@ -285,7 +285,8 @@ class RC4Cipher:
         if type(data) is bytes:
             data.decode("latin-1")
         for char in data:
-
+            if type(char) is int:
+                char = chr(char)
             self.__idx1 = (self.__idx1 + 1) % 256
             self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
             state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
@@ -293,7 +294,7 @@ class RC4Cipher:
             transformed.append(chr(cipherByte))
         return ''.join(transformed)
 
-class NoCipher:
+class NoCipher(object):
 
     def __init__(self):
         pass

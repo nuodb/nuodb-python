@@ -225,6 +225,10 @@ JAVA_ERROR                      = -53
 INVALID_FIELD                   = -54
 INVALID_INDEX_NULL              = -55
 INVALID_OPERATION               = -56
+INVALID_STATISTICS              = -57
+INVALID_GENERATOR               = -58
+FINAL_ENUM_MEMBER_IS_UNUSED     = -59
+
 
 DATA_ERRORS = {COMPILE_ERROR,
                RUNTIME_ERROR,

@@ -260,7 +260,7 @@ class Domain(BaseListener):
         graceful -- (default True) means that the database will first
         be quiesced and then shutdown.
         """
-        for database in self.__databases.itervalues():
+        for database in list(self.__databases.values()):
             database.shutdown(graceful)
 
     def message_received(self, root):
@@ -441,7 +441,7 @@ class Domain(BaseListener):
         self.__session.send(ElementTree.tostring(root))
 
 
-class Peer:
+class Peer(object):
     """Represents a peer (or host) in the domain."""
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
@@ -760,7 +760,7 @@ class Peer:
             self.__inet_sock_addr = inet_sock_addr
         return self.__inet_sock_addr
 
-class Database:
+class Database(object):
     
     """Represents a NuoDB database."""
 
@@ -861,7 +861,7 @@ class Database:
         failure_count = 0
         failure_text = ""
 
-        for process in self.__processes.values():
+        for process in list(self.__processes.values()):
             if process.is_transactional:
                 try:
                     if graceful:
@@ -873,7 +873,7 @@ class Database:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
 
-        for process in self.__processes.values():
+        for process in list(self.__processes.values()):
             if not process.is_transactional:
                 try:
                     if graceful:
@@ -950,7 +950,7 @@ class Database:
 
         return False
 
-class Process:
+class Process(object):
     
     """Represents a NuoDB process (TE or SM)"""
 
@@ -1138,7 +1138,7 @@ class Process:
         return queryEngine(self.address, self.port, query_type, pwd, msg_body)
 
 
-class Template:
+class Template(object):
     success_message = "Success"
 
     @staticmethod

@@ -45,7 +45,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], 0)
 
         finally:
@@ -71,7 +71,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
         finally:
@@ -95,7 +95,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
         finally:
@@ -119,7 +119,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
         finally:
@@ -202,7 +202,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i - 1])
 
         finally:
@@ -353,7 +353,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], '')
 
         finally:
@@ -379,7 +379,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
 
         finally:
@@ -407,7 +407,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
 
         finally:
@@ -432,7 +432,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
 
 
@@ -638,7 +638,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
         finally:
             try:
@@ -661,7 +661,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, len(row)):
+            for i in range(1, len(row)):
                 self.assertEqual(row[i], test_vals[i-1])
         finally:
             try:
@@ -825,7 +825,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            for i in xrange(1, 3):
+            for i in range(1, 3):
                 self.assertEqual(row[i], vals[i - 1])
 
             self.assertIsInstance(row[3], pynuodb.Timestamp)
@@ -849,7 +849,7 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[5].month, vals[4].month)
             self.assertEqual(row[5].day, vals[4].day)
 
-            for i in xrange(6, len(row)):
+            for i in range(6, len(row)):
                 self.assertEqual(row[i], vals[i - 1])
 
         finally:
