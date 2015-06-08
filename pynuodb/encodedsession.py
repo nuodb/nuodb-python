@@ -724,6 +724,31 @@ class EncodedSession(Session):
 
         raise DataError('Not a UUID')
 
+    #Deprecated
+    def getScaledCount1(self):
+        typeCode = self._getTypeCode()
+        if typeCode is protocol.SCALEDCOUNT1:
+            length = fromByteString(self._takeBytes(1))
+            scale = fromByteString(self._takeBytes(1))
+            scaledcount = self._takeBytes(length)
+            return scaledcount
+
+        raise DataError('Not a Scaled Count 1')
+
+    def getScaledCount2(self):
+        typeCode = self._getTypeCode()
+        if typeCode is protocol.SCALEDCOUNT2:
+            scale = decimal.Decimal(fromByteString(self._takeBytes(1)))
+            sign = fromSignedByteString(self._takeBytes(1))
+            length = fromByteString(self._takeBytes(1))
+            decimal.getcontext().prec = length * 16 #length in bytes * 2^4 per byte
+            scaledcount = fromByteString(self._takeBytes(length))
+            scaledcount = decimal.Decimal(scaledcount * sign)
+            scaledcount /= 10**scale
+            return scaledcount
+
+        raise DataError('Not a Scaled Count 2')
+
     def getValue(self):
         """Determine the datatype of the next value off the session, then call the
         supporting function.
@@ -749,9 +774,17 @@ class EncodedSession(Session):
             return self.getBoolean()
         
         # get uuid type
-        elif typeCode in [protocol.UUID, protocol.SCALEDCOUNT1, protocol.SCALEDCOUNT2]:
+        elif typeCode is protocol.UUID:
             return self.getUUID()
-        
+
+        # get Scaled Count 1 type
+        elif typeCode is protocol.SCALEDCOUNT1:
+            return self.getScaledCount1()
+
+        # get Scaled Count 2 type
+        elif typeCode is protocol.SCALEDCOUNT2:
+            return self.getScaledCount2()
+
         # get scaled int type
         elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
