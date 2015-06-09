@@ -724,27 +724,17 @@ class EncodedSession(Session):
 
         raise DataError('Not a UUID')
 
-    #Deprecated
-    def getScaledCount1(self):
-        typeCode = self._getTypeCode()
-        if typeCode is protocol.SCALEDCOUNT1:
-            length = fromByteString(self._takeBytes(1))
-            scale = fromByteString(self._takeBytes(1))
-            scaledcount = self._takeBytes(length)
-            return scaledcount
-
-        raise DataError('Not a Scaled Count 1')
-
     def getScaledCount2(self):
+        """ Read a scaled and signed decimal from the session """
         typeCode = self._getTypeCode()
         if typeCode is protocol.SCALEDCOUNT2:
             scale = decimal.Decimal(fromByteString(self._takeBytes(1)))
             sign = fromSignedByteString(self._takeBytes(1))
+            sign = 1 if sign < 0 else 0
             length = fromByteString(self._takeBytes(1))
-            decimal.getcontext().prec = length * 16 #length in bytes * 2^4 per byte
-            scaledcount = fromByteString(self._takeBytes(length))
-            scaledcount = decimal.Decimal(scaledcount * sign)
-            scaledcount /= 10**scale
+            value = fromByteString(self._takeBytes(length))
+            value = tuple(int(i) for i in str(abs(value)))
+            scaledcount = decimal.Decimal((sign, value, int(scale)))
             return scaledcount
 
         raise DataError('Not a Scaled Count 2')
