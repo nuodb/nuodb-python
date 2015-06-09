@@ -391,6 +391,7 @@ class EncodedSession(Session):
         Appends a Scaled Integer value to the message.
         @type value decimal.Decimal
         """
+        value += 0
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
@@ -734,7 +735,7 @@ class EncodedSession(Session):
             length = fromByteString(self._takeBytes(1))
             value = fromByteString(self._takeBytes(length))
             value = tuple(int(i) for i in str(abs(value)))
-            scaledcount = decimal.Decimal((sign, value, int(scale)))
+            scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
             return scaledcount
 
         raise DataError('Not a Scaled Count 2')
