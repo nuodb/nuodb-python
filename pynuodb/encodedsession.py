@@ -568,6 +568,7 @@ class EncodedSession(Session):
 
         raise DataError('Not an integer')
 
+    #Does not preserve E notation
     def getScaledInt(self):
         """Read the next Scaled Integer value off the session."""
         typeCode = self._getTypeCode()
@@ -678,7 +679,6 @@ class EncodedSession(Session):
 
         raise DataError('Not a clob')
 
-    #Does not preserve E notation
     def getScaledTime(self):
         """Read the next Scaled Time value off the session."""
         typeCode = self._getTypeCode()
@@ -720,9 +720,6 @@ class EncodedSession(Session):
             return uuid.UUID(bytes=self._takeBytes(16))
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
-            pass
-        if self._getTypeCode() == protocol.SCALEDCOUNT2:
-            # version 11 and later
             pass
 
         raise DataError('Not a UUID')
@@ -767,7 +764,7 @@ class EncodedSession(Session):
             return self.getBoolean()
         
         # get uuid type
-        elif typeCode is protocol.UUID:
+        elif typeCode is [protocol.UUID, protocol.SCALEDCOUNT1]:
             return self.getUUID()
 
         # get Scaled Count 2 type
