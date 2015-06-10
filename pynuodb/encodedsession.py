@@ -386,12 +386,13 @@ class EncodedSession(Session):
         self.__output += packed
         return self
 
+    #Does not preserve E notation
     def putScaledInt(self, value):
         """
         Appends a Scaled Integer value to the message.
         @type value decimal.Decimal
         """
-        value += 0
+        #value += 0
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
@@ -676,7 +677,8 @@ class EncodedSession(Session):
             return self._takeBytes(strLength)
 
         raise DataError('Not a clob')
-    
+
+    #Does not preserve E notation
     def getScaledTime(self):
         """Read the next Scaled Time value off the session."""
         typeCode = self._getTypeCode()
@@ -767,7 +769,7 @@ class EncodedSession(Session):
         # get uuid type
         elif typeCode is protocol.UUID:
             return self.getUUID()
-            
+
         # get Scaled Count 2 type
         elif typeCode is protocol.SCALEDCOUNT2:
             return self.getScaledCount2()
