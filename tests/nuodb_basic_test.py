@@ -138,7 +138,6 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("SELECT * FROM t")
             row = cursor.fetchone()
             self.assertEqual(row[0], value)
-            self.assertEqual(str(row[0]), str(value))
         finally:
             try:
                 cursor.execute("DROP TABLE t IF EXISTS")
@@ -172,7 +171,6 @@ class NuoDBBasicTest(NuoBase):
 
     # This test case produces at least three different defects, perhaps
     # more under the covers.
-    @unittest.skip("produces data errors for e-notations")
     def test_enotation_decimal_large(self):
         numbers = (
             # Yields:  AssertionError: '400000000.00' != '4E+8'

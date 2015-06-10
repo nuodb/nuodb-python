@@ -57,7 +57,7 @@ class Cursor(object):
         self.description = None
         self.rowcount = -1
         self.colcount = -1
-        
+        self.rownumber = 0
         self.__query = None
         
     @property    
@@ -123,6 +123,7 @@ class Cursor(object):
         # TODO: ???
         if self.rowcount < 0:
             self.rowcount = -1
+        self.rownumber = 0
 
     def _execute(self, operation):
         """Handles operations without parameters."""
@@ -153,7 +154,7 @@ class Cursor(object):
         self._check_closed()
         if self._result_set is None:
             raise Error("Previous execute did not produce any results or no call was issued yet")
-
+        self.rownumber += 1
         return self._result_set.fetchone(self.session)
 
     def fetchmany(self, size=None):
@@ -172,7 +173,6 @@ class Cursor(object):
             else:
                 fetched_rows.append(row)
                 num_fetched_rows += 1
-        
         return fetched_rows
 
     def fetchall(self):
@@ -186,7 +186,6 @@ class Cursor(object):
                 break
             else:
                 fetched_rows.append(row)
-                
         return fetched_rows   
 
     def nextset(self):

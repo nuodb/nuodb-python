@@ -386,11 +386,14 @@ class EncodedSession(Session):
         self.__output += packed
         return self
 
+    #Does not preserve E notation
     def putScaledInt(self, value):
         """
         Appends a Scaled Integer value to the message.
         @type value decimal.Decimal
         """
+        #Convert the decimal's notation into decimal
+        value += 0
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
@@ -566,6 +569,7 @@ class EncodedSession(Session):
 
         raise DataError('Not an integer')
 
+    #Does not preserve E notation
     def getScaledInt(self):
         """Read the next Scaled Integer value off the session."""
         typeCode = self._getTypeCode()
@@ -675,7 +679,7 @@ class EncodedSession(Session):
             return self._takeBytes(strLength)
 
         raise DataError('Not a clob')
-    
+
     def getScaledTime(self):
         """Read the next Scaled Time value off the session."""
         typeCode = self._getTypeCode()
@@ -718,11 +722,23 @@ class EncodedSession(Session):
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
             pass
-        if self._getTypeCode() == protocol.SCALEDCOUNT2:
-            # version 11 and later
-            pass
 
         raise DataError('Not a UUID')
+
+    def getScaledCount2(self):
+        """ Read a scaled and signed decimal from the session """
+        typeCode = self._getTypeCode()
+        if typeCode is protocol.SCALEDCOUNT2:
+            scale = decimal.Decimal(fromByteString(self._takeBytes(1)))
+            sign = fromSignedByteString(self._takeBytes(1))
+            sign = 1 if sign < 0 else 0
+            length = fromByteString(self._takeBytes(1))
+            value = fromByteString(self._takeBytes(length))
+            value = tuple(int(i) for i in str(abs(value)))
+            scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
+            return scaledcount
+
+        raise DataError('Not a Scaled Count 2')
 
     def getValue(self):
         """Determine the datatype of the next value off the session, then call the
@@ -749,9 +765,13 @@ class EncodedSession(Session):
             return self.getBoolean()
         
         # get uuid type
-        elif typeCode in [protocol.UUID, protocol.SCALEDCOUNT1, protocol.SCALEDCOUNT2]:
+        elif typeCode is [protocol.UUID, protocol.SCALEDCOUNT1]:
             return self.getUUID()
-        
+
+        # get Scaled Count 2 type
+        elif typeCode is protocol.SCALEDCOUNT2:
+            return self.getScaledCount2()
+
         # get scaled int type
         elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
