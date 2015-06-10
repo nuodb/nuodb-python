@@ -767,11 +767,7 @@ class EncodedSession(Session):
         # get uuid type
         elif typeCode is protocol.UUID:
             return self.getUUID()
-
-        # get Scaled Count 1 type
-        elif typeCode is protocol.SCALEDCOUNT1:
-            return self.getScaledCount1()
-
+            
         # get Scaled Count 2 type
         elif typeCode is protocol.SCALEDCOUNT2:
             return self.getScaledCount2()
