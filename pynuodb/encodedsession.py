@@ -43,6 +43,7 @@ class EncodedSession(Session):
     putScaledTime -- Appends a Scaled Time value to the message.
     putScaledTimestamp -- Appends a Scaled Timestamp value to the message.    
     putScaledDate -- Appends a Scaled Date value to the message.
+    putScaledCount2 -- Appends a scaled and signed decimal to the message
     putValue -- Determines the probable type of the value and calls the supporting function.
     getInt -- Read the next Integer value off the session.
     getScaledInt -- Read the next Scaled Integer value off the session.
@@ -396,6 +397,11 @@ class EncodedSession(Session):
         value += 0
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
+        
+        #If our length is more than 9 bytes we will need to send the data using ScaledCount2
+        if len(valueStr) > 9:
+            return self.putScaledCount2(value)
+
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
@@ -528,6 +534,15 @@ class EncodedSession(Session):
             packed = chr(protocol.SCALEDDATELEN1) + chr(0) + chr(0)
         else:  
             packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
+        self.__output += packed
+        return self
+
+    def putScaledCount2(self, value):
+        """ Appends a scaled and signed decimal to the message """
+        scale = abs(value.as_tuple()[2])
+        sign = "1" if value.as_tuple()[0] == 0 else "-1"
+        value = toSignedByteString(int(value * decimal.Decimal(10**scale)))
+        packed = chr(protocol.SCALEDCOUNT2) + chr(scale) + sign + chr(len(value)) + value
         self.__output += packed
         return self
 
