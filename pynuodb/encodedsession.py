@@ -392,7 +392,7 @@ class EncodedSession(Session):
         Appends a Scaled Integer value to the message.
         @type value decimal.Decimal
         """
-        #value += 0
+        value += 0
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
