@@ -399,7 +399,7 @@ class EncodedSession(Session):
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
 
         #If our length is more than 9 bytes we will need to send the data using ScaledCount2
-        if len(valueStr) > 9:
+        if len(valueStr) > 8:
             return self.putScaledCount2(value)
 
         packed = chr(protocol.SCALEDLEN0 + len(valueStr)) + chr(scale) + valueStr
