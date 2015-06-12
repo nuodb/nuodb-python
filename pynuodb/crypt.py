@@ -283,10 +283,9 @@ class RC4Cipher(object):
         transformed = []
         state = self.__state
         if type(data) is bytes:
-            data.decode("latin-1")
+            data = data.decode("latin-1")
+
         for char in data:
-            if type(char) is int:
-                char = chr(char)
             self.__idx1 = (self.__idx1 + 1) % 256
             self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
             state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
