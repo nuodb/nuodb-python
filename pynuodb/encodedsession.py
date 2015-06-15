@@ -190,7 +190,7 @@ class EncodedSession(Session):
         """
         @type statement Statement
         """
-        self._putMessageId(protocol.CLOSESTATMENT).putInt(statement.handle)
+        self._putMessageId(protocol.CLOSESTATEMENT).putInt(statement.handle)
         self._exchangeMessages(False)
 
     def create_prepared_statement(self, query):
