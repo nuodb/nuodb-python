@@ -510,8 +510,7 @@ class NuoDBBasicTest(NuoBase):
                 con.close()
 
     def test_date_types(self):
-        # Disabled until [DB-2251] gets fixed.
-        return None
+
         con = self._connect()
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
@@ -557,8 +556,8 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(row[3].year, test_vals[2].year)
             self.assertEqual(row[3].month, test_vals[2].month)
             self.assertEqual(row[3].day, test_vals[2].day)
-# Disabled DB-5497
-#            self.assertEqual(row[3].hour, test_vals[2].hour)
+
+            self.assertEqual(row[3].hour, test_vals[2].hour)
             self.assertEqual(row[3].minute, test_vals[2].minute)
             self.assertEqual(row[3].second, test_vals[2].second)
             self.assertEqual(row[3].microsecond, test_vals[2].microsecond)
