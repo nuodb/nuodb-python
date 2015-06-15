@@ -507,7 +507,7 @@ class EncodedSession(Session):
     def putScaledTime(self, value):
         """Appends a Scaled Time value to the message."""
         (ticks, scale) = datatype.TimeToTicks(value)
-        valueStr = toByteString(ticks)
+        valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDTIMELEN1) + chr(0) + chr(0)
         else:
@@ -702,7 +702,7 @@ class EncodedSession(Session):
 
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
-            time = fromByteString(self._takeBytes(typeCode - 208))
+            time = fromSignedByteString(self._takeBytes(typeCode - 208))
             ticks = decimal.Decimal(str(time)) / decimal.Decimal(10**scale)
             return datatype.TimeFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
