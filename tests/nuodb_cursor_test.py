@@ -23,12 +23,13 @@ class NuoDBCursorTest(NuoBase):
         self.assertEquals(descriptions[1][1], self.driver.NUMBER)
         self.assertEquals(descriptions[1][2], 11)
 
-    def test_cursor_rowcount_select(self):
+    def test_cursor_rowcount_and_last_query(self):
         con = self._connect()
         cursor = con.cursor()
-
-        cursor.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
+        statement = "SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL"
+        cursor.execute(statement)
         self.assertEquals(cursor.rowcount, -1)
+        self.assertEquals(cursor.query, statement)
 
     def test_insufficient_parameters(self):
         con = self._connect()
