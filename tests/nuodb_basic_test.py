@@ -726,7 +726,7 @@ class NuoDBBasicTest(NuoBase):
 
             vals = (
                         pynuodb.Binary("binary"),
-                        True,
+                        False,
                         pynuodb.Timestamp(1990, 12, 31, 19, 0, 0),
                         pynuodb.Time(10, 30, 44),
                         pynuodb.Date(1998, 1, 1),
