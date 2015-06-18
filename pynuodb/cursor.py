@@ -90,7 +90,7 @@ class Cursor(object):
 
     def callproc(self, procname, parameters=None):
         """Currently not supported."""
-        raise NotSupportedError
+        raise NotSupportedError("Currently unsupported")
 
     def execute(self, operation, parameters=None):
         """Executes an SQL operation.
@@ -190,7 +190,7 @@ class Cursor(object):
 
     def nextset(self):
         """Currently not supported."""
-        raise NotSupportedError
+        raise NotSupportedError("Currently unsupported")
 
     def setinputsizes(self, sizes):
         """Currently not supported."""

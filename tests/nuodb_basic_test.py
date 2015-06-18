@@ -439,76 +439,6 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    def DISABLE_DB10321test_date_types_softly(self):
-        '''
-        Just like ``test_date_types'' only this one uses EscapingTimestamps to
-        make sure that we're testing the datetime data type, and not the
-        implicit string conversion involved in it.
-        '''
-        con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("drop table typetest if exists")
-        try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date, " +
-                           "time_col time, timestamp_col_EDT timestamp, timestamp_col_EST timestamp)")
-
-            test_daylight = Local.localize(
-                EscapingTimestamp(2013,  3, 24, 12, 3, 26, 0))
-            test_standard = Local.localize(
-                EscapingTimestamp(2013, 11, 8, 23, 47, 32, 0))
-            test_vals = (
-                pynuodb.Date(2008, 1, 1), 
-                pynuodb.Time(8, 13, 34), 
-                test_daylight,
-                test_standard
-                )
-            quoted_vals = ["'%s'" % str(val) for val in test_vals]
-            for i, test_val in enumerate(test_vals):
-                if "'" in str(test_val):
-                    quoted_vals[i] = str(test_val)
-            exc_str = ("insert into typetest ("
-                "date_col, "
-                "time_col, "
-                "timestamp_col_EDT, "
-                "timestamp_col_EST) "
-                "values (" + ', '.join(quoted_vals) + ")")
-            cursor.execute(exc_str)
-
-            cursor.execute("select * from typetest order by id desc limit 1")
-            row = list(cursor.fetchone())
-            row.pop(0)
-            res_daylight = row[2]
-            res_standard = row[3]
-
-            self.assertEqual(
-                test_daylight - test_standard, 
-                res_daylight - res_standard)
-            
-            for res_val, test_val in zip(row, test_vals):
-                self.assertIsInstance(test_val, type(res_val))
-
-                if 'year' in dir(test_val):
-                    self.assertEqual(res_val.year, test_val.year)
-                if 'month' in dir(test_val):
-                    self.assertEqual(res_val.month, test_val.month)
-                if 'day' in dir(test_val):
-                    self.assertEqual(res_val.day, test_val.day)
-
-                if 'hour' in dir(test_val):
-                    self.assertEqual(res_val.hour, test_val.hour)
-                if 'minute' in dir(test_val):
-                    self.assertEqual(res_val.minute, test_val.minute)
-                if 'second' in dir(test_val):
-                    self.assertEqual(res_val.second, test_val.second)
-                if 'microsecond' in dir(test_val):
-                    self.assertEqual(res_val.microsecond, test_val.microsecond)
-
-        finally:
-            try:
-                cursor.execute("drop table typetest if exists")
-            finally:
-                con.close()
-
     def test_date_types(self):
 
         con = self._connect()
@@ -796,7 +726,7 @@ class NuoDBBasicTest(NuoBase):
 
             vals = (
                         pynuodb.Binary("binary"),
-                        True,
+                        False,
                         pynuodb.Timestamp(1990, 12, 31, 19, 0, 0),
                         pynuodb.Time(10, 30, 44),
                         pynuodb.Date(1998, 1, 1),
