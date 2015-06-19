@@ -214,10 +214,7 @@ class Session(object):
 
         try:
             lengthHeader = self.__readFully(4)
-            if self.__version == '3':
-                lengthHeader = bytes(lengthHeader, 'latin-1')
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
-            
             msg = self.__readFully(msgLength)
 
 
@@ -230,23 +227,25 @@ class Session(object):
                 msg = self.__cipherIn.transform(msg).lstrip()
             else:
                 msg = self.__cipherIn.transform(msg)
+
+        if type(msg) is bytes and self.__version == '3':
+            msg = msg.decode("latin-1")
         return msg
 
 
     def __readFully(self, msgLength):
-        msg = ""
+        msg = b''
         while msgLength > 0:
             received = self.__sock.recv(msgLength)
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
             if self.__version == '3':
-                msg = received.decode('latin-1')
-                msgLength = msgLength - len(msg)
+                msg = b''.join([msg, received])
+                msgLength = msgLength - len(received.decode('latin-1'))
             else:
                 msg = msg + received
                 msgLength = msgLength - len(received)
-
         return msg
 
     def close(self, force=False):

@@ -329,8 +329,7 @@ def lookup_code(error_code):
 # NuoDB Client-Server Protocol Version #'s
 #
 PROTOCOL_VERSION1          = 1
-PROTOCOL_VERSION2          = 2   # 3/27/2011    Passing SQLState on exceptions; piggybacking generated
-                                 #              key result sets.
+PROTOCOL_VERSION2          = 2   # 3/27/2011    Passing SQLState on exceptions; piggybacking generated key result sets.
 PROTOCOL_VERSION3          = 3   # 2/14/2012    Passing txn, node id and commit sequence
 PROTOCOL_VERSION4          = 4   # 2/29/2012    Added GetCurrentSchema
 PROTOCOL_VERSION5          = 5   # 3/12/2012    Server returns DB UUID
