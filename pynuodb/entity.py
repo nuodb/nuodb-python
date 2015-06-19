@@ -142,7 +142,8 @@ class Domain(BaseListener):
         inet_sock_addr = ":".join([ip, str(port)])
         try:
             return self.__peers_by_addr[inet_sock_addr]
-        except:
+        except Exception as exception:
+            print(exception.message)
             pass
 
         session = Session(address, port=port, service="Identity")
@@ -156,7 +157,8 @@ class Domain(BaseListener):
             if peer:
                 self.__peers_by_addr[peer._get_normalized_addr()] = peer
             return peer
-        except:
+        except Exception as exception:
+            print(exception.message)
             return None
 
     def get_peer(self, agent_id):
@@ -746,7 +748,8 @@ class Peer(object):
         """
         try:
             del self.__processes[process.pid]
-        except:
+        except Exception as exception:
+            print(exception.message)
             pass
 
     def _get_normalized_addr(self):
@@ -1222,7 +1225,7 @@ class Template(object):
         return self._requirements
 
 
-class Description:
+class Description(object):
     success_message = "Success"
 
     @staticmethod
