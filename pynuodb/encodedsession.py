@@ -445,12 +445,12 @@ class EncodedSession(Session):
         """Appends an Opaque data value to the message."""
         data = value.string
         length = len(data)
+        if systemVersion is '3' and type(value) is bytes:
+            data = data.decode('latin-1')
         if length < 40:
             packed = chr(protocol.OPAQUELEN0 + length) + data
         else:
             lengthStr = toByteString(length)
-            if systemVersion is '3':
-                data = data.decode('latin-1')
             packed = chr(protocol.OPAQUECOUNT1 - 1 + len(lengthStr)) + lengthStr + data
         self.__output += packed
         return self
