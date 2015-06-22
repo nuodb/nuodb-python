@@ -66,7 +66,7 @@ class SessionException(Exception):
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
-    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"RC4\" Username=\"%s\"/>" #Why is this hard coded...
+    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"%s\" Username=\"%s\"/>"
 
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
@@ -104,15 +104,14 @@ class Session(object):
 
     # NOTE: This routine works only for agents ... see the sql module for a
     # still-in-progress example of opening an authorized engine session
-    def authorize(self, account="domain", password=None):
+    def authorize(self, account="domain", password=None, cipher='RC4'):
         if not password:
             raise SessionException("A password is required for authorization")
 
         cp = ClientPassword()
         key = cp.genClientKey()
-
         self.send(Session.__AUTH_REQ % self.__service)
-        response = self.__sendAndReceive(Session.__SRP_REQ % (key, account))
+        response = self.__sendAndReceive(Session.__SRP_REQ % (key, cipher, account))
 
         root = ElementTree.fromstring(response)
         if root.tag != "SRPResponse":
