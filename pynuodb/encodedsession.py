@@ -411,6 +411,8 @@ class EncodedSession(Session):
         Appends a String to the message.
         @type value str
         """
+        if systemVersion is '3' and not self.isASCII(value):
+            value = value.encode('utf-8').decode('latin-1')
         length = len(value)
         if length < 40:
             packed = chr(protocol.UTF8LEN0 + length) + value
@@ -445,7 +447,7 @@ class EncodedSession(Session):
         """Appends an Opaque data value to the message."""
         data = value.string
         length = len(data)
-        if systemVersion is '3' and type(value) is bytes:
+        if systemVersion is '3' and type(data) is bytes:
             data = data.decode('latin-1')
         if length < 40:
             packed = chr(protocol.OPAQUELEN0 + length) + data
@@ -604,11 +606,17 @@ class EncodedSession(Session):
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
-            return self._takeBytes(typeCode - 109)
+            value = self._takeBytes(typeCode - 109)
+            if systemVersion is '3' and not self.isASCII(value):
+                value = value.encode('latin-1').decode('utf-8')
+            return value
 
         if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 68))
-            return self._takeBytes(strLength)
+            value = self._takeBytes(strLength)
+            if systemVersion is '3' and not self.isASCII(value):
+                value = value.encode('latin-1').decode('utf-8')
+            return value
 
         raise DataError('Not a string')
 
@@ -873,3 +881,11 @@ class EncodedSession(Session):
             return self.__input[self.__inpos:self.__inpos + length]
         finally:
             self.__inpos += length
+
+    def isASCII(self, data):
+        try:
+            data.encode('ascii')
+        except UnicodeEncodeError:
+            return False
+        else:
+            return True
