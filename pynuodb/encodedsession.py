@@ -672,14 +672,18 @@ class EncodedSession(Session):
     
     def getOpaque(self):
         """Read the next Opaque value off the session."""
+
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
-            return datatype.Binary(self._takeBytes(typeCode - 149))
-
+            value = self._takeBytes(typeCode - 149)
+            return datatype.Binary(value)
         if typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 72))
-            return datatype.Binary(self._takeBytes(strLength))
+            value = self._takeBytes(strLength)
+            if systemVersion is '3':
+                value = value.encode('latin-1')
+            return datatype.Binary(value)
 
         raise DataError('Not an opaque value')
 

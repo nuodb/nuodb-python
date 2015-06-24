@@ -16,16 +16,6 @@ class NuoDBBlobTest(NuoBase):
 
         binary_data = pack('hhl', 1, 2, 3)
 
-        cursor.execute("SELECT ? FROM DUAL", [binary_data])
-        row = cursor.fetchone()
-        
-        currentRow = row[0]
-        if systemVersion is '3':
-            currentRow = bytes(currentRow, 'latin-1')
-        array1 = unpack('hhl', currentRow)
-        self.assertEquals(len(array1), 3)
-        self.assertEquals(array1[2], 3)
-
         cursor.execute("SELECT ? FROM DUAL", [pynuodb.Binary(binary_data)])
         row = cursor.fetchone()
 
