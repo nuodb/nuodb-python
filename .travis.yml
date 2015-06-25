@@ -28,7 +28,6 @@ install:
   
 script:
   - make all
-  - py.test --cov=pynuodb --cov-report term-missing
 
 after_failure:
   - cat /var/log/nuodb/agent.log
