@@ -90,7 +90,9 @@ class EncodedSession(Session):
         self.__encryption = True
         """ @type : boolean """
         self.__connectedNodeID = 0
-        """ @type : int """        
+        """ @type : int """ 
+        self.__serverVersion = 0
+        """ @type : int """       
 
     # Mostly for connections
     def open_database(self, db_name, parameters, cp):
@@ -120,6 +122,8 @@ class EncodedSession(Session):
         if protocolVersion >= protocol.PROTOCOL_VERSION17 :
             self.__connectedNodeID = self.getInt()
             maxNodes = self.getInt()
+
+        self.__serverVersion = protocolVersion
 
         return protocolVersion, serverKey, salt
 
@@ -195,7 +199,10 @@ class EncodedSession(Session):
         @type query str
         @rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTE).putInt(self.getCommitInfo(self.__connectedNodeID)).putInt(statement.handle).putString(query)
+        self._putMessageId(protocol.EXECUTE)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
+        self.putInt(statement.handle).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
@@ -229,7 +236,9 @@ class EncodedSession(Session):
         @type parameters list
         @rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT).putInt(self.getCommitInfo(self.__connectedNodeID))
+        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle).putInt(len(parameters))
 
         for param in parameters:
@@ -248,7 +257,9 @@ class EncodedSession(Session):
         @type param_lists list[list]
 
         """
-        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT).putInt(self.getCommitInfo(self.__connectedNodeID))
+        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle)
         for parameters in param_lists:
             if prepared_statement.parameter_count != len(parameters):
@@ -916,6 +927,7 @@ class EncodedSession(Session):
 
     def getCommitInfo(self, nodeID):
         """ Currently does not support last commit """
+
         return 0
 
 
