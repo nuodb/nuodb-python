@@ -350,4 +350,4 @@ PROTOCOL_VERSION19         = 19  # 05/01/2015 Server timing of statements
 #
 # The current protocol version of THIS driver.  The server will negotiate the lowest compatible version.
 #
-CURRENT_PROTOCOL_VERSION   = PROTOCOL_VERSION15
+CURRENT_PROTOCOL_VERSION   = PROTOCOL_VERSION16

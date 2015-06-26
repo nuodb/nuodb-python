@@ -101,12 +101,22 @@ class EncodedSession(Session):
         self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
-        version = self.getInt()
+        protocolVersion = self.getInt()
         serverKey = self.getString()
         salt = self.getString()
         connectionDatabaseUUID = self.getUUID()
-        connectionID = self.getInt()
-        return version, serverKey, salt
+        
+        if protocolVersion >= protocol.PROTOCOL_VERSION15 :
+            connectionID = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION16 :
+            effectivePlatformVersion = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION17 :
+            connectedNodeId = self.getInt()
+            maxNodes = self.getInt()
+            
+        return protocolVersion, serverKey, salt
 
     def check_auth(self):
         try:
