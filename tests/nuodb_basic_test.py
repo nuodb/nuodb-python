@@ -791,10 +791,12 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
 
         test_vals = (pynuodb.Date(1800, 1, 1),)
-
-        with self.assertRaises(pynuodb.DataError):
+        try:
             cursor.execute("insert into typetest (date_col) values (?)", test_vals)
-
+        except pynuodb.DataError:
+            pass
+        except:
+            self.fail()
 
 if __name__ == '__main__':
     unittest.main()
