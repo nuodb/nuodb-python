@@ -15,6 +15,8 @@ notifications:
     - jgetto@nuodb.com
     - khicks@nuodb.com
     - tgates@nuodb.com
+    - mmichaels@nuodb.com
+
 
 before_install:
   - wget http://download.nuohub.org/nuodb_${NUOVERSION}_amd64.deb --output-document=/var/tmp/nuodb.deb

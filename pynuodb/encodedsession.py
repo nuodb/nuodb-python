@@ -89,7 +89,7 @@ class EncodedSession(Session):
         """ @type : boolean """
         self.__encryption = True
         """ @type : boolean """
-        self.__activeNodes = 0
+        self.__connectedNodeID = 0
         """ @type : int """        
 
     # Mostly for connections
@@ -118,7 +118,7 @@ class EncodedSession(Session):
             effectivePlatformVersion = self.getInt()
 
         if protocolVersion >= protocol.PROTOCOL_VERSION17 :
-            connectedNodeId = self.getInt()
+            self.__connectedNodeID = self.getInt()
             maxNodes = self.getInt()
 
         return protocolVersion, serverKey, salt
@@ -195,7 +195,7 @@ class EncodedSession(Session):
         @type query str
         @rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTE).putInt(statement.handle).putString(query)
+        self._putMessageId(protocol.EXECUTE).putInt(self.getCommitInfo(self.__connectedNodeID)).putInt(statement.handle).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
@@ -229,7 +229,7 @@ class EncodedSession(Session):
         @type parameters list
         @rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT).putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle).putInt(len(parameters))
 
         for param in parameters:
@@ -248,7 +248,7 @@ class EncodedSession(Session):
         @type param_lists list[list]
 
         """
-        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT).putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle)
         for parameters in param_lists:
             if prepared_statement.parameter_count != len(parameters):
@@ -915,7 +915,7 @@ class EncodedSession(Session):
             return True
 
     def getCommitInfo(self, nodeID):
-        nodeIdx = nodeID % maxNodes
+        """ Currently does not support last commit """
+        return 0
 
-    def encodeNodes(self):
-        self.putInt(self.__activeNodes)
+
