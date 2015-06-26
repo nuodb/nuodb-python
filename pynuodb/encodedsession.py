@@ -22,6 +22,8 @@ from .result_set import ResultSet
 
 systemVersion = sys.version[0]
 REMOVE_FORMAT = 0
+maxNodes = 128
+
 class EncodedSession(Session):
     """Class for representing an encoded session with the database.
     
@@ -86,6 +88,9 @@ class EncodedSession(Session):
         self.closed = False
         """ @type : boolean """
         self.__encryption = True
+        """ @type : boolean """
+        self.__activeNodes = 0
+        """ @type : int """        
 
     # Mostly for connections
     def open_database(self, db_name, parameters, cp):
@@ -115,7 +120,7 @@ class EncodedSession(Session):
         if protocolVersion >= protocol.PROTOCOL_VERSION17 :
             connectedNodeId = self.getInt()
             maxNodes = self.getInt()
-            
+
         return protocolVersion, serverKey, salt
 
     def check_auth(self):
@@ -758,7 +763,10 @@ class EncodedSession(Session):
     def getUUID(self):
         """Read the next UUID value off the session."""
         if self._getTypeCode() == protocol.UUID:
-            return uuid.UUID(bytes=self._takeBytes(16))
+            byteString = self._takeBytes(16)
+            if systemVersion is '3':
+                byteString = byteString.encode('latin-1')
+            return uuid.UUID(bytes=byteString)
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
             pass
@@ -905,3 +913,9 @@ class EncodedSession(Session):
             return False
         else:
             return True
+
+    def getCommitInfo(self, nodeID):
+        nodeIdx = nodeID % maxNodes
+
+    def encodeNodes(self):
+        self.putInt(self.__activeNodes)
