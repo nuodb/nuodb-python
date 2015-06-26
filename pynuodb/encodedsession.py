@@ -104,6 +104,8 @@ class EncodedSession(Session):
         version = self.getInt()
         serverKey = self.getString()
         salt = self.getString()
+        connectionDatabaseUUID = self.getUUID()
+        connectionID = self.getInt()
         return version, serverKey, salt
 
     def check_auth(self):
