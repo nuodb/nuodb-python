@@ -22,6 +22,7 @@ from .result_set import ResultSet
 
 systemVersion = sys.version[0]
 REMOVE_FORMAT = 0
+
 class EncodedSession(Session):
     """Class for representing an encoded session with the database.
     
@@ -78,21 +79,80 @@ class EncodedSession(Session):
         self.doConnect()
 
         self.__output = None
-        """ @type : str """
+        """
+        Output buffer to be sent to the server
+        :type : str
+        """
+
         self.__input = None
-        """ @type : str """
+        """
+        Input buffer recv from the server
+        :type : str
+        """
+
         self.__inpos = 0
-        """ @type : int """
+        """
+        Position in the input buffer
+        :type : int
+        """
+
         self.closed = False
-        """ @type : boolean """
+        """
+        Is connection closed
+        :type : boolean
+        """
+
         self.__encryption = True
+        """
+        Is connection encrypted
+        :type : boolean
+        """
+
+        self.__connectionDatabaseUUID = 0
+        """
+        Connection Unique Universal ID
+        :type : uuid.UUID
+        """
+
+        self.__serverVersion = 0
+        """
+        Server's current version
+        :type : int
+        """
+
+        self.__connectionID = 0
+        """
+        ID of current connection
+        :type : int
+        """
+
+        self.__effectivePlatformVersion = 0
+        """
+        Agreed upon version by the server (for multiple nodes)
+        :type : int
+        """
+
+        self.__connectedNodeID = 0
+        """
+        ID of current Node
+        :type : int
+        """
+
+        self.__maxNodes = 128
+        """
+        Maximum supported nodes
+        :type : int
+        """
 
     # Mostly for connections
     def open_database(self, db_name, parameters, cp):
         """
-        @type db_name str
-        @type parameters dict[str,str]
-        @type cp crypt.ClientPassword
+        :type db_name: str
+        :type parameters: dict[str,str]
+        :type cp: crypt.ClientPassword
+        :rtype protocolVersion: int
+        :rtype serverKey: str
+        :rtype salt: str
         """
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
         for (k, v) in parameters.items():
@@ -101,10 +161,24 @@ class EncodedSession(Session):
         self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
-        version = self.getInt()
+        protocolVersion = self.getInt()
         serverKey = self.getString()
         salt = self.getString()
-        return version, serverKey, salt
+        self.__connectionDatabaseUUID = self.getUUID()
+        
+        if protocolVersion >= protocol.PROTOCOL_VERSION15 :
+            self.__connectionID = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION16 :
+            self.__effectivePlatformVersion = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION17 :
+            self.__connectedNodeID = self.getInt()
+            self.__maxNodes = self.getInt()
+
+        self.__serverVersion = protocolVersion
+
+        return protocolVersion, serverKey, salt
 
     def check_auth(self):
         try:
@@ -114,7 +188,6 @@ class EncodedSession(Session):
                 self._setCiphers(NoCipher(), NoCipher())
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
-
 
     def get_autocommit(self):
         self._putMessageId(protocol.GETAUTOCOMMIT)
@@ -166,7 +239,7 @@ class EncodedSession(Session):
     # Mostly for cursors
     def create_statement(self):
         """
-        @rtype: Statement
+        :rtype: Statement
         """
         self._putMessageId(protocol.CREATE)
         self._exchangeMessages()
@@ -174,11 +247,14 @@ class EncodedSession(Session):
 
     def execute_statement(self, statement, query):
         """
-        @type statement Statement
-        @type query str
-        @rtype: ExecutionResult
+        :type statement: Statement
+        :type query: str
+        :rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTE).putInt(statement.handle).putString(query)
+        self._putMessageId(protocol.EXECUTE)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
+        self.putInt(statement.handle).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
@@ -188,15 +264,15 @@ class EncodedSession(Session):
 
     def close_statement(self, statement):
         """
-        @type statement Statement
+        :type statement: Statement
         """
         self._putMessageId(protocol.CLOSESTATEMENT).putInt(statement.handle)
         self._exchangeMessages(False)
 
     def create_prepared_statement(self, query):
         """
-        @type query str
-        @rtype: PreparedStatement
+        :type query: str
+        :rtype: PreparedStatement
         """
         self._putMessageId(protocol.PREPARE).putString(query)
         self._exchangeMessages()
@@ -208,11 +284,13 @@ class EncodedSession(Session):
 
     def execute_prepared_statement(self, prepared_statement, parameters):
         """
-        @type prepared_statement PreparedStatement
-        @type parameters list
-        @rtype: ExecutionResult
+        :type prepared_statement: PreparedStatement
+        :type parameters: list
+        :rtype: ExecutionResult
         """
         self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle).putInt(len(parameters))
 
         for param in parameters:
@@ -227,11 +305,13 @@ class EncodedSession(Session):
 
     def execute_batch_prepared_statement(self, prepared_statement, param_lists):
         """
-        @type prepared_statement PreparedStatement
-        @type param_lists list[list]
+        :type prepared_statement: PreparedStatement
+        :type param_lists: list[list]
 
         """
         self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(prepared_statement.handle)
         for parameters in param_lists:
             if prepared_statement.parameter_count != len(parameters):
@@ -266,8 +346,8 @@ class EncodedSession(Session):
 
     def fetch_result_set(self, statement):
         """
-        @type statement Statement
-        @rtype: ResultSet
+        :type statement: Statement
+        :rtype: ResultSet
         """
         self._putMessageId(protocol.GETRESULTSET).putInt(statement.handle)
         self._exchangeMessages()
@@ -303,7 +383,7 @@ class EncodedSession(Session):
 
     def fetch_result_set_next(self, result_set):
         """
-        @type result_set ResultSet
+        :type result_set: ResultSet
         """
         self._putMessageId(protocol.NEXT).putInt(result_set.handle)
         self._exchangeMessages()
@@ -330,8 +410,8 @@ class EncodedSession(Session):
 
     def fetch_result_set_description(self, result_set):
         """
-        @type result_set ResultSet
-        @rtype: ResultSetMetadata
+        :type result_set: ResultSet
+        :rtype: ResultSetMetadata
         """
         self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
         self._exchangeMessages()
@@ -364,7 +444,7 @@ class EncodedSession(Session):
     def _putMessageId(self, messageId):
         """
         Start a message with the messageId.
-        @type messageId int
+        :type messageId: int
         """
         self.__output = ''
         self.putInt(messageId, isMessageId=True)
@@ -373,8 +453,8 @@ class EncodedSession(Session):
     def putInt(self, value, isMessageId=False):
         """
         Appends an Integer value to the message.
-        @type value int
-        @type isMessageId bool
+        :type value: int
+        :type isMessageId: bool
         """
         if value < 32 and value > -11:
             packed = chr(protocol.INT0 + value)
@@ -391,7 +471,7 @@ class EncodedSession(Session):
     def putScaledInt(self, value):
         """
         Appends a Scaled Integer value to the message.
-        @type value decimal.Decimal
+        :type value: decimal.Decimal
         """
         #Convert the decimal's notation into decimal
         value += REMOVE_FORMAT
@@ -409,7 +489,7 @@ class EncodedSession(Session):
     def putString(self, value):
         """
         Appends a String to the message.
-        @type value str
+        :type value: str
         """
         if systemVersion is '3' and not self.isASCII(value):
             value = value.encode('utf-8').decode('latin-1')
@@ -425,7 +505,7 @@ class EncodedSession(Session):
     def putBoolean(self, value):
         """
         Appends a Boolean value to the message.
-        @type value bool
+        :type value: bool
         """
         if value is True:
             self.__output += chr(protocol.TRUE)
@@ -439,12 +519,18 @@ class EncodedSession(Session):
         return self
 
     def putUUID(self, value):
-        """Appends a UUID to the message."""
+        """
+        Appends a UUID to the message.
+        :type value: uuid.UUID
+        """
         self.__output += chr(protocol.UUID) + str(value)
         return self
 
     def putOpaque(self, value):
-        """Appends an Opaque data value to the message."""
+        """
+        Appends an Opaque data value to the message.
+        :type value: datatype.Binary
+        """
         data = value.string
         length = len(data)
         if systemVersion is '3' and type(data) is bytes:
@@ -458,7 +544,10 @@ class EncodedSession(Session):
         return self
 
     def putDouble(self, value):
-        """Appends a Double to the message."""
+        """
+        Appends a Double to the message.
+        :type value: decimal.Decimal
+        """
         valueStr = struct.pack('!d', value)
         if systemVersion is '3':
             valueStr = valueStr.decode('latin-1')
@@ -467,29 +556,41 @@ class EncodedSession(Session):
         return self
 
     def putMsSinceEpoch(self, value):
-        """Appends the MsSinceEpoch value to the message."""
+        """
+        Appends the MsSinceEpoch value to the message.
+        :type value: int
+        """
         valueStr = toSignedByteString(value)
         packed = chr(protocol.MILLISECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putNsSinceEpoch(self, value):
-        """Appends the NsSinceEpoch value to the message."""
+        """
+        Appends the NsSinceEpoch value to the message.
+        :type value: int
+        """
         valueStr = toSignedByteString(value)
         packed = chr(protocol.NANOSECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
         
     def putMsSinceMidnight(self, value):
-        """Appends the MsSinceMidnight value to the message."""
+        """
+        Appends the MsSinceMidnight value to the message.
+        :type value: int
+        """
         valueStr = toByteString(value)
         packed = chr(protocol.TIMELEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
 
-    # Not currently used by NuoDB
+    # Not currently used by Python driver
     def putBlob(self, value):
-        """Appends the Blob(Binary Large OBject) value to the message."""
+        """
+        Appends the Blob(Binary Large OBject) value to the message.
+        :type value: datatype.Binary
+        """
         data = value.string
         length = len(data)
         lengthStr = toByteString(length)
@@ -499,7 +600,10 @@ class EncodedSession(Session):
         return self
 
     def putClob(self, value):
-        """Appends the Clob(Character Large OBject) value to the message."""
+        """
+        Appends the Clob(Character Large OBject) value to the message.
+        :type value: datatype.Binary
+        """
         length = len(value)
         lengthStr = toByteString(length)
         packed = chr(protocol.CLOBLEN0 + len(lengthStr)) + lengthStr + value
@@ -507,7 +611,10 @@ class EncodedSession(Session):
         return self
         
     def putScaledTime(self, value):
-        """Appends a Scaled Time value to the message."""
+        """
+        Appends a Scaled Time value to the message.
+        :type value: datetime.time
+        """
         (ticks, scale) = datatype.TimeToTicks(value)
         valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
@@ -518,7 +625,10 @@ class EncodedSession(Session):
         return self
     
     def putScaledTimestamp(self, value):
-        """Appends a Scaled Timestamp value to the message."""
+        """
+        Appends a Scaled Timestamp value to the message.
+        :type value: datetime.datetime
+        """
         (ticks, scale) = datatype.TimestampToTicks(value)
         valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
@@ -529,7 +639,10 @@ class EncodedSession(Session):
         return self
         
     def putScaledDate(self, value):
-        """Appends a Scaled Date value to the message."""
+        """
+        Appends a Scaled Date value to the message.
+        :type value: datatime.date
+        """
         ticks = datatype.DateToTicks(value)
         valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
@@ -540,7 +653,10 @@ class EncodedSession(Session):
         return self
 
     def putScaledCount2(self, value):
-        """ Appends a scaled and signed decimal to the message """
+        """
+        Appends a scaled and signed decimal to the message
+        :type value: decimal.Decimal
+        """
         scale = abs(value.as_tuple()[2])
         sign = "1" if value.as_tuple()[0] == 0 else "-1"
         value = toSignedByteString(int(value * decimal.Decimal(10**scale)))
@@ -575,7 +691,10 @@ class EncodedSession(Session):
     # Methods to get values out of the last exchange
 
     def getInt(self):
-        """Read the next Integer value off the session."""
+        """
+        Read the next Integer value off the session.
+        :rtype: int
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.INTMINUS10, protocol.INT31 + 1):
@@ -588,7 +707,10 @@ class EncodedSession(Session):
 
     #Does not preserve E notation
     def getScaledInt(self):
-        """Read the next Scaled Integer value off the session."""
+        """
+        Read the next Scaled Integer value off the session.
+        :rtype: decimal.Decimal
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
@@ -602,7 +724,10 @@ class EncodedSession(Session):
         raise DataError('Not a scaled integer')
 
     def getString(self):
-        """Read the next String off the session."""
+        """
+        Read the next String off the session.
+        :rtype: str
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
@@ -621,7 +746,10 @@ class EncodedSession(Session):
         raise DataError('Not a string')
 
     def getBoolean(self):
-        """Read the next Boolean value off the session."""
+        """
+        Read the next Boolean value off the session.
+        :rtype: boolean
+        """
         typeCode = self._getTypeCode()
 
         if typeCode == protocol.TRUE:
@@ -632,12 +760,18 @@ class EncodedSession(Session):
         raise DataError('Not a boolean')
 
     def getNull(self):
-        """Read the next Null value off the session."""
+        """
+        Read the next Null value off the session.
+        :rtype: None
+        """
         if self._getTypeCode() != protocol.NULL:
             raise DataError('Not null')
 
     def getDouble(self):
-        """Read the next Double off the session."""
+        """
+        Read the next Double off the session.
+        :rtype: float
+        """
         typeCode = self._getTypeCode()
         
         if typeCode == protocol.DOUBLELEN0:
@@ -656,7 +790,10 @@ class EncodedSession(Session):
         raise DataError('Not a double')
 
     def getTime(self):
-        """Read the next Time value off the session."""
+        """
+        Read the next Time value off the session.
+        :rtype: int
+        """
         typeCode = self._getTypeCode()
         
         if typeCode in range(protocol.MILLISECLEN0, protocol.MILLISECLEN8 + 1):
@@ -671,7 +808,10 @@ class EncodedSession(Session):
         raise DataError('Not a time')
     
     def getOpaque(self):
-        """Read the next Opaque value off the session."""
+        """
+        Read the next Opaque value off the session.
+        :rtype: datatype.Binary
+        """
 
         typeCode = self._getTypeCode()
 
@@ -687,9 +827,12 @@ class EncodedSession(Session):
 
         raise DataError('Not an opaque value')
 
-    # Not currently used by NuoDB
+    # Not currently used by Python driver
     def getBlob(self):
-        """Read the next Blob(Binary Large OBject) value off the session."""
+        """
+        Read the next Blob(Binary Large OBject) value off the session.
+        :rtype: datatype.Binary
+        """
         typeCode = self._getTypeCode()
         
         if typeCode in range(protocol.BLOBLEN0, protocol.BLOBLEN4 + 1):
@@ -699,7 +842,10 @@ class EncodedSession(Session):
         raise DataError('Not a blob')
     
     def getClob(self):
-        """Read the next Clob(Character Large OBject) value off the session."""
+        """
+        Read the next Clob(Character Large OBject) value off the session.
+        :rtype: bytes
+        """
         typeCode = self._getTypeCode()
         
         if typeCode in range(protocol.CLOBLEN0, protocol.CLOBLEN4 + 1):
@@ -709,7 +855,10 @@ class EncodedSession(Session):
         raise DataError('Not a clob')
 
     def getScaledTime(self):
-        """Read the next Scaled Time value off the session."""
+        """
+        Read the next Scaled Time value off the session.
+        :rtype: datetime.time
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
@@ -721,7 +870,10 @@ class EncodedSession(Session):
         raise DataError('Not a scaled time')
     
     def getScaledTimestamp(self):
-        """Read the next Scaled Timestamp value off the session."""
+        """
+        Read the next Scaled Timestamp value off the session.
+        :rtype: datetime.datetime
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
@@ -733,7 +885,10 @@ class EncodedSession(Session):
         raise DataError('Not a scaled timestamp')
     
     def getScaledDate(self):
-        """Read the next Scaled Date value off the session."""
+        """
+        Read the next Scaled Date value off the session.
+        :rtype: datetime.date
+        """
         typeCode = self._getTypeCode()
 
         if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
@@ -744,9 +899,15 @@ class EncodedSession(Session):
         raise DataError('Not a scaled date')
 
     def getUUID(self):
-        """Read the next UUID value off the session."""
+        """
+        Read the next UUID value off the session.
+        :rtype uuid.UUID
+        """
         if self._getTypeCode() == protocol.UUID:
-            return uuid.UUID(bytes=self._takeBytes(16))
+            byteString = self._takeBytes(16)
+            if systemVersion is '3':
+                byteString = byteString.encode('latin-1')
+            return uuid.UUID(bytes=byteString)
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
             # before version 11
             pass
@@ -754,7 +915,10 @@ class EncodedSession(Session):
         raise DataError('Not a UUID')
 
     def getScaledCount2(self):
-        """ Read a scaled and signed decimal from the session """
+        """
+        Read a scaled and signed decimal from the session
+        :rtype: decimal.Decimal
+        """
         typeCode = self._getTypeCode()
         if typeCode is protocol.SCALEDCOUNT2:
             scale = decimal.Decimal(fromByteString(self._takeBytes(1)))
@@ -857,7 +1021,11 @@ class EncodedSession(Session):
             self.__inpos = 0
 
     def setCiphers(self, cipherIn, cipherOut):
-        """Re-sets the incoming and outgoing ciphers for the session."""
+        """
+        Re-sets the incoming and outgoing ciphers for the session.
+        :type cipherIn: RC4Cipher , NoCipher
+        :type cipherOut: RC4Cipher , NoCipher
+        """
         Session._setCiphers(self, cipherIn, cipherOut)
 
     # Protected utility routines
@@ -877,7 +1045,11 @@ class EncodedSession(Session):
             self.__inpos += 1
 
     def _takeBytes(self, length):
-        """Gets the next length of bytes off the session."""
+        """
+        Gets the next length of bytes off the session.
+        :type length: int
+        :rtype: bytes
+        """
         if self.__inpos + length > len(self.__input):
             raise EndOfStream('end of stream reached')
                         
@@ -887,9 +1059,22 @@ class EncodedSession(Session):
             self.__inpos += length
 
     def isASCII(self, data):
+        """
+        Trys to encode the given string in ascii, if it fails then
+        we know the string is unicode
+        :type data: str
+        :rtype: boolean
+        """
         try:
             data.encode('ascii')
         except UnicodeEncodeError:
             return False
         else:
             return True
+
+    def getCommitInfo(self, nodeID):
+        """ Currently does not support last commit """
+
+        return 0
+
+
