@@ -31,11 +31,11 @@ def connect(database, host, user, password, options=None):
         Some common options include:
         "schema"
 
-    @type database str
-    @type host str
-    @type user str
-    @type password str
-    @type options dict[str,str]
+    :type database: str
+    :type host: str
+    :type user: str
+    :type password: str
+    :type options: dict[str,str]
     """
     return Connection(database, host, user, password, options)
 
@@ -78,11 +78,11 @@ class Connection(object):
         Returns:
         a Connection instance
 
-        @type dbName str
-        @type broker str
-        @type username str
-        @type password str
-        @type options dict[str,str]
+        :type dbName: str
+        :type broker: str
+        :type username: str
+        :type password: str
+        :type options: dict[str,str]
         """
         (host, port) = getCloudEntry(broker, dbName)
         self.__session = EncodedSession(host, port)
@@ -114,11 +114,7 @@ class Connection(object):
         name: ONE
         value: 1
         
-        Arguments:
-        None
-        
-        Returns:
-        None
+        :rtype: None
         """
         self.__session.test_connection()
 
