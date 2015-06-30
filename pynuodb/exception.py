@@ -89,8 +89,8 @@ def db_error_handler(error_code, error_string):
         raise DataError(error_code_string + ': ' + error_string)
     elif error_code in protocol.OPERATIONAL_ERRORS:
         raise OperationalError(error_code_string + ': ' + error_string)
-    elif errorCode in protocol.INTEGRITY_ERRORS:
-         raise IntegrityError(error_code_string + ': ' + errorString)
+    elif error_code in protocol.INTEGRITY_ERRORS:
+         raise IntegrityError(error_code_string + ': ' + error_String)
     elif error_code in protocol.INTERNAL_ERRORS:
         raise InternalError(error_code_string + ': ' + error_string)
     elif error_code in protocol.PROGRAMMING_ERRORS:
