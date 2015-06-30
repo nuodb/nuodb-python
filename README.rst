@@ -128,14 +128,14 @@ Resources
 
 DB-API 2.0: http://www.python.org/dev/peps/pep-0249/
 
-NuoDB Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
+NuoDB Documentation: http://doc.nuodb.com/display/DOC/NuoDB+Online+Documentation
 
 License
 -------
 
 PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
 
-.. _Documentation: http://doc.nuodb.com/display/DOC/Getting+Started
+.. _Documentation: http://doc.nuodb.com/display/doc/
 .. _NuoDB: http://www.nuodb.com/
 .. _CPython: http://www.python.org/
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
