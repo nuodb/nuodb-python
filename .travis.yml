@@ -12,7 +12,6 @@ notifications:
   recipients:
     - buck.robert.j@gmail.com
     - rbuck@nuodb.com
-    - jgetto@nuodb.com
     - khicks@nuodb.com
     - tgates@nuodb.com
     - mmichaels@nuodb.com
