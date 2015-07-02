@@ -280,6 +280,14 @@ class RC4Cipher(object):
             state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
+        """
+        Preforms a byte by byte RC4 transform on the stream
+        Python 2:
+            automatically handles encoding bytes into an extended ASCII encoding [0,255] w/ 1 byte per character
+        Python 3:
+            bytes objects must be converted into extended ASCII, latin-1 uses the desired range of [0,255]
+        For unicode strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
+        """
         transformed = []
         state = self.__state
         if type(data) is bytes:
