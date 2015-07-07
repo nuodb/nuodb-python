@@ -155,6 +155,7 @@ class NuoDBBasicTest(NuoBase):
     #
     def test_many_significant_digits(self):
         self._test_decimal_fixture(decimal.Decimal("31943874831932418390.01"), 38, 12)
+        self._test_decimal_fixture(decimal.Decimal("-31943874831932418390.01"), 38, 12)
 
     # This test demonstrates the broken implementation of getScaledInt
     # which results in:

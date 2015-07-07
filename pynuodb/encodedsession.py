@@ -658,9 +658,10 @@ class EncodedSession(Session):
         :type value: decimal.Decimal
         """
         scale = abs(value.as_tuple()[2])
-        sign = "1" if value.as_tuple()[0] == 0 else "-1"
-        value = toSignedByteString(int(value * decimal.Decimal(10**scale)))
-        packed = chr(protocol.SCALEDCOUNT2) + chr(scale) + sign + chr(len(value)) + value
+        sign = 1 if value.as_tuple()[0] == 0 else -1
+        sign = toSignedByteString(sign)
+        value = toByteString(int(abs(value) * decimal.Decimal(10**scale)))
+        packed = chr(protocol.SCALEDCOUNT2) + toByteString(scale) + sign + chr(len(value)) + value
         self.__output += packed
         return self
 
@@ -1076,5 +1077,3 @@ class EncodedSession(Session):
         """ Currently does not support last commit """
 
         return 0
-
-
