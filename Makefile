@@ -45,4 +45,9 @@ deploy:
 clean:	
 	rm -vrf build/ dist/ *.egg-info htmlcov/
 
+doc:
+	pip install epydoc
+	epydoc --html --name PyNuoDB pynuodb/
+	cp epydoc.css html/
+
 .PHONY: all install test

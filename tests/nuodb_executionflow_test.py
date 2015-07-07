@@ -9,7 +9,7 @@ after being disconnected from the database
 
 import unittest
 import os
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 
 from .nuodb_base import NuoBase
 from pynuodb.exception import Error
@@ -194,7 +194,7 @@ class NuoDBExecutionFlowTest(NuoBase):
 
 def version_lt(version):
     current_version = os.getenv('NUODB_VERSION', None)
-    if current_version is not None and StrictVersion(current_version) < StrictVersion(version):
+    if current_version is not None and LooseVersion(current_version) < LooseVersion(version):
         return True
 
     return False
