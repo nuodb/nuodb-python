@@ -17,6 +17,7 @@ import pynuodb
 from .nuodb_base import NuoBase
 from .mock_tzs import EscapingTimestamp
 from .mock_tzs import Local
+from pynuodb.exception import DataError
 
 
 class NuoDBBasicTest(NuoBase):
@@ -144,28 +145,74 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    # This test demonstrates the broken implementation of putScaledInt
-    # which results in:
-    #
-    #   DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
-    #
-    # Run separately via:
-    #
-    #   py.test -k "test_many_significant_digits"
-    #
+    def _test_faulty_decimal_fixture(self, value, precision, scale):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("DROP TABLE CASCADE t IF EXISTS")
+        try:
+            cursor.execute("CREATE TABLE t (x NUMERIC(%s,%s))" % (precision, scale))
+            DataError
+            cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
+            cursor.execute("SELECT * FROM t")
+            
+        except DataError as err:
+            if "CONVERSION_ERROR" not in str(err):
+                self.fail()
+            pass
+
+        finally:
+            try:
+                cursor.execute("DROP TABLE t IF EXISTS")
+            finally:
+                con.close()
+
+    #Test the edge cases of the small decimal type
+    def test_small_decimal(self):
+        numbers = (
+            32767,
+            -32768,
+            0x7fff,
+            -0x8000,
+        )
+        for number in numbers:
+            self._test_decimal_fixture(number, 4, 0)
+        #Test Invalid values
+        self._test_faulty_decimal_fixture(32768, 4, 0)
+        self._test_faulty_decimal_fixture(-32769, 4, 0)
+
+    #Test the edge cases of the integer type
+    def test_integer(self):
+        numbers = (
+            2147483647,
+            -2147483648,
+            0x7FFFFFFF,
+            -0x80000000,
+        )
+        for number in numbers:
+            self._test_decimal_fixture(number, 9, 0)
+        #Test Invalid values
+        self._test_faulty_decimal_fixture(2147483648, 4, 0)
+        self._test_faulty_decimal_fixture(-2147483649, 4, 0)
+
+    #Test the edge cases of the small decimal type
+    def test_big_integer(self):
+        numbers = (
+            9223372036854775807,
+            -9223372036854775808,
+            0x7FFFFFFFFFFFFFFF,
+            -0x8000000000000000,
+        )
+        for number in numbers:
+            self._test_decimal_fixture(number, 20, 0)
+        #Test Invalid values
+        self._test_faulty_decimal_fixture(9223372036854775808, 4, 0)
+        self._test_faulty_decimal_fixture(-9223372036854775809, 4, 0)
+
     def test_many_significant_digits(self):
         self._test_decimal_fixture(decimal.Decimal("31943874831932418390.01"), 38, 12)
         self._test_decimal_fixture(decimal.Decimal("-31943874831932418390.01"), 38, 12)
 
-    # This test demonstrates the broken implementation of getScaledInt
-    # which results in:
-    #
-    #   "1" instead of "1.000"
-    #
-    # Run separately via:
-    #
-    #   py.test -k "test_numeric_no_decimal"
-    #
+
     def test_numeric_no_decimal(self):
         self._test_decimal_fixture(decimal.Decimal("1.000"), 5, 3)
 
@@ -173,13 +220,9 @@ class NuoDBBasicTest(NuoBase):
     # more under the covers.
     def test_enotation_decimal_large(self):
         numbers = (
-            # Yields:  AssertionError: '400000000.00' != '4E+8'
             decimal.Decimal('4E+8'),
-            # Yields:  DataError: 'CONVERSION_ERROR: conversion from type "bytes" to "numeric" is not implemented'
             decimal.Decimal("5748E+15"),
-            # Yields:  DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
             decimal.Decimal('1.521E+15'),
-            # Yields:  DataError: 'INVALID_UTF8: invalid UTF-8 code sequence'
             decimal.Decimal('00000000000000.1E+12'),
         )
         for number in numbers:
