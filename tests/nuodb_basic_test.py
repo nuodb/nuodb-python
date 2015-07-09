@@ -154,8 +154,12 @@ class NuoDBBasicTest(NuoBase):
             DataError
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
-        except DataError:
+            
+        except DataError as err:
+            if "CONVERSION_ERROR" not in str(err):
+                self.fail()
             pass
+
         finally:
             try:
                 cursor.execute("DROP TABLE t IF EXISTS")
