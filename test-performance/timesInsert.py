@@ -22,7 +22,7 @@ for i in range(smallIterations):
 connection.commit()
 smallIterationsInsertTime = time.clock() - smallIterationsInsertTime
 
-print("\n Elapse time of SMALL_INSERT_ITERATIONS   =   " + str(smallIterationsInsertTime))
+print("\n Elapse time of SMALL_INSERT_ITERATIONS   =   " + str(smallIterationsInsertTime) + "s")
 
 """ Begin SMALL_SELECT_ITERATIONS test"""
 
@@ -30,7 +30,7 @@ smallIterationsSelectTime = time.clock()
 cursor.execute("select * from perf_test")
 cursor.fetchall()
 smallIterationsSelectTime = time.clock() - smallIterationsSelectTime
-print("\n Elapse time of SMALL_SELECT_ITERATIONS   =   " + str(smallIterationsSelectTime))
+print("\n Elapse time of SMALL_SELECT_ITERATIONS   =   " + str(smallIterationsSelectTime) + "s")
 
 """ Begin LARGE_INSERT_ITERATIONS test"""
 cursor.execute(dropTable)
@@ -42,7 +42,7 @@ for i in range(largeIterations):
 connection.commit()
 largeIterationsInsertTime = time.clock() - largeIterationsInsertTime
 
-print("\n Elapse time of LARGE_INSERT_ITERATIONS   =   " + str(largeIterationsInsertTime))
+print("\n Elapse time of LARGE_INSERT_ITERATIONS   =   " + str(largeIterationsInsertTime) + "s")
 
 """ Begin LARGE_SELECT_ITERATIONS test"""
 
@@ -51,7 +51,7 @@ cursor.execute("select * from perf_test")
 cursor.fetchall()
 largeIterationsSelectTime = time.clock() - largeIterationsSelectTime 
 
-print("\n Elapse time of LARGE_SELECT_ITERATIONS   =   " + str(largeIterationsSelectTime))
+print("\n Elapse time of LARGE_SELECT_ITERATIONS   =   " + str(largeIterationsSelectTime) + "s")
 
 if largeIterationsInsertTime > smallIterationsInsertTime * 1000 :
 	print("Insert is too slow!")
