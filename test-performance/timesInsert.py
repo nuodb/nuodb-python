@@ -18,7 +18,7 @@ cursor.execute(createTable)
 
 smallIterationsInsertTime = time.clock()
 for i in range(smallIterations):
-	cursor.execute("INSERT INTO perf_test (a,b ) VALUES (%s,'A')" % i)
+	cursor.execute("INSERT INTO perf_test (a,b ) VALUES (%d,'A')" % i)
 connection.commit()
 smallIterationsInsertTime = time.clock() - smallIterationsInsertTime
 
@@ -38,7 +38,7 @@ cursor.execute(createTable)
 
 largeIterationsInsertTime = time.clock()
 for i in range(largeIterations):
-	cursor.execute("INSERT INTO perf_test (a,b ) VALUES (%s,'A')" % i)
+	cursor.execute("INSERT INTO perf_test (a,b ) VALUES (%d,'A')" % i)
 connection.commit()
 largeIterationsInsertTime = time.clock() - largeIterationsInsertTime
 
