@@ -90,7 +90,8 @@ class Cursor(object):
 
     def callproc(self, procname, parameters=None):
         """Currently not supported."""
-        raise NotSupportedError("Currently unsupported")
+        if(procname is not None or parameters is not None):
+            raise NotSupportedError("Currently unsupported")
 
     def execute(self, operation, parameters=None):
         """Executes an SQL operation.
@@ -258,4 +259,3 @@ class StatementCache(object):
 
         self._ps_cache.clear()
         self._ps_key_queue.clear()
-

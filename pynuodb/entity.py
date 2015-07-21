@@ -144,7 +144,6 @@ class Domain(BaseListener):
             return self.__peers_by_addr[inet_sock_addr]
         except Exception as exception:
             print(exception.message)
-            pass
 
         session = Session(address, port=port, service="Identity")
         session.authorize(self.__user, self.__password)

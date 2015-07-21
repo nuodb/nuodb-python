@@ -236,6 +236,9 @@ class EncodedSession(Session):
         fieldValue = self.getInt()
         r2 = self.getInt()
 
+        if(rsHandle is None or count is None or colname is None or result is None or fieldValue is None or r2 is None):
+            raise ProgrammingError('Failed to connect!')
+
     # Mostly for cursors
     def create_statement(self):
         """
@@ -1076,4 +1079,4 @@ class EncodedSession(Session):
     def getCommitInfo(self, nodeID):
         """ Currently does not support last commit """
 
-        return 0
+        return 0 * nodeID
