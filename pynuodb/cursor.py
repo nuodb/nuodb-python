@@ -40,16 +40,16 @@ class Cursor(object):
     def __init__(self, session, prepared_statement_cache_size):
         """
         Constructor for the Cursor class.
-        @type session EncodedSession
+        :type session EncodedSession
         """
         self.session = session
-        """ @type : EncodedSession """
+        """ :type : EncodedSession """
 
         self._statement_cache = StatementCache(session, prepared_statement_cache_size)
-        """ @type : StatementCache """
+        """ :type : StatementCache """
 
         self._result_set = None
-        """ @type : result_set.ResultSet """
+        """ :type : result_set.ResultSet """
 
         self.closed = False
         self.arraysize = 1
@@ -205,30 +205,30 @@ class Cursor(object):
 class StatementCache(object):
     def __init__(self, session, prepared_statement_cache_size):
         self._session = session
-        """ @type : EncodedSession """
+        """ :type : EncodedSession """
 
         self._statement = self._session.create_statement()
-        """ @type : Statement """
+        """ :type : Statement """
 
         self._ps_cache = dict()
-        """ @type : dict[str,PreparedStatement] """
+        """ :type : dict[str,PreparedStatement] """
 
         self._ps_key_queue = deque()
-        """ @type : deque[str] """
+        """ :type : deque[str] """
 
         self._ps_cache_size = prepared_statement_cache_size
-        """ @type : int """
+        """ :type : int """
 
     def get_statement(self):
         """
-        @rtype: Statement
+        :rtype : Statement
         """
         return self._statement
 
     def get_prepared_statement(self, query):
         """
-        @type query str
-        @rtype: PreparedStatement
+        :type query str
+        :rtype : PreparedStatement
         """
 
         statement = self._ps_cache.get(query)
@@ -251,6 +251,7 @@ class StatementCache(object):
         return statement
 
     def shutdown(self):
+        """ Close connection and clear the cursor cache"""
         self._session.close_statement(self._statement)
 
         for key in self._ps_cache:
@@ -259,3 +260,4 @@ class StatementCache(object):
 
         self._ps_cache.clear()
         self._ps_key_queue.clear()
+

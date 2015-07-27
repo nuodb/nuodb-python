@@ -81,8 +81,8 @@ class EndOfStream(Exception):
 
 def db_error_handler(error_code, error_string):
     """
-    @type error_code int
-    @type error_string str
+    :type error_code int
+    :type error_string str
     """
     error_code_string = protocol.lookup_code(error_code)
     if error_code in protocol.DATA_ERRORS:
