@@ -309,5 +309,5 @@ class NoCipher(object):
         pass
 
     def transform(self, data):
-        """ Returns the data as passed in so that it will be sent unencryptedgit to the server"""
+        """ Returns the data as passed in so that it will be sent unencrypted to the server"""
         return data
