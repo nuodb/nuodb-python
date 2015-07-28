@@ -12,8 +12,8 @@ NuoDB - Python
 
 .. contents::
 
-This package contains the official pure-Python NuoDB_ client library that
-provides both a standard `PEP 249`_ SQL API, a NuoDB administration API.
+This package contains the community driven pure-Python NuoDB_ client library that
+provides both a standard `PEP 249`_ SQL API, a NuoDB administration API. This is a community driven driver with limited support and testing from NuoDB.
 
 Requirements
 ------------
