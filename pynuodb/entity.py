@@ -57,10 +57,10 @@ class Domain(BaseListener):
 
     def __init__(self, broker_addr, domain_user, domain_pwd, listener=None):
         """
-        @type broker_addr str
-        @type domain_user str
-        @type domain_pwd str
-        @type listener
+        :type broker_addr str
+        :type domain_user str
+        :type domain_pwd str
+        :type listener
         """
         if not domain_pwd:
             raise Exception("A password is required to join a domain")
@@ -72,19 +72,19 @@ class Domain(BaseListener):
         self.__password = domain_pwd
         self.__listener = listener
         self.__peers = dict()
-        """ @type : dict[str, Peer] """
+        """ :type : dict[str, Peer] """
         self.__peers_by_addr = dict()
-        """ @type : dict[str, Peer] """
+        """ :type : dict[str, Peer] """
         self.__databases = dict()
-        """ @type : dict[str, Database] """
+        """ :type : dict[str, Database] """
 
         self.__monitor = SessionMonitor(self.__session, self)
         
         # These will be set in handle status after joining the domain 
         self.__domain_name = None
-        """ @type : str """
+        """ :type : str """
         self.__entry_peer = None
-        """ @type : Peer """
+        """ :type : Peer """
 
         try:
             self.__session.doConnect()
@@ -125,9 +125,9 @@ class Domain(BaseListener):
     def find_peer(self, address, port=None):
         """
         Find a peer by address
-        @type: address str
-        @type: port int or str
-        @rtype: Peer
+        :type: address str
+        :type: port int or str
+        :rtype: Peer
         """
         if port is None:
             if ":" in address:
@@ -163,8 +163,8 @@ class Domain(BaseListener):
     def get_peer(self, agent_id):
         """
         Return a peer for a given agent_id.
-        @type agent_id str
-        @rtype: Peer
+        :type agent_id str
+        :rtype: Peer
         """
         return self.__peers.get(agent_id)
 
@@ -172,7 +172,7 @@ class Domain(BaseListener):
     def peers(self):
         """
         Return a list of all peers in the domain.
-        @rtype: list[Peer]
+        :rtype: list[Peer]
         """
         return self.__peers.values()
 
@@ -180,15 +180,15 @@ class Domain(BaseListener):
     def entry_peer(self):
         """
         Return the peer that was used to enter the domain.
-        @rtype: Peer
+        :rtype: Peer
         """
         return self.__entry_peer
 
     def get_database(self, name):
         """
         Return a database by name
-        @type name str
-        @rtype: Database
+        :type name str
+        :rtype: Database
         """
         return self.__databases.get(name)
 
@@ -196,7 +196,7 @@ class Domain(BaseListener):
     def databases(self):
         """
         Return a list of databases in the domain
-        @rtype: list[Database]
+        :rtype: list[Database]
         """
         return self.__databases.values()
 
@@ -447,13 +447,13 @@ class Peer(object):
 
     def __init__(self, domain, address, agent_id, broker=False, port=48004, hostname=None, version=None):
         """
-        @type domain Domain
-        @type address str
-        @type agent_id str
-        @type broker bool
-        @type port int
-        @type hostname str
-        @type version str
+        :type domain Domain
+        :type address str
+        :type agent_id str
+        :type broker bool
+        :type port int
+        :type hostname str
+        :type version str
         """
         self.__domain = domain
         self.__address = address
@@ -493,7 +493,7 @@ class Peer(object):
     def domain(self):
         """
         Return the domain that contains this peer.
-        @rtype: Domain
+        :rtype: Domain
         """
         return self.__domain
 
@@ -501,7 +501,7 @@ class Peer(object):
     def address(self):
         """
         Return the address of this peer.
-        @rtype: str
+        :rtype: str
         """
         return self.__address
 
@@ -509,7 +509,7 @@ class Peer(object):
     def connect_str(self):
         """
         Return the connect string for this peer.
-        @rtype: str
+        :rtype: str
         """
         return self.__address + ":" + str(self.__port)
 
@@ -517,7 +517,7 @@ class Peer(object):
     def port(self):
         """
         Return the port that this peer is using.
-        @rtype: int
+        :rtype: int
         """
         return self.__port
 
@@ -525,7 +525,7 @@ class Peer(object):
     def id(self):
         """
         Return the id of this peer (agent_id).
-        @rtype: str
+        :rtype: str
         """
         return self.__id
 
@@ -533,7 +533,7 @@ class Peer(object):
     def hostname(self):
         """
         Return the hostname of this peer.
-        @rtype: str
+        :rtype: str
         """
         return self.__hostname
     
@@ -541,7 +541,7 @@ class Peer(object):
     def version(self):
         """
         Return the NuoDB release version of this peer.
-        @rtype: str
+        :rtype: str
         """
         return self.__version
 
@@ -549,7 +549,7 @@ class Peer(object):
     def is_broker(self):
         """
         Return True if this peer is a broker.
-        @rtype: bool
+        :rtype: bool
         """
         return self.__is_broker
 
@@ -557,7 +557,7 @@ class Peer(object):
     def tags(self):
         """
         Return all host tags
-        @rtype: dict[str,str]
+        :rtype: dict[str,str]
         """
         message = self.__domain._send_domain_message("Tag", {'Action': 'GetHostTags', 'AgentId': self.id})
         tags = ElementTree.fromstring(message)
@@ -570,15 +570,15 @@ class Peer(object):
     def get_tag(self, tag):
         """
         Return host tag
-        @rtype: str
+        :rtype: str
         """
         return self.tags[tag]
 
     def set_tag(self, key, value):
         """
         Set host tag
-        @type key str
-        @type value str
+        :type key str
+        :type value str
         """
         element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
         self.__domain._send_domain_message("Tag", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
@@ -586,7 +586,7 @@ class Peer(object):
     def delete_tag(self, key):
         """
         Delete host tag
-        @type key str
+        :type key str
         """
         element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key))
         self.__domain._send_domain_message("Tag", {'Action': 'DeleteHostTags', 'AgentId': self.id}, children=[element])
@@ -607,10 +607,10 @@ class Peer(object):
         until a response is received indicating success or failure. If the
         time elapses without a response a SessionException will be raised.
 
-        @type db_name str
-        @type options list[tuple[str]]
-        @type wait_seconds int
-        @rtype: Process
+        :type db_name str
+        :type options list[tuple[str]]
+        :type wait_seconds int
+        :rtype: Process
         """
         return self.__start_process(db_name, options, wait_seconds)
 
@@ -632,12 +632,12 @@ class Peer(object):
         until a response is received indicating success or failure. If the
         time elapses without a response, a SessionException will be raised.
 
-        @type db_name str
-        @type archive str
-        @type initialize bool
-        @type options list[tuple[str]]
-        @type wait_seconds int
-        @rtype: Process
+        :type db_name str
+        :type archive str
+        :type initialize bool
+        :type options list[tuple[str]]
+        :type wait_seconds int
+        :rtype: Process
         """
         if not options:
             options = []
@@ -653,10 +653,10 @@ class Peer(object):
 
     def __start_process(self, db_name, options, wait_seconds):
         """
-        @type db_name str
-        @type options list[tuple[str]]
-        @type wait_seconds int
-        @rtype: Process | None
+        :type db_name str
+        :type options list[tuple[str]]
+        :type wait_seconds int
+        :rtype: Process | None
         """
         if wait_seconds is None:
             startProcess(self.connect_str, self.__domain.user, self.__domain.password, db_name, options)
@@ -716,7 +716,7 @@ class Peer(object):
         this method will only return the subset of processes that are on this 
         peer.
 
-        @rtype: list[Process]
+        :rtype: list[Process]
         """
         if db_name is None:
             return self.__processes.values()
@@ -730,20 +730,20 @@ class Peer(object):
 
     def _get_process(self, pid):
         """
-        @type pid int
-        @rtype: Process
+        :type pid int
+        :rtype: Process
         """
         return self.__processes.get(pid)
 
     def _add_process(self, process):
         """
-        @type process Process
+        :type process Process
         """
         self.__processes[process.pid] = process
 
     def _remove_process(self, process):
         """
-        @type process Process
+        :type process Process
         """
         try:
             del self.__processes[process.pid]
@@ -754,7 +754,7 @@ class Peer(object):
     def _get_normalized_addr(self):
         """
         Return ip_address:port
-        @rtype: str
+        :rtype: str
         """
         if self.__inet_sock_addr is None:
             ip = socket.gethostbyname(self.__address)
@@ -768,14 +768,14 @@ class Database(object):
 
     def __init__(self, domain, name):
         """
-        @type domain Domain
-        @type name str
+        :type domain Domain
+        :type name str
         """
         self.__domain = domain
         self.__name = name
 
         self.__processes = dict()
-        """ @type : dict[str, Process] """
+        """ :type : dict[str, Process] """
 
     def __hash__(self):
         return hash(self.__name)
@@ -795,7 +795,7 @@ class Database(object):
     def domain(self):
         """
         Return the domain that contains this database.
-        @rtype: Domain
+        :rtype: Domain
         """
         return self.__domain
 
@@ -803,7 +803,7 @@ class Database(object):
     def name(self):
         """
         Return the name of this database.
-        @rtype: str
+        :rtype: str
         """
         return self.__name
 
@@ -958,15 +958,15 @@ class Process(object):
 
     def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
         """
-        @type peer Peer
-        @type database Database
-        @type port int
-        @type pid int
-        @type transactional bool
-        @type status str
-        @type hostname str
-        @type version str
-        @type node_id int
+        :type peer Peer
+        :type database Database
+        :type port int
+        :type pid int
+        :type transactional bool
+        :type status str
+        :type hostname str
+        :type version str
+        :type node_id int
         """
         self.__peer = peer
         self.__database = database
@@ -1203,9 +1203,9 @@ class Template(object):
 
     def __init__(self, name, summary, requirements):
         """
-        @type name str
-        @type summary str
-        @type requirements str
+        :type name str
+        :type summary str
+        :type requirements str
         """
         self._name = name
         self._summary = summary
@@ -1320,11 +1320,11 @@ class Description(object):
 
     def __init__(self, name, template_name, variables, status, live_status=""):
         """
-        @type name str
-        @type template_name str
-        @type variables dict[str,str]
-        @type status str
-        @type live_status str
+        :type name str
+        :type template_name str
+        :type variables dict[str,str]
+        :type status str
+        :type live_status str
         """
         self._name = name
         self._template_name = template_name

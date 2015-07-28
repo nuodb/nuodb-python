@@ -186,6 +186,7 @@ class Session(object):
         return message
 
     def send(self, message):
+        """ Send an encoded message to the server over the socket """
         if not self.__sock:
             raise SessionException("Session is not open to send")
 
@@ -208,6 +209,7 @@ class Session(object):
             raise
 
     def recv(self, doStrip=True):
+        """ Pull the next message from the socket and decode / trim it if needed """
         if not self.__sock:
             raise SessionException("Session is not open to receive")
 
@@ -233,6 +235,7 @@ class Session(object):
 
 
     def __readFully(self, msgLength):
+        """ Pull the entire next raw bytes message from the socket """
         msg = b''
         while msgLength > 0:
             received = self.__sock.recv(msgLength)
@@ -248,6 +251,7 @@ class Session(object):
         return msg
 
     def close(self, force=False):
+        """ Close the current socket connection with the server """
         if not self.__sock:
             return
 

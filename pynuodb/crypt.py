@@ -305,7 +305,9 @@ class RC4Cipher(object):
 class NoCipher(object):
 
     def __init__(self):
+        """ A class to allow polymorphic cipher streams"""
         pass
 
     def transform(self, data):
+        """ Returns the data as passed in so that it will be sent unencrypted to the server"""
         return data
