@@ -18,7 +18,7 @@ import pynuodb
 from .nuodb_base import NuoBase
 from .mock_tzs import EscapingTimestamp
 from .mock_tzs import Local
-from pynuodb.exception import DataError
+from pynuodb.exception import DataError, ProgrammingError
 
 
 class NuoDBBasicTest(NuoBase):
@@ -462,7 +462,11 @@ class NuoDBBasicTest(NuoBase):
         #Get NuoDB release 
         con = self._connect()
         cursor = con.cursor()
-        cursor.execute("select getReleaseversion() from dual")
+        try:
+            cursor.execute("select getReleaseversion() from dual")
+        except ProgrammingError as pe:
+            return #2.0 or earlier, skip test
+            
         version = cursor.fetchone()[0]
         majorVersion = version[0]
         minorVersion = version[2]
