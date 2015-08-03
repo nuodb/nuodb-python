@@ -469,9 +469,9 @@ class NuoDBBasicTest(NuoBase):
         result = cursor.fetchone()
 
         #Make sure our clientHost, clientProcessId and clientInfo remain the same in the SYSTEM.CONNECTIONS table
-        self.assertEqual(platform.node(), result[17])
-        self.assertEqual(str(os.getpid()), result[18])
-        self.assertEqual(clientInfo, result[19])
+        self.assertEqual(platform.node(), result[17]) #ClientHost
+        self.assertEqual(str(os.getpid()), result[18]) #clientProcessId
+        self.assertEqual(clientInfo, result[19]) #clientInfo
 
 
     def test_utf8_string_types(self):
