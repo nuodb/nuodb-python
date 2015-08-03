@@ -459,6 +459,16 @@ class NuoDBBasicTest(NuoBase):
                 con.close()
 
     def test_connection_properties(self):
+        #Get NuoDB release 
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("select getReleaseversion() from dual")
+        version = cursor.fetchone()[0]
+        majorVersion = version[0]
+        minorVersion = version[2]
+        if(majorVersion is '2'):
+            if(minorVersion is not '3'):
+                return
 
         clientInfo = "NuoDB Python driver"
         tmp_args = self.connect_kw_args.copy()
