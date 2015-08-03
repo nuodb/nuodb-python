@@ -13,7 +13,9 @@ from .cursor import Cursor
 from .encodedsession import EncodedSession
 from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
+from os import getpid
 
+import platform
 import time
 
 apilevel = "2.0"
@@ -95,6 +97,9 @@ class Connection(object):
             parameters.update(options)
             if 'cipher' in options and options['cipher'] == 'None':
                 self.__session.set_encryption(False)
+
+        parameters['clientProcessId'] = str(getpid())
+        parameters['clientHost'] = platform.node()
 
         version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
             

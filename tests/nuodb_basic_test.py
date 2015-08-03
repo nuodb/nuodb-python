@@ -9,6 +9,7 @@ To create it run /opt/nuodb/run-quickstart or use the web console.
 
 import unittest
 import decimal
+import platform
 import time
 import os
 import sys
@@ -17,7 +18,7 @@ import pynuodb
 from .nuodb_base import NuoBase
 from .mock_tzs import EscapingTimestamp
 from .mock_tzs import Local
-from pynuodb.exception import DataError
+from pynuodb.exception import DataError, ProgrammingError
 
 
 class NuoDBBasicTest(NuoBase):
@@ -456,6 +457,36 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
+
+    def test_connection_properties(self):
+        #Get NuoDB release 
+        con = self._connect()
+        cursor = con.cursor()
+        try:
+            cursor.execute("select getReleaseversion() from dual")
+        except ProgrammingError as pe:
+            return #2.0 or earlier, skip test
+            
+        version = cursor.fetchone()[0]
+        majorVersion = version[0]
+        minorVersion = version[2]
+        if(majorVersion is '2'):
+            if(minorVersion is not '3'):
+                return
+
+        clientInfo = "NuoDB Python driver"
+        tmp_args = self.connect_kw_args.copy()
+        tmp_args['options'] = {'schema': 'test', 'clientInfo': clientInfo}
+        con = pynuodb.connect(**tmp_args)#self._connect({'clientInfo':'Hello World'})
+        cursor = con.cursor()
+        cursor.execute("select * from SYSTEM.CONNECTIONS")
+        result = cursor.fetchone()
+
+        #Make sure our clientHost, clientProcessId and clientInfo remain the same in the SYSTEM.CONNECTIONS table
+        self.assertEqual(platform.node(), result[17]) #ClientHost
+        self.assertEqual(str(os.getpid()), result[18]) #clientProcessId
+        self.assertEqual(clientInfo, result[19]) #clientInfo
+
 
     def test_utf8_string_types(self):
         con = self._connect()
