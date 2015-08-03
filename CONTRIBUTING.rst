@@ -37,6 +37,10 @@ Then once those are setup...
 Developer Testing
 ~~~~~~~~~~~~~~~~~
 
+Prerequisite for testing is to unset LC_CTYPE:
+
+    | unset LC_CTYPE
+
 My basic means of testing has been:
 
     | source ~/.venv/pynuodb/bin/activate
