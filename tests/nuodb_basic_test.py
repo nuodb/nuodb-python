@@ -466,18 +466,19 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select getReleaseversion() from dual")
         except ProgrammingError as pe:
             return #2.0 or earlier, skip test
-            
+        
+        #Determine NuoDB version in the form Major.Minor    
         version = cursor.fetchone()[0]
-        majorVersion = version[0]
-        minorVersion = version[2]
-        if(majorVersion is '2'):
-            if(minorVersion is not '3'):
+        majorVersion = int(version[0])
+        minorVersion = int(version[2])
+        if(majorVersion == 2):
+            if(minorVersion < 3):
                 return
 
         clientInfo = "NuoDB Python driver"
         tmp_args = self.connect_kw_args.copy()
         tmp_args['options'] = {'schema': 'test', 'clientInfo': clientInfo}
-        con = pynuodb.connect(**tmp_args)#self._connect({'clientInfo':'Hello World'})
+        con = pynuodb.connect(**tmp_args)
         cursor = con.cursor()
         cursor.execute("select * from SYSTEM.CONNECTIONS")
         result = cursor.fetchone()
