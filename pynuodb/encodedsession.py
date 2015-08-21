@@ -271,6 +271,13 @@ class EncodedSession(Session):
         self._putMessageId(protocol.CLOSESTATEMENT).putInt(statement.handle)
         self._exchangeMessages(False)
 
+    def close_result_set(self, result_set):
+        """
+        :type result_set: ResultSet
+        """
+        self._putMessageId(protocol.CLOSERESULTSET).putInt(result_set.handle)
+        self._exchangeMessages(False)
+
     def create_prepared_statement(self, query):
         """
         :type query: str

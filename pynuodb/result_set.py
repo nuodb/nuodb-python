@@ -35,3 +35,9 @@ class ResultSet(object):
         res = self.results[self.results_idx]
         self.results_idx += 1
         return res
+
+    def close(self, session):
+        """
+        :type session EncodedSession
+        """
+        session.close_result_set(self)
