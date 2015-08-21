@@ -3,7 +3,7 @@
 import unittest
 
 from .nuodb_base import NuoBase
-from pynuodb.exception import DataError, ProgrammingError, BatchError
+from pynuodb.exception import DataError, ProgrammingError, BatchError, OperationalError
 
 
 class NuoDBCursorTest(NuoBase):
@@ -124,6 +124,28 @@ class NuoDBCursorTest(NuoBase):
         self.assertEquals(len(cursor.fetchall()), 3)
 
         cursor.execute("DROP TABLE executemany_table")
+
+    def test_result_set_gets_closed(self):
+        # Server will throw error after 1000 open result sets
+        con = self._connect()
+
+        for j in [False, True]:
+            for i in range(2015):
+                if not j:
+                    cursor = con.cursor()
+                    cursor.execute('select 1 from dual;')
+                    con.commit()
+                    cursor.close()
+                else:
+                    if i >= 1000:
+                        with self.assertRaises(OperationalError):
+                            cursor = con.cursor()
+                            cursor.execute('select 1 from dual;')
+                            con.commit()
+                    else:
+                        cursor = con.cursor()
+                        cursor.execute('select 1 from dual;')
+                        con.commit()
 
 
 if __name__ == '__main__':
