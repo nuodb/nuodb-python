@@ -129,7 +129,7 @@ class NuoDBCursorTest(NuoBase):
 
     def test_result_set_gets_closed(self):
         current_version = getenv('NUODB_VERSION', None) # skipif <2.1
-        if current_version is not None and LooseVersion(current_version) < LooseVersion("2.1"):
+        if current_version is not None and not LooseVersion(current_version) < LooseVersion("2.1"):
         # Server will throw error after 1000 open result sets
             con = self._connect()
             for j in [False, True]:
