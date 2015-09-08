@@ -10,11 +10,11 @@ env:
 
 notifications:
   recipients:
-    - buck.robert.j@gmail.com
-    - rbuck@nuodb.com
     - khicks@nuodb.com
     - tgates@nuodb.com
     - mmichaels@nuodb.com
+    - vduda@nuodb.com
+    - drivers@nuodb.com
 
 
 before_install:
