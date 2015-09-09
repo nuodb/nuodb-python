@@ -167,6 +167,7 @@ GETUDTS                         = 118
 GETVERSIONCOLUMNS               = 119 
 GETLOBCHUNK                     = 120
 GETLASTSTATEMENTTIMEMICROS      = 121
+AUTHORIZETYPESREQUEST           = 122
 
 
 

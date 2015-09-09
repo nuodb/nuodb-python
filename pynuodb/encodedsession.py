@@ -188,6 +188,13 @@ class EncodedSession(Session):
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
 
+    def get_auth_types(self):
+        self._putMessageId(protocol.AUTHORIZETYPESREQUEST)
+        self._exchangeMessages()
+        val = self.getInt()
+
+        return val
+
     def get_autocommit(self):
         self._putMessageId(protocol.GETAUTOCOMMIT)
         self._exchangeMessages()
