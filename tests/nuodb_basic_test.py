@@ -155,7 +155,7 @@ class NuoDBBasicTest(NuoBase):
             DataError
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
-            
+
         except DataError as err:
             if "CONVERSION_ERROR" not in str(err):
                 self.fail()
@@ -459,15 +459,15 @@ class NuoDBBasicTest(NuoBase):
                 con.close()
 
     def test_connection_properties(self):
-        #Get NuoDB release 
+        #Get NuoDB release
         con = self._connect()
         cursor = con.cursor()
         try:
             cursor.execute("select getReleaseversion() from dual")
         except ProgrammingError as pe:
             return #2.0 or earlier, skip test
-        
-        #Determine NuoDB version in the form Major.Minor    
+
+        #Determine NuoDB version in the form Major.Minor
         version = cursor.fetchone()[0]
         majorVersion = int(version[0])
         minorVersion = int(version[2])
@@ -480,13 +480,12 @@ class NuoDBBasicTest(NuoBase):
         tmp_args['options'] = {'schema': 'test', 'clientInfo': clientInfo}
         con = pynuodb.connect(**tmp_args)
         cursor = con.cursor()
-        cursor.execute("select * from SYSTEM.CONNECTIONS")
+        cursor.execute("select clientprocessid, clientinfo from SYSTEM.CONNECTIONS")
         result = cursor.fetchone()
 
-        #Make sure our clientHost, clientProcessId and clientInfo remain the same in the SYSTEM.CONNECTIONS table
-        self.assertEqual(platform.node(), result[17]) #ClientHost
-        self.assertEqual(str(os.getpid()), result[18]) #clientProcessId
-        self.assertEqual(clientInfo, result[19]) #clientInfo
+        #Make sure our clientProcessId and clientInfo remain the same in the SYSTEM.CONNECTIONS table
+        self.assertEqual(str(os.getpid()), result[0]) #clientProcessId
+        self.assertEqual(clientInfo, result[1]) #clientInfo
 
 
     def test_utf8_string_types(self):
@@ -525,9 +524,9 @@ class NuoDBBasicTest(NuoBase):
                            "time_col time, timestamp_col_EDT timestamp, timestamp_col_EST timestamp)")
 
             test_vals = (
-                pynuodb.Date(2008, 1, 1), 
-                pynuodb.Time(8, 13, 34), 
-                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Local), 
+                pynuodb.Date(2008, 1, 1),
+                pynuodb.Time(8, 13, 34),
+                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Local),
                 pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Local),
                 )
             quoted_vals = ["'%s'" % str(val) for val in test_vals]
