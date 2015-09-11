@@ -99,7 +99,6 @@ class Connection(object):
                 self.__session.set_encryption(False)
 
         parameters['clientProcessId'] = str(getpid())
-        parameters['clientHost'] = platform.node()
 
         version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
             
