@@ -69,8 +69,7 @@ class Cursor(object):
         """Closes the cursor into the database."""
         self._check_closed()
         self._statement_cache.shutdown()
-        if self._result_set:
-            self._result_set.close(self.session)
+        self._close_result_set()
         self.closed = True
 
     def _check_closed(self):
@@ -80,12 +79,19 @@ class Cursor(object):
         if self.session.closed:
             raise Error("connection is closed")
 
+    def _close_result_set(self):
+        """Close current ResultSet on client and server side"""
+        if self._result_set:
+            self._result_set.close(self.session)
+            self._result_set = None
+
     def _reset(self):
-        """Resets SQL transaction variables."""
+        """Resets Cursor to a default SQL transaction state"""
         self.description = None
         self.rowcount = -1
         self.colcount = -1
-        self._result_set = None
+        self._close_result_set()
+
 
     def callproc(self, procname, parameters=None):
         """Currently not supported."""
