@@ -191,6 +191,18 @@ class NuoDBExecutionFlowTest(NuoBase):
                 self.assertEqual(str(e1),
                                  "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got syntax2\\n'")
 
+    def test_execute_ten_million_with_result_sets(self):
+        con = self._connect()
+        cursor = con.cursor()
+        cursor.execute("DROP TABLE IF EXISTS execute_ten_million_with_result_sets")
+        cursor.execute("CREATE TABLE execute_ten_million_with_result_sets (value INTEGER)")
+        for i in range(10000):
+            cursor.execute("insert into execute_ten_million_with_result_sets (value) Values ({:d})".format(i))
+            con.commit()
+            cursor.execute("select count(*) from execute_ten_million_with_result_sets;")
+            res = cursor.fetchone()[0]
+            self.assertEqual(i+1,res)
+
 
 def version_lt(version):
     current_version = os.getenv('NUODB_VERSION', None)
