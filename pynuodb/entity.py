@@ -348,6 +348,8 @@ class Domain(BaseListener):
                 name = child.get("Name")
                 if self.__listener:
                     try:
+                        if name not in self.__databases:
+                            self.__databases[name] = Database(self, name)
                         self.__listener.database_joined(self.__databases[name])
                     except AttributeError:
                         pass
