@@ -226,12 +226,12 @@ class Domain(BaseListener):
         response = self._send_domain_message(**Template.build_list_request())
         return Template.from_list_message(response)
 
-    def create_description(self, name, template_name, variables, dba_user, dba_password):
-        response = self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password))
+    def create_description(self, name, template_name, variables, dba_user, dba_password, db_opts=None):
+        response = self._send_domain_message(**Description.build_create_request(name, template_name, variables, dba_user, dba_password, db_opts))
         return ElementTree.fromstring(response).tag == Description.success_message
 
-    def update_description(self, name, template_name, variables):
-        response = self._send_domain_message(**Description.build_update_request(name, template_name, variables))
+    def update_description(self, name, template_name, variables, db_opts=None):
+        response = self._send_domain_message(**Description.build_update_request(name, template_name, variables, db_opts))
         return ElementTree.fromstring(response).tag == Description.success_message
 
     def delete_description(self, name):
@@ -1230,7 +1230,7 @@ class Description(object):
     success_message = "Success"
 
     @staticmethod
-    def build_create_request(name, template_name, variables, dba_user, dba_password):
+    def build_create_request(name, template_name, variables, dba_user, dba_password, db_options=None):
         template_element = ElementTree.Element("Template")
         template_element.text = template_name
         variables_element = ElementTree.Element("Variables")
@@ -1238,16 +1238,23 @@ class Description(object):
             variable_child = ElementTree.SubElement(variables_element, "Variable")
             variable_child.set("Key", key)
             variable_child.text = variables[key]
+
+        if db_options is None: db_options = {}
+        options_element = ElementTree.Element("Options")
+        for key in db_options:
+            option_child = ElementTree.SubElement(options_element, "Option")
+            option_child.set("Key", key)
+            option_child.text = db_options[key]
 
         return {"service": "Description",
                 "attributes": {'Action': 'CreateDescription',
                                'DatabaseName': name,
                                'DbaUser': dba_user,
                                'DbaPassword': dba_password},
-                "children": [template_element, variables_element]}
+                "children": [template_element, variables_element, options_element]}
 
     @staticmethod
-    def build_update_request(name, template_name, variables):
+    def build_update_request(name, template_name, variables, db_options=None):
         template_element = ElementTree.Element("Template")
         template_element.text = template_name
         variables_element = ElementTree.Element("Variables")
@@ -1256,10 +1263,17 @@ class Description(object):
             variable_child.set("Key", key)
             variable_child.text = variables[key]
 
+        if db_options is None: db_options = {}
+        options_element = ElementTree.Element("Options")
+        for key in db_options:
+            option_child = ElementTree.SubElement(options_element, "Option")
+            option_child.set("Key", key)
+            option_child.text = db_options[key]
+
         return {"service": "Description",
                 "attributes": {'Action': 'UpdateDescription',
                                'DatabaseName': name},
-                "children": [template_element, variables_element]}
+                "children": [template_element, variables_element, options_element]}
 
     @staticmethod
     def build_delete_request(name):
