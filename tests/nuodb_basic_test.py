@@ -529,17 +529,13 @@ class NuoDBBasicTest(NuoBase):
                 pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Local),
                 pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Local),
                 )
-            quoted_vals = ["'%s'" % str(val) for val in test_vals]
-            for i, test_val in enumerate(test_vals):
-                if "'" in str(test_val):
-                    quoted_vals[i] = str(test_val)
             exc_str = ("insert into typetest ("
                 "date_col, "
                 "time_col, "
                 "timestamp_col_EDT, "
                 "timestamp_col_EST) "
-                "values (" + ', '.join(quoted_vals) + ")")
-            cursor.execute(exc_str)
+                "values (?, ?, ?, ?)")
+            cursor.execute(exc_str, test_vals)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -548,6 +544,8 @@ class NuoDBBasicTest(NuoBase):
             self.assertIsInstance(row[2], pynuodb.Time)
             self.assertIsInstance(row[3], pynuodb.Timestamp)
             self.assertIsInstance(row[4], pynuodb.Timestamp)
+
+            self.assertEqual(test_vals[2] - test_vals[3], row[3] - row[4])
 
             self.assertEqual(row[1].year, test_vals[0].year)
             self.assertEqual(row[1].month, test_vals[0].month)
