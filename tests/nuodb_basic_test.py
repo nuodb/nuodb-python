@@ -24,11 +24,14 @@ from pynuodb.exception import DataError, ProgrammingError
 class NuoDBBasicTest(NuoBase):
     def test_noop(self):
         con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("select 1 from dual")
-        row = cursor.fetchone()
-        self.assertEqual(len(row), 1)
-        self.assertEqual(row[0], 1)
+        try:
+            cursor = con.cursor()
+            cursor.execute("select 1 from dual")
+            row = cursor.fetchone()
+            self.assertEqual(len(row), 1)
+            self.assertEqual(row[0], 1)
+        finally:
+            con.close()
 
     def test_numeric_types(self):
         con = self._connect()
@@ -464,28 +467,45 @@ class NuoDBBasicTest(NuoBase):
         cursor = con.cursor()
         try:
             cursor.execute("select getReleaseversion() from dual")
+
+            #Determine NuoDB version in the form Major.Minor
+            version = cursor.fetchone()[0]
+            majorVersion = int(version[0])
+            minorVersion = int(version[2])
+            if(majorVersion == 2):
+                if(minorVersion < 3):
+                    return
+
         except ProgrammingError as pe:
             return #2.0 or earlier, skip test
-
-        #Determine NuoDB version in the form Major.Minor
-        version = cursor.fetchone()[0]
-        majorVersion = int(version[0])
-        minorVersion = int(version[2])
-        if(majorVersion == 2):
-            if(minorVersion < 3):
-                return
+        finally:
+            con.close()
 
         clientInfo = "NuoDB Python driver"
         tmp_args = self.connect_kw_args.copy()
         tmp_args['options'] = {'schema': 'test', 'clientInfo': clientInfo}
         con = pynuodb.connect(**tmp_args)
-        cursor = con.cursor()
-        cursor.execute("select clientprocessid, clientinfo from SYSTEM.CONNECTIONS")
-        result = cursor.fetchone()
+        try:
+            cursor = con.cursor()
+            cursor.execute("select clientprocessid, clientinfo from SYSTEM.CONNECTIONS")
 
-        #Make sure our clientProcessId and clientInfo remain the same in the SYSTEM.CONNECTIONS table
-        self.assertEqual(str(os.getpid()), result[0]) #clientProcessId
-        self.assertEqual(clientInfo, result[1]) #clientInfo
+            result = cursor.fetchone()
+
+            #Make sure our clientProcessId and clientInfo remain the same in
+            #the SYSTEM.CONNECTIONS table
+            self.assertEqual(str(os.getpid()), result[0]) #clientProcessId
+            self.assertEqual(clientInfo, result[1]) #clientInfo
+        finally:
+            con.close()
+
+
+    def test_connection(self):
+        # Verify the testConnection() method
+        con = self._connect()
+        try:
+            con.testConnection()
+        finally:
+            con.close()
 
 
     def test_utf8_string_types(self):
@@ -515,7 +535,6 @@ class NuoDBBasicTest(NuoBase):
                 con.close()
 
     def test_date_types(self):
-
         con = self._connect()
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
@@ -861,15 +880,21 @@ class NuoDBBasicTest(NuoBase):
         con = self._connect()
         cursor = con.cursor()
         cursor.execute("drop table typetest if exists")
-        cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
-
-        test_vals = (pynuodb.Date(1800, 1, 1),)
         try:
-            cursor.execute("insert into typetest (date_col) values (?)", test_vals)
-        except pynuodb.DataError:
-            pass
-        except:
-            self.fail()
+            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
+
+            test_vals = (pynuodb.Date(1800, 1, 1),)
+            try:
+                cursor.execute("insert into typetest (date_col) values (?)", test_vals)
+            except pynuodb.DataError:
+                pass
+            except:
+                self.fail()
+        finally:
+            try:
+                cursor.execute("drop table typetest if exists")
+            finally:
+                con.close()
 
 if __name__ == '__main__':
     unittest.main()

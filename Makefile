@@ -26,6 +26,8 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+TMPDIR ?= ./.testtemp
+
 all:
 	make install
 	make test
@@ -37,7 +39,7 @@ install:
 test:
 	pip install -r requirements.txt
 	pip install -r test_requirements.txt
-	py.test --cov=pynuodb --cov-report html --cov-report term-missing
+	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing
 
 deploy:
 	python setup.py register

@@ -25,7 +25,7 @@ REMOVE_FORMAT = 0
 
 class EncodedSession(Session):
     """Class for representing an encoded session with the database.
-    
+
     Public Functions:
     putMessageId -- Start a message with the messageId.
     putInt -- Appends an Integer value to the message.
@@ -42,7 +42,7 @@ class EncodedSession(Session):
     putBlob -- Appends the Blob(Binary Large OBject) value to the message.
     putClob -- Appends the Clob(Character Large OBject) value to the message.
     putScaledTime -- Appends a Scaled Time value to the message.
-    putScaledTimestamp -- Appends a Scaled Timestamp value to the message.    
+    putScaledTimestamp -- Appends a Scaled Timestamp value to the message.
     putScaledDate -- Appends a Scaled Date value to the message.
     putScaledCount2 -- Appends a scaled and signed decimal to the message
     putValue -- Determines the probable type of the value and calls the supporting function.
@@ -70,7 +70,7 @@ class EncodedSession(Session):
     _peekTypeCode -- Looks at the next Type Code off the session. (Does not move inpos)
     _getTypeCode -- Read the next Type Code off the session.
     _takeBytes -- Gets the next length of bytes off the session.
- 
+
     """
 
     def __init__(self, host, port, service='SQL2'):
@@ -164,7 +164,7 @@ class EncodedSession(Session):
         serverKey = self.getString()
         salt = self.getString()
         self.__connectionDatabaseUUID = self.getUUID()
-        
+
         if protocolVersion >= protocol.PROTOCOL_VERSION15 :
             self.__connectionID = self.getInt()
 
@@ -232,7 +232,7 @@ class EncodedSession(Session):
         handle = self.getInt()
 
         # Use handle to query dual
-        self._putMessageId(protocol.EXECUTEQUERY).putInt(handle).putString('select 1 as one from dual')
+        self._setup_statement(handle, protocol.EXECUTEQUERY).putString('select 1 as one from dual')
         self._exchangeMessages()
 
         rsHandle = self.getInt()
@@ -260,10 +260,7 @@ class EncodedSession(Session):
         :type query: str
         :rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTE)
-        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
-            self.putInt(self.getCommitInfo(self.__connectedNodeID))
-        self.putInt(statement.handle).putString(query)
+        self._setup_statement(statement.handle, protocol.EXECUTE).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
@@ -304,11 +301,9 @@ class EncodedSession(Session):
         :type parameters: list
         :rtype: ExecutionResult
         """
-        self._putMessageId(protocol.EXECUTEPREPAREDSTATEMENT)
-        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
-            self.putInt(self.getCommitInfo(self.__connectedNodeID))
-        self.putInt(prepared_statement.handle).putInt(len(parameters))
+        self._setup_statement(prepared_statement.handle, protocol.EXECUTEPREPAREDSTATEMENT)
 
+        self.putInt(len(parameters))
         for param in parameters:
             self.putValue(param)
 
@@ -325,10 +320,8 @@ class EncodedSession(Session):
         :type param_lists: list[list]
 
         """
-        self._putMessageId(protocol.EXECUTEBATCHPREPAREDSTATEMENT)
-        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
-            self.putInt(self.getCommitInfo(self.__connectedNodeID))
-        self.putInt(prepared_statement.handle)
+        self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+
         for parameters in param_lists:
             if prepared_statement.parameter_count != len(parameters):
                 raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
@@ -580,7 +573,7 @@ class EncodedSession(Session):
         packed = chr(protocol.MILLISECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
-        
+
     def putNsSinceEpoch(self, value):
         """
         Appends the NsSinceEpoch value to the message.
@@ -590,7 +583,7 @@ class EncodedSession(Session):
         packed = chr(protocol.NANOSECLEN0 + len(valueStr)) + valueStr
         self.__output += packed
         return self
-        
+
     def putMsSinceMidnight(self, value):
         """
         Appends the MsSinceMidnight value to the message.
@@ -625,7 +618,7 @@ class EncodedSession(Session):
         packed = chr(protocol.CLOBLEN0 + len(lengthStr)) + lengthStr + value
         self.__output += packed
         return self
-        
+
     def putScaledTime(self, value):
         """
         Appends a Scaled Time value to the message.
@@ -639,7 +632,7 @@ class EncodedSession(Session):
             packed = chr(protocol.SCALEDTIMELEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
-    
+
     def putScaledTimestamp(self, value):
         """
         Appends a Scaled Timestamp value to the message.
@@ -653,7 +646,7 @@ class EncodedSession(Session):
             packed = chr(protocol.SCALEDTIMESTAMPLEN1 - 1 + len(valueStr)) + chr(scale) + valueStr
         self.__output += packed
         return self
-        
+
     def putScaledDate(self, value):
         """
         Appends a Scaled Date value to the message.
@@ -663,7 +656,7 @@ class EncodedSession(Session):
         valueStr = toSignedByteString(ticks)
         if len(valueStr) == 0:
             packed = chr(protocol.SCALEDDATELEN1) + chr(0) + chr(0)
-        else:  
+        else:
             packed = chr(protocol.SCALEDDATELEN1 - 1 + len(valueStr)) + chr(0) + valueStr
         self.__output += packed
         return self
@@ -703,7 +696,7 @@ class EncodedSession(Session):
             return self.putBoolean(value)
         else:
             return self.putString(str(value))
-        
+
     #
     # Methods to get values out of the last exchange
 
@@ -790,10 +783,10 @@ class EncodedSession(Session):
         :rtype: float
         """
         typeCode = self._getTypeCode()
-        
+
         if typeCode == protocol.DOUBLELEN0:
             return 0.0
-        
+
         if typeCode in range(protocol.DOUBLELEN0 + 1, protocol.DOUBLELEN8 + 1):
             test = self._takeBytes(typeCode - 77)
             if typeCode < protocol.DOUBLELEN8:
@@ -803,7 +796,7 @@ class EncodedSession(Session):
                 #Python 3 returns an array, we want the 0th element and remove form
                 return struct.unpack('!d', bytes(test, 'latin-1'))[0] + REMOVE_FORMAT
             return struct.unpack('!d', test)[0]
-            
+
         raise DataError('Not a double')
 
     def getTime(self):
@@ -812,18 +805,18 @@ class EncodedSession(Session):
         :rtype: int
         """
         typeCode = self._getTypeCode()
-        
+
         if typeCode in range(protocol.MILLISECLEN0, protocol.MILLISECLEN8 + 1):
             return fromSignedByteString(self._takeBytes(typeCode - 86))
-            
+
         if typeCode in range(protocol.NANOSECLEN0, protocol.NANOSECLEN8 + 1):
             return fromSignedByteString(self._takeBytes(typeCode - 95))
-            
+
         if typeCode in range(protocol.TIMELEN0, protocol.TIMELEN4 + 1):
             return fromByteString(self._takeBytes(typeCode - 104))
-            
+
         raise DataError('Not a time')
-    
+
     def getOpaque(self):
         """
         Read the next Opaque value off the session.
@@ -851,20 +844,20 @@ class EncodedSession(Session):
         :rtype: datatype.Binary
         """
         typeCode = self._getTypeCode()
-        
+
         if typeCode in range(protocol.BLOBLEN0, protocol.BLOBLEN4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 189))
             return datatype.Binary(self._takeBytes(strLength))
 
         raise DataError('Not a blob')
-    
+
     def getClob(self):
         """
         Read the next Clob(Character Large OBject) value off the session.
         :rtype: bytes
         """
         typeCode = self._getTypeCode()
-        
+
         if typeCode in range(protocol.CLOBLEN0, protocol.CLOBLEN4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 194))
             return self._takeBytes(strLength)
@@ -885,7 +878,7 @@ class EncodedSession(Session):
             return datatype.TimeFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled time')
-    
+
     def getScaledTimestamp(self):
         """
         Read the next Scaled Timestamp value off the session.
@@ -900,7 +893,7 @@ class EncodedSession(Session):
             return datatype.TimestampFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled timestamp')
-    
+
     def getScaledDate(self):
         """
         Read the next Scaled Date value off the session.
@@ -954,7 +947,7 @@ class EncodedSession(Session):
         supporting function.
         """
         typeCode = self._peekTypeCode()
-        
+
 
         # get string type
         if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1) or \
@@ -968,11 +961,11 @@ class EncodedSession(Session):
         # get double precision type
         elif typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
             return self.getDouble()
-        
+
         # get boolean type
         elif typeCode in [protocol.TRUE, protocol.FALSE]:
             return self.getBoolean()
-        
+
         # get uuid type
         elif typeCode is [protocol.UUID, protocol.SCALEDCOUNT1]:
             return self.getUUID()
@@ -984,32 +977,32 @@ class EncodedSession(Session):
         # get scaled int type
         elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
-        
+
         # get opaque type
         elif typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1) or \
              typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
             return self.getOpaque()
-        
+
         # get blob/clob type
         elif typeCode in range(protocol.BLOBLEN0, protocol.CLOBLEN4 + 1):
             return self.getBlob()
-        
+
         # get time type
         elif typeCode in range(protocol.MILLISECLEN0, protocol.TIMELEN4 + 1):
             return self.getTime()
-        
+
         # get scaled time
         elif typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             return self.getScaledTime()
-        
+
         # get scaled timestamp
         elif typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             return self.getScaledTimestamp()
-        
+
         # get scaled date
         elif typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             return self.getScaledDate()
-        
+
         # get null type
         elif typeCode is protocol.NULL:
             return self.getNull()
@@ -1028,7 +1021,7 @@ class EncodedSession(Session):
         if getResponse is True:
             self.__input = self.recv(False)
             self.__inpos = 0
-            
+
             error = self.getInt()
 
             if error != 0:
@@ -1047,6 +1040,18 @@ class EncodedSession(Session):
 
     # Protected utility routines
 
+    def _setup_statement(self, handle, msgId):
+        """
+        :type handle: int
+        :type msgId: int
+        """
+        self._putMessageId(msgId)
+        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+            self.putInt(self.getCommitInfo(self.__connectedNodeID))
+        self.putInt(handle)
+
+        return self
+
     def _peekTypeCode(self):
         """Looks at the next Type Code off the session. (Does not move inpos)"""
         return ord(self.__input[self.__inpos])
@@ -1055,7 +1060,7 @@ class EncodedSession(Session):
         """Read the next Type Code off the session."""
         if self.__inpos >= len(self.__input):
             raise EndOfStream('end of stream reached')
-            
+
         try:
             return ord(self.__input[self.__inpos])
         finally:
@@ -1069,7 +1074,7 @@ class EncodedSession(Session):
         """
         if self.__inpos + length > len(self.__input):
             raise EndOfStream('end of stream reached')
-                        
+
         try:
             return self.__input[self.__inpos:self.__inpos + length]
         finally:
