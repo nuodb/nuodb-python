@@ -35,9 +35,10 @@ install:
 	make clean
 
 test:
+	pip install -r requirements.txt
 	pip install -r test_requirements.txt
 	py.test --cov=pynuodb --cov-report html --cov-report term-missing
-	
+
 deploy:
 	python setup.py register
 	python setup.py sdist upload
