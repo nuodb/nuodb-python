@@ -268,6 +268,18 @@ class EncodedSession(Session):
 
         return ExecutionResult(statement, result, rowcount)
 
+    def execute_sql_test(self, statement, query):
+        """
+        :type statement: Statement
+        :type query: str
+        :rtype: String
+        """
+        self._setup_statement(statement.handle, protocol.SQLTEST).putString(query)
+        self._exchangeMessages()
+
+        return self.getString()
+
+
     def close_statement(self, statement):
         """
         :type statement: Statement
