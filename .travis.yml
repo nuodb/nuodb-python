@@ -22,10 +22,6 @@ notifications:
 # Some default.properties files don't have a trailing newline (!!)  Force one.
 
 before_install:
-  - cat /sys/kernel/mm/transparent_hugepage/enabled
-  - sudo echo never> /sys/kernel/mm/transparent_hugepage/enabled
-  - cat /sys/kernel/mm/transparent_hugepage/defrag
-  - sudo echo never> /sys/kernel/mm/transparent_hugepage/defrag
   - wget http://download.nuohub.org/nuodb_${NUOVERSION}_amd64.deb --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
   - sleep 4
@@ -34,6 +30,8 @@ before_install:
   - sudo service nuoagent start
 
 script:
+  - cat /sys/kernel/mm/transparent_hugepage/enabled
+  - cat /sys/kernel/mm/transparent_hugepage/defrag
   - make all
 
 after_failure:
