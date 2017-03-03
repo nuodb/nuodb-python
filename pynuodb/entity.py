@@ -1080,7 +1080,7 @@ class Process:
     # to send this over the existing connection, but for RC1 that's one too
     # many moving pieces to implement and test
     def query(self, query_type, msg_body=None):
-        session = Session(self.peer.connect_str, service="Manager")
+        session = Session(self.peer.domain.entry_peer.connect_str, service="Manager")
         session.authorize(self.peer.domain.user, self.peer.domain.password)
         pwd_response = session.doRequest(attributes={"Type": "GetDatabaseCredentials",
                                                      "Database": self.database.name})
