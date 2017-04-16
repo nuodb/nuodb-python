@@ -646,12 +646,7 @@ class Peer(object):
         else:
             options = list(options)
 
-        options.append(("--archive", archive))
-
-        if initialize:
-            options.append(("--initialize", None))
-
-        return self.__start_process(db_name, options, wait_seconds)
+        return self.__start_process(db_name, options + [("--archive", archive)] + ([("--initialize", None)] if initialize else []), wait_seconds)
 
     def __start_process(self, db_name, options, wait_seconds):
         """
