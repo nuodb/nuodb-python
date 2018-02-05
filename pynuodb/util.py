@@ -183,7 +183,7 @@ def queryEngine(address, port, target, dbPassword, msgBody=None):
     s.authorize("Cloud", dbPassword)
     s.doConnect()
 
-    msg = "<Query Target=\"%s\"/>" % target
+    msg = "<Query Type=\"%s\"/>" % target
     if msgBody is not None:
         xml = ElementTree.fromstring(msg)
         xml.append(msgBody)
