@@ -82,7 +82,7 @@ class NuoDBEntityTest(unittest.TestCase):
     def test_listenDomain(self):
         domain = None
         database = None
-        dl = TestListener()
+        dl = NuoTestListener()
         try:
             domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD, dl)
             peer = domain.entry_peer
@@ -402,7 +402,7 @@ class NuoDBEntityTest(unittest.TestCase):
                 domain.disconnect()
 
 
-class TestListener(object):
+class NuoTestListener(object):
     def __init__(self):
         self.pJoined = None
         self.pLeft = None
