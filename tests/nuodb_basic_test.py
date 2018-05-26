@@ -745,7 +745,7 @@ class NuoDBBasicTest(NuoBase):
             self.assertEqual(vals[0].microsecond, row[1].microsecond)
             con.close()
 
-            os.environ['TZ'] = 'CET-01CEST,M4.1.0,M10.5.0'
+            os.environ['TZ'] = 'CET-01CST,M4.1.0,M10.5.0'
             time.tzset()
             con = self._connect()
             cursor = con.cursor()
