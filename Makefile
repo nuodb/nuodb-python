@@ -26,31 +26,45 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+PYTHON ?= python
+VIRTUALENV ?= virtualenv
+PIP ?= pip
+
+MKDIR ?= mkdir -p
+RMDIR ?= rm -rf
+
 TMPDIR ?= ./.testtemp
+VIRTDIR ?= ./.virttemp
+
+PYTEST_ARGS ?=
 
 all:
-	make install
-	make test
+	$(MAKE) install
+	$(MAKE) test
 
 install:
-	python setup.py install
-	make clean
+	$(PYTHON) setup.py install
 
 test:
-	pip install -r requirements.txt
-	pip install -r test_requirements.txt
-	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing
+	$(PIP) install -r requirements.txt
+	$(PIP) install -r test_requirements.txt
+	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing $(PYTEST_ARGS)
+
+virtual-%:
+	$(RMDIR) '$(VIRTDIR)'
+	$(VIRTUALENV) '$(VIRTDIR)'
+	. '$(VIRTDIR)/bin/activate' && $(MAKE) '$*'
 
 deploy:
-	python setup.py register
-	python setup.py sdist upload
+	$(PYTHON) setup.py register
+	$(PYTHON) setup.py sdist upload
 
 clean:	
-	rm -vrf build/ dist/ *.egg-info htmlcov/
+	$(RMDIR) build/ dist/ *.egg-info htmlcov/
 
 doc:
-	pip install epydoc
+	$(PIP) install epydoc
 	epydoc --html --name PyNuoDB pynuodb/
 	cp epydoc.css html/
 
-.PHONY: all install test
+.PHONY: all install test deploy clean doc
