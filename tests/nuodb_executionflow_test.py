@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 
 """
-This tests checks for various out-of-order execution situations. E.g. attempting to run a query
-after being disconnected from the database
-
+This tests checks for various out-of-order execution situations.
+E.g., attempting to run a query after being disconnected from the database.
 """
 
 import unittest
 import os
-from distutils.version import LooseVersion
 
 from .nuodb_base import NuoBase
 from pynuodb.exception import Error
@@ -155,12 +153,8 @@ class NuoDBExecutionFlowTest(NuoBase):
             cursor.execute("syntax error")
             self.fail()
         except Error as e1:
-            if version_lt("2.0"):
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax error\\n^ expected statement got SYNTAX\\n'")
-            else:
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax error\\n^ expected statement got syntax\\n'")
+            self.assertEqual(str(e1),
+                             "'SYNTAX_ERROR: syntax error on line 1\\nsyntax error\\n^ expected statement got syntax\\n'")
 
         cursor.execute("SELECT 1 FROM DUAL")
         cursor.fetchone()
@@ -173,23 +167,15 @@ class NuoDBExecutionFlowTest(NuoBase):
             cursor.execute("syntax1 error")
             self.fail()
         except Error as e1:
-            if version_lt("2.0"):
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax1 error\\n^ expected statement got SYNTAX1\\n'")
-            else:
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax1 error\\n^ expected statement got syntax1\\n'")
+            self.assertEqual(str(e1),
+                             "'SYNTAX_ERROR: syntax error on line 1\\nsyntax1 error\\n^ expected statement got syntax1\\n'")
 
         try:
             cursor.execute("syntax2 error")
             self.fail()
         except Error as e1:
-            if version_lt("2.0"):
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got SYNTAX2\\n'")
-            else:
-                self.assertEqual(str(e1),
-                                 "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got syntax2\\n'")
+            self.assertEqual(str(e1),
+                             "'SYNTAX_ERROR: syntax error on line 1\\nsyntax2 error\\n^ expected statement got syntax2\\n'")
 
     def test_execute_ten_million_with_result_sets(self):
         con = self._connect()
@@ -202,14 +188,6 @@ class NuoDBExecutionFlowTest(NuoBase):
             cursor.execute("select count(*) from execute_ten_million_with_result_sets;")
             res = cursor.fetchone()[0]
             self.assertEqual(i+1,res)
-
-
-def version_lt(version):
-    current_version = os.getenv('NUODB_VERSION', None)
-    if current_version is not None and LooseVersion(current_version) < LooseVersion(version):
-        return True
-
-    return False
 
 
 if __name__ == '__main__':
