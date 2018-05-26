@@ -169,7 +169,7 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    #Test the edge cases of the small decimal type
+    #Test the edge cases of the smallint type
     def test_small_decimal(self):
         numbers = (
             32767,
@@ -178,7 +178,7 @@ class NuoDBBasicTest(NuoBase):
             -0x8000,
         )
         for number in numbers:
-            self._test_decimal_fixture(number, 4, 0)
+            self._test_decimal_fixture(number, 5, 0)
         #Test Invalid values
         self._test_faulty_decimal_fixture(32768, 4, 0)
         self._test_faulty_decimal_fixture(-32769, 4, 0)
@@ -192,12 +192,12 @@ class NuoDBBasicTest(NuoBase):
             -0x80000000,
         )
         for number in numbers:
-            self._test_decimal_fixture(number, 9, 0)
+            self._test_decimal_fixture(number, 10, 0)
         #Test Invalid values
         self._test_faulty_decimal_fixture(2147483648, 4, 0)
         self._test_faulty_decimal_fixture(-2147483649, 4, 0)
 
-    #Test the edge cases of the small decimal type
+    #Test the edge cases of the bigint type
     def test_big_integer(self):
         numbers = (
             9223372036854775807,
@@ -206,10 +206,11 @@ class NuoDBBasicTest(NuoBase):
             -0x8000000000000000,
         )
         for number in numbers:
-            self._test_decimal_fixture(number, 20, 0)
+            self._test_decimal_fixture(number, 19, 0)
         #Test Invalid values
-        self._test_faulty_decimal_fixture(9223372036854775808, 4, 0)
-        self._test_faulty_decimal_fixture(-9223372036854775809, 4, 0)
+        # We can't use larger values in Perl 3: it won't fit
+        self._test_faulty_decimal_fixture(9223372036854775807, 4, 0)
+        self._test_faulty_decimal_fixture(-9223372036854775808, 4, 0)
 
     def test_many_significant_digits(self):
         self._test_decimal_fixture(decimal.Decimal("31943874831932418390.01"), 38, 12)
