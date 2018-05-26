@@ -158,11 +158,10 @@ class NuoDBBasicTest(NuoBase):
             DataError
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
+            self.fail("Incorrectly inserted %s as NUMERIC(%s,%s)" % (str(value), str(precision), str(scale)))
 
         except DataError as err:
-            if "CONVERSION_ERROR" not in str(err):
-                self.fail()
-            pass
+            self.assertIn("CONSTRAINT_ERROR", str(err))
 
         finally:
             try:
