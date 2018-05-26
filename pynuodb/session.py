@@ -1,4 +1,3 @@
-
 __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "BaseListener" ]
 
 # This module abstracts the common functionaliy needed to establish a session
@@ -238,7 +237,10 @@ class Session(object):
         """ Pull the entire next raw bytes message from the socket """
         msg = b''
         while msgLength > 0:
-            received = self.__sock.recv(msgLength)
+            try:
+                received = self.__sock.recv(msgLength)
+            except IOError as e:
+                raise SessionException("Session was closed while receiving: network error %s: %s" % (str(e.errno), e.strerror if e.strerror else str(e.args)))
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
