@@ -27,9 +27,12 @@ class NuoBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.longMessage = True
         domain = pynuodb.entity.Domain(cls.host, DOMAIN_USER, DOMAIN_PASSWORD)
+        cls.db_started = False
         try:
             if DATABASE_NAME not in [db.name for db in domain.databases]:
+                cls.db_started = True
                 peer = domain.entry_peer
                 archive = os.path.join(tempfile.gettempdir(), ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(20)))
                 peer.start_storage_manager(DATABASE_NAME, archive, True, wait_seconds=10)
@@ -45,7 +48,7 @@ class NuoBase(unittest.TestCase):
         domain = pynuodb.entity.Domain(cls.host, DOMAIN_USER, DOMAIN_PASSWORD, listener)
         try:
             database = domain.get_database(DATABASE_NAME)
-            if database is not None:
+            if database is not None and cls.db_started:
                 for process in database.processes:
                     process.shutdown()
 
