@@ -12,17 +12,20 @@ class NuoDBCursorTest(NuoBase):
         con = self._connect()
         cursor = con.cursor()
 
-        cursor.execute("SELECT 'abc' AS XYZ , 123 AS `123` FROM DUAL")
+        cursor.execute("SELECT 'abc' AS XYZ, 123 AS `123` FROM DUAL")
+
         descriptions = cursor.description
 
-        self.assertEquals(len(descriptions), 2)
+        self.assertEquals(len(descriptions), 2, "Descriptions: %s" % (str(descriptions)))
+
         self.assertEquals(descriptions[0][0], 'XYZ')
         self.assertEquals(descriptions[0][1], self.driver.STRING)
         self.assertEquals(descriptions[0][2], 3)
 
         self.assertEquals(descriptions[1][0], '123')
         self.assertEquals(descriptions[1][1], self.driver.NUMBER)
-        self.assertEquals(descriptions[1][2], 11)
+        self.assertEquals(descriptions[1][2], 6)
+
 
     def test_cursor_rowcount_and_last_query(self):
         con = self._connect()
