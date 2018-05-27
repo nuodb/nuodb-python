@@ -42,20 +42,20 @@ def connect(database, host, user, password, options=None):
     return Connection(database, host, user, password, options)
 
 class Connection(object):
-    
+
     """Class for establishing a connection with host.
-    
+
     Public Functions:
     testConnection -- Tests to ensure the connection was properly established.
     close -- Closes the connection with the host.
     commit -- Sends a message to the host to commit transaction.
     rollback -- Sends a message to the host to rollback uncommitted changes.
     cursor -- Return a new Cursor object using the connection.
-    
+
     Private Functions:
     __init__ -- Constructor for the Connection class.
     _check_closed -- Checks if the connection to the host is closed.
-    
+
     Special Function:
     auto_commit (getter) -- Gets the value of auto_commit from the database.
     auto_commit (setter) -- Sets the value of auto_commit on the database.
@@ -64,10 +64,10 @@ class Connection(object):
     from .exception import Warning, Error, InterfaceError, DatabaseError, \
             OperationalError, IntegrityError, InternalError, \
             ProgrammingError, NotSupportedError
-    
+
     def __init__(self, dbName, broker, username, password, options):
         """Constructor for the Connection class.
-        
+
         Arguments:
         dbName -- Name of database you are accessing.
         broker -- Address of the broker you are connecting too.
@@ -76,7 +76,7 @@ class Connection(object):
         options -- A dictionary of NuoDB connection options
             Some common options include:
             "schema"
-        
+
         Returns:
         a Connection instance
 
@@ -91,7 +91,7 @@ class Connection(object):
         self._trans_id = None
 
         cp = ClientPassword()
-        
+
         parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
         if options:
             parameters.update(options)
@@ -101,7 +101,8 @@ class Connection(object):
         parameters['clientProcessId'] = str(getpid())
 
         version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
-            
+        self.__protocolVersion = version
+
         sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
         self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
@@ -112,12 +113,12 @@ class Connection(object):
 
     def testConnection(self):
         """Tests to ensure the connection was properly established.
-        
+
         This function will test the connection and if it was created should print out:
         count: 1
         name: ONE
         value: 1
-        
+
         :rtype: None
         """
         self.__session.test_connection()
@@ -127,7 +128,7 @@ class Connection(object):
         """Gets the value of auto_commit from the database."""
         self._check_closed()
         return self.__session.get_autocommit()
-    
+
     @auto_commit.setter
     def auto_commit(self, value):
         """Sets the value of auto_commit on the database."""

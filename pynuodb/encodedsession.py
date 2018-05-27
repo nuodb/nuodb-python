@@ -114,9 +114,9 @@ class EncodedSession(Session):
         :type : uuid.UUID
         """
 
-        self.__serverVersion = 0
+        self.__sessionVersion = 0
         """
-        Server's current version
+        Client protocol version for the session
         :type : int
         """
 
@@ -128,7 +128,7 @@ class EncodedSession(Session):
 
         self.__effectivePlatformVersion = 0
         """
-        Agreed upon version by the server (for multiple nodes)
+        Database protocol version when the session is created (may change!)
         :type : int
         """
 
@@ -175,7 +175,7 @@ class EncodedSession(Session):
             self.__connectedNodeID = self.getInt()
             self.__maxNodes = self.getInt()
 
-        self.__serverVersion = protocolVersion
+        self.__sessionVersion = protocolVersion
 
         return protocolVersion, serverKey, salt
 
@@ -187,6 +187,12 @@ class EncodedSession(Session):
                 self._setCiphers(NoCipher(), NoCipher())
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
+
+    def get_version(self):
+        """
+        :rtype sessionVersion: int
+        """
+        return self.__sessionVersion
 
     def get_auth_types(self):
         self._putMessageId(protocol.AUTHORIZETYPESREQUEST)
@@ -1025,7 +1031,6 @@ class EncodedSession(Session):
     def _exchangeMessages(self, getResponse=True):
         """Exchange the pending message for an optional response from the server."""
         try:
-            #print("message to server: %s" %  (self.__output))
             self.send(self.__output)
         finally:
             self.__output = None
@@ -1058,7 +1063,7 @@ class EncodedSession(Session):
         :type msgId: int
         """
         self._putMessageId(msgId)
-        if(self.__serverVersion >= protocol.PROTOCOL_VERSION17):
+        if self.__sessionVersion >= protocol.PROTOCOL_VERSION17:
             self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(handle)
 

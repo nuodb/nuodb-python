@@ -91,7 +91,7 @@ class Session(object):
 
         self.__service = service
 
-        self.__version = sys.version[0]
+        self.__pyversion = sys.version[0]
 
     @property
     def address(self):
@@ -196,7 +196,7 @@ class Session(object):
 
         try:
             messageBuilder = None
-            if self.__version == '3':
+            if self.__pyversion == '3':
                 messageBuilder = lenStr + bytes(message, 'latin-1')
 
             else:
@@ -228,7 +228,7 @@ class Session(object):
             else:
                 msg = self.__cipherIn.transform(msg)
 
-        if type(msg) is bytes and self.__version == '3':
+        if type(msg) is bytes and self.__pyversion == '3':
             msg = msg.decode("latin-1")
         return msg
 
@@ -244,7 +244,7 @@ class Session(object):
             if not received:
                 raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
                                        "len(received)=[%d]" % (msgLength, len(msg), len(received)))
-            if self.__version == '3':
+            if self.__pyversion == '3':
                 msg = b''.join([msg, received])
                 msgLength = msgLength - len(received.decode('latin-1'))
             else:
