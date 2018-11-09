@@ -70,7 +70,7 @@ class Session(object):
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
-    def __init__(self, host, port=None, service="Identity"):
+    def __init__(self, host, port=None, service="Identity", timeout=None):
         if not port:
             hostElements = host.split(":")
             if len(hostElements) == 2:
@@ -84,6 +84,8 @@ class Session(object):
 
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        if timeout is not None:
+            self.__sock.settimeout(timeout)
         self.__sock.connect((host, port))
 
         self.__cipherOut = None
