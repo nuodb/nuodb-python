@@ -16,11 +16,11 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         cursor2.execute("SELECT 3 FROM DUAL UNION ALL SELECT 4 FROM DUAL")
 
-        self.assertEquals(cursor1.fetchone()[0], 1)
-        self.assertEquals(cursor2.fetchone()[0], 3)
+        self.assertEqual(cursor1.fetchone()[0], 1)
+        self.assertEqual(cursor2.fetchone()[0], 3)
 
-        self.assertEquals(cursor1.fetchone()[0], 2)
-        self.assertEquals(cursor2.fetchone()[0], 4)
+        self.assertEqual(cursor1.fetchone()[0], 2)
+        self.assertEqual(cursor2.fetchone()[0], 4)
 
     def test_cursor_isolation(self):
         con = self._connect()
@@ -31,11 +31,11 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         cursor2.execute("SELECT 3 FROM DUAL UNION ALL SELECT 4 FROM DUAL")
 
-        self.assertEquals(cursor1.fetchone()[0], 1)
-        self.assertEquals(cursor2.fetchone()[0], 3)
+        self.assertEqual(cursor1.fetchone()[0], 1)
+        self.assertEqual(cursor2.fetchone()[0], 3)
 
-        self.assertEquals(cursor1.fetchone()[0], 2)
-        self.assertEquals(cursor2.fetchone()[0], 4)
+        self.assertEqual(cursor1.fetchone()[0], 2)
+        self.assertEqual(cursor2.fetchone()[0], 4)
 
     def test_rollback(self):
         con = self._connect()
@@ -50,7 +50,7 @@ class NuoDBTransactionTest(NuoBase):
         con.rollback()
 
         cursor.execute("SELECT COUNT(*) FROM rollback_table")
-        self.assertEquals(cursor.fetchone()[0], 0)
+        self.assertEqual(cursor.fetchone()[0], 0)
 
         cursor.execute("DROP TABLE rollback_table")
 
@@ -69,13 +69,13 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("INSERT INTO commit_table VALUES (1)")
 
         cursor2.execute("SELECT COUNT(*) FROM commit_table")
-        self.assertEquals(cursor2.fetchone()[0], 0)
+        self.assertEqual(cursor2.fetchone()[0], 0)
 
         con1.commit()
         con2.commit()
 
         cursor2.execute("SELECT COUNT(*) FROM commit_table")
-        self.assertEquals(cursor2.fetchone()[0], 1)
+        self.assertEqual(cursor2.fetchone()[0], 1)
 
         cursor1.execute("DROP TABLE commit_table")
 
@@ -94,7 +94,7 @@ class NuoDBTransactionTest(NuoBase):
         con2 = self._connect()
         cursor2 = con2.cursor()
         cursor2.execute("SELECT COUNT(*) FROM rollback_disconnect")
-        self.assertEquals(cursor2.fetchone()[0], 0)
+        self.assertEqual(cursor2.fetchone()[0], 0)
 
         cursor2.execute("DROP TABLE rollback_disconnect")
 
@@ -102,13 +102,13 @@ class NuoDBTransactionTest(NuoBase):
         con1 = self._connect()
         con2 = self._connect()
 
-        self.assertEquals(con1.auto_commit, False)
+        self.assertEqual(con1.auto_commit, False)
 
         con1.auto_commit = True
-        self.assertEquals(con1.auto_commit, True)
+        self.assertEqual(con1.auto_commit, True)
 
         con2.auto_commit = True
-        self.assertEquals(con2.auto_commit, True)
+        self.assertEqual(con2.auto_commit, True)
 
         cursor1 = con1.cursor()
         cursor1.execute("DROP TABLE IF EXISTS autocommit_set")
@@ -118,19 +118,19 @@ class NuoDBTransactionTest(NuoBase):
 
         cursor2 = con2.cursor()
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEquals(cursor2.fetchone()[0], 1)
+        self.assertEqual(cursor2.fetchone()[0], 1)
         cursor2.execute("TRUNCATE TABLE autocommit_set")
 
         con1.auto_commit = False
-        self.assertEquals(con1.auto_commit, False)
+        self.assertEqual(con1.auto_commit, False)
 
         cursor1.execute("INSERT INTO autocommit_set VALUES (1)")
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEquals(cursor2.fetchone()[0], 0)
+        self.assertEqual(cursor2.fetchone()[0], 0)
 
         con1.commit()
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEquals(cursor2.fetchone()[0], 1)
+        self.assertEqual(cursor2.fetchone()[0], 1)
 
         cursor1.execute("DROP TABLE autocommit_set")
 

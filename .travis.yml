@@ -1,8 +1,10 @@
+dist: xenial
+
 language: python
 
 python:
   - "2.7"
-  - "3.6"
+  - "3.7"
 
 env:
   global:
@@ -11,8 +13,8 @@ env:
     - NUO_ADD_DOMAIN_PASS=yes
     - NUO_START_AGENT=yes
   matrix:
-    - NUO_VERSION=3.1.2.1
-    - NUO_VERSION=3.2.0.2
+    - NUO_VERSION=3.2.2.1
+    - NUO_VERSION=3.3.0.1
 
 notifications:
   recipients:
@@ -22,10 +24,6 @@ notifications:
 before_install:
   - echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null
   - echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null
-
-  # There's a bug in the Trusty images where this gives a syntax error
-  # See https://github.com/travis-ci/travis-ci/issues/8906
-  - sudo mv /opt/jdk_switcher/jdk_switcher.sh /tmp
 
   - wget -q "http://download.nuohub.org/nuodb-ce_${NUO_VERSION}_amd64.deb" --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
