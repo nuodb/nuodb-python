@@ -155,13 +155,16 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("DROP TABLE CASCADE t IF EXISTS")
         try:
             cursor.execute("CREATE TABLE t (x NUMERIC(%s,%s))" % (precision, scale))
-            DataError
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
             self.fail("Incorrectly inserted %s as NUMERIC(%s,%s)" % (str(value), str(precision), str(scale)))
 
         except DataError as err:
-            self.assertIn("CONSTRAINT_ERROR", str(err))
+            # Older versions of NuoDB would throw a CONSTRAINT_ERROR.
+            # Newer versions throw a CONVERSION_ERROR.
+            msg = str(err)
+            if not 'CONSTRAINT_ERROR' in msg and not 'CONVERSION_ERROR' in msg:
+                self.fail("Unexpected DataError: %s" % (msg))
 
         finally:
             try:
