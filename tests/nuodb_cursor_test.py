@@ -16,15 +16,15 @@ class NuoDBCursorTest(NuoBase):
 
         descriptions = cursor.description
 
-        self.assertEquals(len(descriptions), 2, "Descriptions: %s" % (str(descriptions)))
+        self.assertEqual(len(descriptions), 2, "Descriptions: %s" % (str(descriptions)))
 
-        self.assertEquals(descriptions[0][0], 'XYZ')
-        self.assertEquals(descriptions[0][1], self.driver.STRING)
-        self.assertEquals(descriptions[0][2], 3)
+        self.assertEqual(descriptions[0][0], 'XYZ')
+        self.assertEqual(descriptions[0][1], self.driver.STRING)
+        self.assertEqual(descriptions[0][2], 3)
 
-        self.assertEquals(descriptions[1][0], '123')
-        self.assertEquals(descriptions[1][1], self.driver.NUMBER)
-        self.assertEquals(descriptions[1][2], 6)
+        self.assertEqual(descriptions[1][0], '123')
+        self.assertEqual(descriptions[1][1], self.driver.NUMBER)
+        self.assertEqual(descriptions[1][2], 6)
 
 
     def test_cursor_rowcount_and_last_query(self):
@@ -32,8 +32,8 @@ class NuoDBCursorTest(NuoBase):
         cursor = con.cursor()
         statement = "SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL"
         cursor.execute(statement)
-        self.assertEquals(cursor.rowcount, -1)
-        self.assertEquals(cursor.query, statement)
+        self.assertEqual(cursor.rowcount, -1)
+        self.assertEqual(cursor.query, statement)
 
     def test_insufficient_parameters(self):
         con = self._connect()
@@ -83,10 +83,10 @@ class NuoDBCursorTest(NuoBase):
 
         ret = cursor.fetchall()
 
-        self.assertEquals(ret[0][0], 1)
-        self.assertEquals(ret[0][1], 2)
-        self.assertEquals(ret[1][0], 3)
-        self.assertEquals(ret[1][1], 4)
+        self.assertEqual(ret[0][0], 1)
+        self.assertEqual(ret[0][1], 2)
+        self.assertEqual(ret[1][0], 3)
+        self.assertEqual(ret[1][1], 4)
 
         cursor.execute("DROP TABLE executemany_table")
 
@@ -115,17 +115,17 @@ class NuoDBCursorTest(NuoBase):
             cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
             self.fail()
         except BatchError as e:
-            self.assertEquals(e.results[0], 1)
-            self.assertEquals(e.results[1], 1)
-            self.assertEquals(e.results[2], -3)
-            self.assertEquals(e.results[3], 1)
-            self.assertEquals(e.results[4], -3)
+            self.assertEqual(e.results[0], 1)
+            self.assertEqual(e.results[1], 1)
+            self.assertEqual(e.results[2], -3)
+            self.assertEqual(e.results[3], 1)
+            self.assertEqual(e.results[4], -3)
         except:
             self.fail()
 
         # test that they all made it save the bogus one
         cursor.execute("select * from executemany_table;")
-        self.assertEquals(len(cursor.fetchall()), 3)
+        self.assertEqual(len(cursor.fetchall()), 3)
 
         cursor.execute("DROP TABLE executemany_table")
 

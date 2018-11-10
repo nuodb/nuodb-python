@@ -25,10 +25,10 @@ class NuoDBHugeTest(NuoBase):
         cursor.execute(select_string)
         row = cursor.fetchone()
 
-        self.assertEquals(len(row), total_columns)
+        self.assertEqual(len(row), total_columns)
 
         for col in range(0, total_columns):
-            self.assertEquals(row[col], alphabet + str(col + 1))
+            self.assertEqual(row[col], alphabet + str(col + 1))
 
     def test_wide_string(self):
 
@@ -46,9 +46,9 @@ class NuoDBHugeTest(NuoBase):
 
         cursor.execute(select_string, [alphabet_multi, alphabet_multi])
         row = cursor.fetchone()
-        self.assertEquals(len(row[0]), total_width * len(alphabet))
-        self.assertEquals(len(row[1]), total_width * len(alphabet))
-        self.assertEquals(row[2], True)
+        self.assertEqual(len(row[0]), total_width * len(alphabet))
+        self.assertEqual(len(row[1]), total_width * len(alphabet))
+        self.assertEqual(row[2], True)
 
     def test_long_select(self):
 
@@ -74,7 +74,7 @@ class NuoDBHugeTest(NuoBase):
                 break
             total_rows = total_rows + len(rows)
 
-        self.assertEquals(total_rows, 1000000)
+        self.assertEqual(total_rows, 1000000)
 
         cursor.execute("DROP TABLE ten")
         cursor.execute("DROP TABLE huge_select")

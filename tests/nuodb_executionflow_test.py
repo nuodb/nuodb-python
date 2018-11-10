@@ -126,7 +126,7 @@ class NuoDBExecutionFlowTest(NuoBase):
 
         cursor.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         many = cursor.fetchmany(100)
-        self.assertEquals(len(many), 2)
+        self.assertEqual(len(many), 2)
 
     def test_fetch_after_error(self):
         con = self._connect()

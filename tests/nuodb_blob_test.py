@@ -23,8 +23,8 @@ class NuoDBBlobTest(NuoBase):
         if systemVersion is '3':
             currentRow = bytes(currentRow, 'latin-1')
         array2 = unpack('hhl', currentRow)
-        self.assertEquals(len(array2), 3)
-        self.assertEquals(array2[2], 3)
+        self.assertEqual(len(array2), 3)
+        self.assertEqual(array2[2], 3)
 
 
 if __name__ == '__main__':
