@@ -4,23 +4,27 @@ NuoDB - Python
 
 .. image:: https://travis-ci.org/nuodb/nuodb-python.svg?branch=master
     :target: https://travis-ci.org/nuodb/nuodb-python
-.. image:: https://gemnasium.com/nuodb/nuodb-python.svg
-    :target: https://gemnasium.com/nuodb/nuodb-python
+    :alt: Test Results
+.. image:: https://gitlab.com/cadmin/nuodb-python/badges/master/pipeline.svg
+    :target: https://gitlab.com/nuodb-mirror/nuodb-python/-/jobs
+    :alt: Dependency Verification
 .. image:: https://landscape.io/github/nuodb/nuodb-python/master/landscape.svg?style=flat
    :target: https://landscape.io/github/nuodb/nuodb-python/master
    :alt: Code Health
 
 .. contents::
 
-This package contains the community driven pure-Python NuoDB_ client library that
-provides both a standard `PEP 249`_ SQL API, a NuoDB administration API. This is a community driven driver with limited support and testing from NuoDB.
+This package contains the community driven pure-Python NuoDB_ client library
+that provides both a standard `PEP 249`_ SQL API, a NuoDB administration
+API. This is a community driven driver with limited support and testing from
+NuoDB.
 
 Requirements
 ------------
 
 * Python -- one of the following:
 
-  - CPython_ >= 2.7 or <= 3.4
+  - CPython_ >= 2.7
 
 * NuoDB -- one of the following:
 
@@ -31,7 +35,8 @@ If you haven't done so already, `Download and Install NuoDB <http://www.nuodb.co
 Installation
 ------------
 
-The last stable release is available on PyPI and can be installed with ``pip``::
+The last stable release is available on PyPI and can be installed with
+``pip``::
 
     $ pip install pynuodb
 
@@ -58,34 +63,35 @@ some data, runs a query, and cleans up after itself:
 
     connection = pynuodb.connect(**connect_kw_args)
     cursor = connection.cursor()
+    try:
+        stmt_drop = "DROP TABLE IF EXISTS names"
+        cursor.execute(stmt_drop)
 
-    stmt_drop = "DROP TABLE IF EXISTS names"
-    cursor.execute(stmt_drop)
+        stmt_create = """
+        CREATE TABLE names (
+            id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            name VARCHAR(30) DEFAULT '' NOT NULL,
+            age INTEGER DEFAULT 0
+        )"""
+        cursor.execute(stmt_create)
 
-    stmt_create = """
-    CREATE TABLE names (
-        id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        name VARCHAR(30) DEFAULT '' NOT NULL,
-        age INTEGER DEFAULT 0
-    )"""
-    cursor.execute(stmt_create)
+        names = (('Greg', 17,), ('Marsha', 16,), ('Jan', 14,))
+        stmt_insert = "INSERT INTO names (name, age) VALUES (?, ?)"
+        cursor.executemany(stmt_insert, names)
 
-    names = (('Greg', 17,), ('Marsha', 16,), ('Jan', 14,))
-    stmt_insert = "INSERT INTO names (name, age) VALUES (?, ?)"
-    cursor.executemany(stmt_insert, names)
+        connection.commit()
 
-    connection.commit()
+        age_limit = 15
+        stmt_select = "SELECT id, name FROM names where age > ? ORDER BY id"
+        cursor.execute(stmt_select, (age_limit,))
+        print("Results:")
+        for row in cursor.fetchall():
+            print("%d | %s" % (row[0], row[1]))
 
-    age_limit = 15
-    stmt_select = "SELECT id, name FROM names where age > ? ORDER BY id"
-    cursor.execute(stmt_select, (age_limit,))
-    print("Results:")
-    for row in cursor.fetchall():
-        print("%d | %s" % (row[0], row[1]))
-
-    cursor.execute(stmt_drop)
-    cursor.close()
-    connection.close()
+    finally:
+        cursor.execute(stmt_drop)
+        cursor.close()
+        connection.close()
 
 All sorts of management and monitoring operations may be performed through the
 NuoDB Python API, a few below include listening to database state, and shutting
