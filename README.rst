@@ -30,7 +30,7 @@ Requirements
 
   - NuoDB_ >= 2.0.4
 
-If you haven't done so already, `Download and Install NuoDB <http://www.nuodb.com/dev-center/community-edition-download>`_.
+If you haven't done so already, `Download and Install NuoDB <https://www.nuodb.com/dev-center/community-edition-download>`_.
 
 Installation
 ------------
@@ -132,16 +132,16 @@ For further information on getting started with NuoDB, please refer to the Docum
 Resources
 ---------
 
-DB-API 2.0: http://www.python.org/dev/peps/pep-0249/
+DB-API 2.0: https://www.python.org/dev/peps/pep-0249/
 
-NuoDB Documentation: http://doc.nuodb.com/Latest/Default.htm
+NuoDB Documentation: https://doc.nuodb.com/Latest/Default.htm
 
 License
 -------
 
 PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
 
-.. _Documentation: http://doc.nuodb.com/Latest/Default.htm
-.. _NuoDB: http://www.nuodb.com/
-.. _CPython: http://www.python.org/
+.. _Documentation: https://doc.nuodb.com/Latest/Default.htm
+.. _NuoDB: https://www.nuodb.com/
+.. _CPython: https://www.python.org/
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
