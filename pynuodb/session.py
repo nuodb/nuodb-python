@@ -197,7 +197,12 @@ class Session(object):
         lenStr = struct.pack("!I", len(message))
 
         try:
-            messageBuilder = lenStr + message
+            messageBuilder = None
+            if self.__pyversion == '3':
+                messageBuilder = lenStr + message.decode('latin-1')
+            else:
+                messageBuilder = lenStr + message
+
             self.__sock.send(messageBuilder)
         except Exception:
             self.close()
