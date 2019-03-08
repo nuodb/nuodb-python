@@ -197,13 +197,7 @@ class Session(object):
         lenStr = struct.pack("!I", len(message))
 
         try:
-            messageBuilder = None
-            if self.__pyversion == '3':
-                messageBuilder = lenStr + bytes(message, 'latin-1')
-
-            else:
-                messageBuilder = lenStr + message
-
+            messageBuilder = lenStr + message
             self.__sock.send(messageBuilder)
         except Exception:
             self.close()
