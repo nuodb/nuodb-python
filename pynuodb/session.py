@@ -199,9 +199,7 @@ class Session(object):
         try:
             messageBuilder = None
             if self.__pyversion == '3':
-                print(type(lenStr))
-                print(type(message))
-                messageBuilder = lenStr + message.decode('latin-1')
+                messageBuilder = lenStr + message.encode()
             else:
                 messageBuilder = lenStr + message
 
