@@ -262,6 +262,8 @@ class ServerPassword(RemotePassword):
 class RC4Cipher(object):
 
     def __init__(self, key):
+        if systemVersion == '3' and type(key) == str:
+            key = key.encode()
         self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
 
     def transform(self, data):
