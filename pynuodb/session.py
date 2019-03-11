@@ -192,21 +192,15 @@ class Session(object):
             raise SessionException("Session is not open to send")
 
         if self.__cipherOut:
-            print("Type pre cipher: " + str(type(message)))
             message = self.__cipherOut.transform(message)
-            print("Type post cipher: " + str(type(message)))
-        else:
-            print("Type without cipher" + str(type(message)))
+
+        if self.__pyversion == '3':
+            message = bytes(message, 'latin-1')
 
         lenStr = struct.pack("!I", len(message))
 
         try:
-            messageBuilder = None
-            if self.__pyversion == '3':
-                messageBuilder = lenStr + bytes(message, 'latin-1')
-            else:
-                messageBuilder = lenStr + message
-            self.__sock.send(messageBuilder)
+            self.__sock.send(lenStr + message)
         except Exception:
             self.close()
             raise
