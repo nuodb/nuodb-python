@@ -192,7 +192,11 @@ class Session(object):
             raise SessionException("Session is not open to send")
 
         if self.__cipherOut:
+            print("Type pre cipher: " + str(type(message)))
             message = self.__cipherOut.transform(message)
+            print("Type post cipher: " + str(type(message)))
+        else:
+            print("Type without cipher" + str(type(message)))
 
         lenStr = struct.pack("!I", len(message))
 
