@@ -311,13 +311,13 @@ class RC4Cipher(object):
         return old
 
         # Cipher expects bytes
-        #if systemVersion == '3' and type(newData) == str:
-        #    newData = newData.encode()
-        #new = self.cipher.update(newData)
+        if systemVersion == '3' and type(newData) == str:
+            newData = bytes(newData, "latin-1")
+        new = self.cipher.update(newData)
 
         #assert(old == new.decode("latin-1"))
         #assert(old.encode() == new)
-        #return new.decode("latin-1")
+        return new.decode("latin-1")
 
 
 class NoCipher(object):
