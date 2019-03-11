@@ -268,8 +268,12 @@ class RC4Cipher(object):
         # Cipher expects bytes
         if systemVersion == '3' and type(data) == str:
             data = bytes(data, "latin-1")
-        # Caller expects string with latin-1 encoding
-        return self.cipher.update(data).decode("latin-1")
+        transformed = self.cipher.update(data)
+        if systemVersion == '3':
+            # Caller expects string with latin-1 encoding
+            return transformed.decode("latin-1")
+        else:
+            return transformed
 
 
 
