@@ -295,6 +295,7 @@ class RC4Cipher(object):
         For utf-8 strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
         The RC4 stream cipher processes 1 byte at a time, as does ord when converting character values to integers
         """
+        newData = data
         transformed = []
         state = self.__state
         if type(data) is bytes:
@@ -309,9 +310,9 @@ class RC4Cipher(object):
         old =  ''.join(transformed)
 
         # Cipher expects bytes
-        if systemVersion == '3' and type(data) == str:
-            data = data.encode()
-        new = self.cipher.update(data)
+        if systemVersion == '3' and type(newData) == str:
+            newData = newData.encode()
+        new = self.cipher.update(newData)
 
         assert(old == new.decode("latin-1"))
         assert(old.encode() == new)
