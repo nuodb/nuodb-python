@@ -191,12 +191,15 @@ class Session(object):
         if not self.__sock:
             raise SessionException("Session is not open to send")
 
+        print(type(message))
         if self.__cipherOut:
             message = self.__cipherOut.transform(message)
 
         lenStr = struct.pack("!I", len(message))
 
         try:
+            print(type(lenStr))
+            print(type(message))
             messageBuilder = lenStr + message
             self.__sock.send(messageBuilder)
         except Exception:
