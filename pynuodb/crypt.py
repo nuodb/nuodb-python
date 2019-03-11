@@ -269,7 +269,7 @@ class RC4Cipher(object):
         if systemVersion == '3' and type(data) == str:
             data = data.encode()
         result = self.cipher.update(data)
-        if systemVersion == 3:
+        if systemVersion == '3':
             # Callers expect str
             return result.decode('latin-1')
         else:
