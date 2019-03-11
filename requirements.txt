@@ -1,2 +1,2 @@
 pytz>=2015.4
-pycrypto>=2.6.1
+cryptography>=2.6.1

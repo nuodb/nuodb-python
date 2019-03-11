@@ -22,7 +22,8 @@ import hashlib
 import random
 import binascii
 import sys
-from Crypto.Cipher import ARC4
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 systemVersion = sys.version[0]
 
@@ -261,12 +262,12 @@ class ServerPassword(RemotePassword):
 class RC4Cipher(object):
 
     def __init__(self, key):
-        self.cipher = ARC4.new(key)
+        self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
 
     def transform(self, data):
         if systemVersion == '3' and type(data) == str:
             data = data.encode()
-        return self.cipher.encrypt(data)
+        return self.cipher.update(data)
 
 class NoCipher(object):
 
