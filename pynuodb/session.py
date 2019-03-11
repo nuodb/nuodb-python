@@ -194,7 +194,7 @@ class Session(object):
         if self.__cipherOut:
             message = self.__cipherOut.transform(message)
 
-        if self.__pyversion == '3':
+        if self.__pyversion == '3' and type(message) == str:
             message = bytes(message, 'latin-1')
 
         lenStr = struct.pack("!I", len(message))
