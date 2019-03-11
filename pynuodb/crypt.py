@@ -262,62 +262,15 @@ class ServerPassword(RemotePassword):
 class RC4Cipher(object):
 
     def __init__(self, key):
-        keyNew = key
-        if systemVersion == '3':
-            self.__state = list(range(256))
-            key = key.decode('latin-1')
-        else:
-            self.__state = range(256)
-        self.__idx1 = 0
-        self.__idx2 = 0
-
-        state = self.__state
-
-        j = 0
-        for i in range(256):
-            byteString = key[i % len(key)]
-            byteString = ord(byteString)
-
-            j = (j + state[i] + byteString) % 256
-            state[i], state[j] = state[j], state[i]
-
-        if systemVersion == '3' and type(keyNew) == str:
-            keyNew = keyNew.encode()
-        self.cipher = Cipher(algorithms.ARC4(keyNew), mode=None, backend=default_backend()).encryptor()
+        self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
 
     def transform(self, data):
-        """
-        Preforms a byte by byte RC4 transform on the stream
-        Python 2:
-            automatically handles encoding bytes into an extended ASCII encoding [0,255] w/ 1 byte per character
-        Python 3:
-            bytes objects must be converted into extended ASCII, latin-1 uses the desired range of [0,255]
-        For utf-8 strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
-        The RC4 stream cipher processes 1 byte at a time, as does ord when converting character values to integers
-        """
-        newData = data
-        transformed = []
-        state = self.__state
-        if type(data) is bytes:
-            data = data.decode("latin-1")
-
-        for char in data:
-            self.__idx1 = (self.__idx1 + 1) % 256
-            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
-            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
-            cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
-            transformed.append(chr(cipherByte))
-        old =  ''.join(transformed)
-        return old
-
         # Cipher expects bytes
-        if systemVersion == '3' and type(newData) == str:
-            newData = bytes(newData, "latin-1")
-        new = self.cipher.update(newData)
+        if systemVersion == '3' and type(data) == str:
+            data = bytes(data, "latin-1")
+        # Caller expects string with latin-1 encoding
+        return self.cipher.update(data).decode("latin-1")
 
-        #assert(old == new.decode("latin-1"))
-        #assert(old.encode() == new)
-        return new.decode("latin-1")
 
 
 class NoCipher(object):
