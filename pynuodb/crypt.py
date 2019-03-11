@@ -265,9 +265,15 @@ class RC4Cipher(object):
         self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
 
     def transform(self, data):
+        # Cipher expects bytes
         if systemVersion == '3' and type(data) == str:
             data = data.encode()
-        return self.cipher.update(data)
+        result = self.cipher.update(data)
+        if systemVersion == 3:
+            # Callers expect str
+            return result.decode('latin-1')
+        else:
+            return result
 
 class NoCipher(object):
 
