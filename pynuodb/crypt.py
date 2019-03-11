@@ -264,6 +264,8 @@ class RC4Cipher(object):
         self.cipher = ARC4.new(key)
 
     def transform(self, data):
+        if systemVersion == '3' and type(data) == str:
+            data = data.encode()
         return self.cipher.encrypt(data)
 
 class NoCipher(object):
