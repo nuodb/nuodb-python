@@ -314,9 +314,9 @@ class RC4Cipher(object):
             newData = newData.encode()
         new = self.cipher.update(newData)
 
-        assert(old == new.decode("latin-1"))
-        assert(old.encode() == new)
-        return new
+        #assert(old == new.decode("latin-1"))
+        #assert(old.encode() == new)
+        return new.decode("latin-1")
 
 
 class NoCipher(object):
