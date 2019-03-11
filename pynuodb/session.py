@@ -193,15 +193,16 @@ class Session(object):
 
         if self.__cipherOut:
             message = self.__cipherOut.transform(message)
+            print(type(message))
+        else:
+            print("non cipher " + str(type(message)))
 
-        print(type(message))
         lenStr = struct.pack("!I", len(message))
 
         try:
-            print(type(lenStr))
-            print(type(message))
+            messageBuilder = None
             if self.__pyversion == '3' and type(message) == str:
-                messageBuilder = lenStr + message.encode()
+                messageBuilder = lenStr + bytes(message, 'latin-1')
             else:
                 messageBuilder = lenStr + message
             self.__sock.send(messageBuilder)
