@@ -268,7 +268,7 @@ class RC4Cipher(object):
         # Cipher expects bytes
         if systemVersion == '3' and type(data) == str:
             data = data.encode()
-        result = self.cipher.update(data)
+        return self.cipher.update(data)
 
 class NoCipher(object):
 
