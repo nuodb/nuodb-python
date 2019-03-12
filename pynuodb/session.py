@@ -194,17 +194,13 @@ class Session(object):
         if self.__cipherOut:
             message = self.__cipherOut.transform(message)
 
+        if self.__pyversion == '3':
+            message = bytes(message, 'latin-1')
+
         lenStr = struct.pack("!I", len(message))
 
         try:
-            messageBuilder = None
-            if self.__pyversion == '3':
-                messageBuilder = lenStr + bytes(message, 'latin-1')
-
-            else:
-                messageBuilder = lenStr + message
-
-            self.__sock.send(messageBuilder)
+            self.__sock.send(lenStr + message)
         except Exception:
             self.close()
             raise

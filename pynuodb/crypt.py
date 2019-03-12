@@ -1,4 +1,3 @@
-
 __all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
 
 # This module provides the basic cryptographic rouintes (SRP and RC4) used to
@@ -23,6 +22,8 @@ import hashlib
 import random
 import binascii
 import sys
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 systemVersion = sys.version[0]
 
@@ -44,21 +45,21 @@ def fromHex(hexStr):
 def toSignedByteString(value):
     if value == 0 or value == -1:
         return chr(value & 0xFF)
-    
+
     resultBytes = []
     while value != 0 and value != -1:
         resultBytes.append(chr(value & 0xFF))
         value >>= 8
-            
+
         # Zero pad if positive
     if value == 0 and (ord(resultBytes[-1]) & 0x80) == 0x80:
         resultBytes.append(chr(0x00))
     elif value == -1 and (ord(resultBytes[-1]) & 0x80) == 0x00:
         resultBytes.append(chr(0xFF))
-    
+
     resultBytes.reverse()
     result = ''.join(resultBytes)
-    
+
     return result
 
 
@@ -84,10 +85,10 @@ def toByteString(bigInt):
     while bigInt != 0 and bigInt != -1:
         resultBytes.append(chr(bigInt & 0xFF))
         bigInt >>= 8
- 
+
     resultBytes.reverse()
     result = ''.join(resultBytes)
-    
+
     return result
 
 def fromByteString(byteStr):
@@ -124,9 +125,9 @@ class RemoteGroup(object):
 
         md = hashlib.sha1()
         if systemVersion == '3':
-            primeBytes = primeBytes.encode('latin-1') 
-            generatorBytes = generatorBytes.encode('latin-1') 
-            paddingBuffer = paddingBuffer.encode('latin-1') 
+            primeBytes = primeBytes.encode('latin-1')
+            generatorBytes = generatorBytes.encode('latin-1')
+            paddingBuffer = paddingBuffer.encode('latin-1')
 
         md.update(primeBytes)
         if paddingLength > 0:
@@ -171,8 +172,8 @@ class RemotePassword(object):
         md = hashlib.sha1()
 
         if systemVersion == '3':
-            clientBytes = clientBytes.encode('latin-1') 
-            serverBytes = serverBytes.encode('latin-1') 
+            clientBytes = clientBytes.encode('latin-1')
+            serverBytes = serverBytes.encode('latin-1')
 
         md.update(clientBytes)
         md.update(serverBytes)
@@ -233,7 +234,7 @@ class ServerPassword(RemotePassword):
         self.__privateKey = random.getrandbits(256)
 
         group = self._getGroup()
-        
+
         gb = pow(group.getGenerator(), self.__privateKey, group.getPrime())
         v = fromByteString(verifier)
         kv = (group.getK() * v) % group.getPrime()
@@ -249,7 +250,7 @@ class ServerPassword(RemotePassword):
 
         vu = pow(fromHex(verifier), scramble, prime)
         avu = (clientPubKey * vu) % prime
-        
+
         sessionSecret = pow(avu, self.__privateKey, prime)
         secretBytes = toByteString(sessionSecret)
 
@@ -261,46 +262,20 @@ class ServerPassword(RemotePassword):
 class RC4Cipher(object):
 
     def __init__(self, key):
-        if systemVersion == '3':
-            self.__state = list(range(256))
-            key = key.decode('latin-1')
-        else:
-            self.__state = range(256)
-        self.__idx1 = 0
-        self.__idx2 = 0
-
-        state = self.__state
-
-        j = 0
-        for i in range(256):
-            byteString = key[i % len(key)]
-            byteString = ord(byteString)
-
-            j = (j + state[i] + byteString) % 256
-            state[i], state[j] = state[j], state[i]
+        self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
 
     def transform(self, data):
-        """
-        Preforms a byte by byte RC4 transform on the stream
-        Python 2:
-            automatically handles encoding bytes into an extended ASCII encoding [0,255] w/ 1 byte per character
-        Python 3:
-            bytes objects must be converted into extended ASCII, latin-1 uses the desired range of [0,255]
-        For utf-8 strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
-        The RC4 stream cipher processes 1 byte at a time, as does ord when converting character values to integers  
-        """
-        transformed = []
-        state = self.__state
-        if type(data) is bytes:
-            data = data.decode("latin-1")
+        # Cipher expects bytes
+        if systemVersion == '3' and type(data) == str:
+            data = bytes(data, "latin-1")
+        transformed = self.cipher.update(data)
+        if systemVersion == '3':
+            # Caller expects string with latin-1 encoding
+            return transformed.decode("latin-1")
+        else:
+            return transformed
 
-        for char in data:
-            self.__idx1 = (self.__idx1 + 1) % 256
-            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
-            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
-            cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
-            transformed.append(chr(cipherByte))
-        return ''.join(transformed)
+
 
 class NoCipher(object):
 
