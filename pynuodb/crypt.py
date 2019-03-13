@@ -270,8 +270,8 @@ class RC4CipherNuoDB(object):
             key = key.decode('latin-1')
         else:
             self.__state = range(256)
-            self.__idx1 = 0
-            self.__idx2 = 0
+        self.__idx1 = 0
+        self.__idx2 = 0
 
         state = self.__state
 
