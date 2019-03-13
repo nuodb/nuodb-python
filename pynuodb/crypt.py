@@ -263,48 +263,27 @@ class ServerPassword(RemotePassword):
 
         return md.digest()
 
-class RC4Cipher(object):
-
+class RC4CipherNuoDB(object):
     def __init__(self, key):
-        if cryptographyImported:
-            self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
+        if systemVersion == '3':
+            self.__state = list(range(256))
+            key = key.decode('latin-1')
         else:
-            if systemVersion == '3':
-                self.__state = list(range(256))
-                key = key.decode('latin-1')
-            else:
-                self.__state = range(256)
+            self.__state = range(256)
             self.__idx1 = 0
             self.__idx2 = 0
 
-            state = self.__state
+        state = self.__state
 
-            j = 0
-            for i in range(256):
-                byteString = key[i % len(key)]
-                byteString = ord(byteString)
+        j = 0
+        for i in range(256):
+            byteString = key[i % len(key)]
+            byteString = ord(byteString)
 
-                j = (j + state[i] + byteString) % 256
-                state[i], state[j] = state[j], state[i]
+            j = (j + state[i] + byteString) % 256
+            state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
-        if cryptographyImported:
-            return self.cryptographyTransform(data)
-        else:
-            return self.pythonTransform(data)
-
-    def cryptographyTransform(self, data):
-        # Cipher expects bytes
-        if systemVersion == '3' and type(data) == str:
-            data = bytes(data, "latin-1")
-        transformed = self.cipher.update(data)
-        if systemVersion == '3':
-            # Caller expects string with latin-1 encoding
-            return transformed.decode("latin-1")
-        else:
-            return transformed
-
-    def pythonTransform(self, data):
         """
         Preforms a byte by byte RC4 transform on the stream
         Python 2:
@@ -326,6 +305,27 @@ class RC4Cipher(object):
             cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
             transformed.append(chr(cipherByte))
         return ''.join(transformed)
+
+class RC4CipherCryptography(object):
+
+    def __init__(self, key):
+        self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
+
+    def transform(self, data):
+        # Cipher expects bytes
+        if systemVersion == '3' and type(data) == str:
+            data = bytes(data, "latin-1")
+        transformed = self.cipher.update(data)
+        if systemVersion == '3':
+            # Caller expects string with latin-1 encoding
+            return transformed.decode("latin-1")
+        else:
+            return transformed
+
+if cryptographyImported:
+    RC4Cipher = RC4CipherCryptography
+else:
+    RC4Cipher = RC4CipherNuoDB
 
 class NoCipher(object):
 
