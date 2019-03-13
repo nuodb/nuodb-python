@@ -22,8 +22,12 @@ import hashlib
 import random
 import binascii
 import sys
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+try:
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    cryptographyImported = True
+except ImportError:
+    cryptographyImported = False
 
 systemVersion = sys.version[0]
 
@@ -262,9 +266,34 @@ class ServerPassword(RemotePassword):
 class RC4Cipher(object):
 
     def __init__(self, key):
-        self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
+        if cryptographyImported:
+            self.cipher = Cipher(algorithms.ARC4(key), mode=None, backend=default_backend()).encryptor()
+        else:
+            if systemVersion == '3':
+                self.__state = list(range(256))
+                key = key.decode('latin-1')
+            else:
+                self.__state = range(256)
+            self.__idx1 = 0
+            self.__idx2 = 0
+
+            state = self.__state
+
+            j = 0
+            for i in range(256):
+                byteString = key[i % len(key)]
+                byteString = ord(byteString)
+
+                j = (j + state[i] + byteString) % 256
+                state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
+        if cryptographyImported:
+            return self.cryptographyTransform(data)
+        else:
+            return self.pythonTransform(data)
+
+    def cryptographyTransform(self, data):
         # Cipher expects bytes
         if systemVersion == '3' and type(data) == str:
             data = bytes(data, "latin-1")
@@ -275,7 +304,28 @@ class RC4Cipher(object):
         else:
             return transformed
 
+    def pythonTransform(self, data):
+        """
+        Preforms a byte by byte RC4 transform on the stream
+        Python 2:
+            automatically handles encoding bytes into an extended ASCII encoding [0,255] w/ 1 byte per character
+        Python 3:
+            bytes objects must be converted into extended ASCII, latin-1 uses the desired range of [0,255]
+        For utf-8 strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
+        The RC4 stream cipher processes 1 byte at a time, as does ord when converting character values to integers
+        """
+        transformed = []
+        state = self.__state
+        if type(data) is bytes:
+            data = data.decode("latin-1")
 
+        for char in data:
+            self.__idx1 = (self.__idx1 + 1) % 256
+            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
+            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
+            cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
+            transformed.append(chr(cipherByte))
+        return ''.join(transformed)
 
 class NoCipher(object):
 
