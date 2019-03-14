@@ -22,11 +22,14 @@ import hashlib
 import random
 import binascii
 import sys
-try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-    cryptographyImported = True
-except ImportError:
+if sys.platform.startswith('linux'):
+    try:
+        from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        cryptographyImported = True
+    except ImportError:
+        cryptographyImported = False
+else:
     cryptographyImported = False
 
 systemVersion = sys.version[0]
