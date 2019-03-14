@@ -22,7 +22,7 @@ import hashlib
 import random
 import binascii
 import sys
-if sys.platform == 'linux' or sys.platform == 'linux2':
+if sys.platform.startswith('linux'):
     try:
         from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
