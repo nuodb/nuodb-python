@@ -70,7 +70,8 @@ class Session(object):
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
-    def __init__(self, host, port=None, service="Identity", timeout=None):
+    def __init__(self, host, port=None, service="Identity", timeout=None,
+                 connect_timeout=None, read_timeout=None):
         if not port:
             hostElements = host.split(":")
             if len(hostElements) == 2:
@@ -82,11 +83,21 @@ class Session(object):
         self.__address = host
         self.__port = port
 
+        # for backwards-compatibility, set connect and read timeout to
+        # `timeout` if either is not specified
+        if connect_timeout is None:
+            connect_timeout = timeout
+        if read_timeout is None:
+            read_timeout = timeout
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        if timeout is not None:
-            self.__sock.settimeout(timeout)
+        # separate connect and read timeout; we do not necessarily want to
+        # close out connection if reads block for a long time, because it could
+        # take a while for the server to generate data to send
+        self.__sock.settimeout(connect_timeout)
         self.__sock.connect((host, port))
+        self.__sock.settimeout(read_timeout)
 
         self.__cipherOut = None
         self.__cipherIn = None
