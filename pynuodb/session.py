@@ -38,7 +38,8 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 # module which use this directly. For an example of how to communicate with
 # directly with an engine see the sql module.
 
-from .crypt import ClientPassword, RC4Cipher
+
+from .crypt import ClientPassword, RC4Cipher, NoCipher
 
 import socket
 import struct
@@ -65,7 +66,7 @@ class SessionException(Exception):
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
-    __SRP_REQ = "<SRPRequest ClientKey=\"%s\" Cipher=\"%s\" Username=\"%s\"/>"
+    __SRP_REQ = '<SRPRequest ClientKey="%s" Ciphers="%s" Username="%s"/>'
 
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
@@ -134,7 +135,11 @@ class Session(object):
         serverKey = root.get("ServerKey")
         sessionKey = cp.computeSessionKey(account, password, salt, serverKey)
 
-        self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+        cipher = root.get("Cipher")
+        if cipher == 'None':
+            self._setCiphers(NoCipher(sessionKey), NoCipher(sessionKey))
+        else:
+            self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
         verifyMessage = self.recv()
         try:

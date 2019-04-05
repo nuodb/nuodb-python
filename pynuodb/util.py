@@ -44,7 +44,7 @@ class _DatabaseActions(set):
         raise AttributeError
 
 DatabaseAction = _DatabaseActions(["Quiesce", "Unquiesce", "Validate",
-                               "UpdateConfiguration"])
+                               "UpdateConfiguration", "EvictNodes"])
 
 
 class _StandardOutListener(BaseListener):
@@ -72,11 +72,19 @@ _OPTION_FLAG_STR = "<Option option=\"%s\"/>"
 _OPTION_VALUE_STR = "<Option option=\"%s\" value=\"%s\"/>"
 
 
+def logString(broker, user, password, message):
+    s = Session(broker, service="DebugConsole")
+    s.authorize(user, password)
+
+    return s.doRequest(attributes={ "RequestType" : "LogString" }, text=message)
+
+
 def getLicense(broker, user, password):
     s = Session(broker, service="License")
     s.authorize(user, password)
 
     return s.doRequest(attributes={ "Action" : "GetCurrentLicense" })
+
 
 def setLicense(broker, user, password, licenseText):
     s = Session(broker, service="License")
@@ -84,16 +92,19 @@ def setLicense(broker, user, password, licenseText):
 
     s.doRequest(attributes={ "Action" : "ApplyLicense" }, text=licenseText)
 
+
 def getIdentity(agent):
     s = Session(agent, service="Identity")
 
     return s.doRequest()
+
 
 def getState(broker, user, password):
     s = Session(broker, service="State")
     s.authorize(user, password)
     
     return s.doRequest()
+
 
 def doDatabaseAction(broker, user, password, db_name, action, child=None):
     s = Session(broker, service="ChorusManagement")
@@ -109,7 +120,8 @@ def doDatabaseAction(broker, user, password, db_name, action, child=None):
 
     return response
 
-def startProcess(agent, user, password, db_name, options=None):
+
+def startProcess(agent, user, password, db_name, options=None, waitSeconds=-1):
     s = Session(agent, service="ProcessStart")
     s.authorize(user, password)
 
@@ -126,7 +138,10 @@ def startProcess(agent, user, password, db_name, options=None):
             optStr = _OPTION_FLAG_STR % k
         opts.append(ElementTree.fromstring(optStr))
 
-    return s.doRequest(attributes={"Process" : "server"}, children=opts)
+    return s.doRequest(attributes={"Process" : "server",
+                                   "StartBarrierTimeout" : str(waitSeconds*1000) if waitSeconds > 0 else "-1" },
+                       children=opts)
+
 
 # NOTE: this is the *old* method for process stop that attaches directly to a
 # nuodb instance and does the non-soft shutdown ... most (all?) invocations
@@ -140,6 +155,7 @@ def stopProcess(address, port, dbPassword):
 
     s.close()
 
+
 def killProcess(agent, user, password, pid):
     s = Session(agent, service="ProcessStop")
     s.authorize(user, password)
@@ -147,6 +163,7 @@ def killProcess(agent, user, password, pid):
     response = s.doRequest(attributes={"PID" : str(pid)})
 
     return int(ElementTree.fromstring(response).get("ExitCode"))
+
 
 def monitorDomainStats(broker, user, password, listener=None):
     if not listener:
@@ -163,6 +180,7 @@ def monitorDomainStats(broker, user, password, listener=None):
 
     return monitor
 
+
 def monitorEngine(address, port, dbPassword, listener=None):
     if not listener:
         listener = _StandardOutListener()
@@ -176,6 +194,7 @@ def monitorEngine(address, port, dbPassword, listener=None):
     s.doConnect()
 
     return EngineMonitor(monitor, s)
+
 
 # Note: msgBody here is an ElementTree Element to include directly in the query
 def queryEngine(address, port, target, dbPassword, msgBody=None):
@@ -198,6 +217,7 @@ def queryEngine(address, port, target, dbPassword, msgBody=None):
 
     return response
 
+
 def getCloudEntry(broker, db_name, attrs=None):
     if not attrs:
         attrs = dict()
@@ -217,12 +237,16 @@ def getCloudEntry(broker, db_name, attrs=None):
 
     return (root.get("Address"), int(root.get("Port")))
 
+
 def getArchiveHistory(agent, user, password, archive, options=None):
     s = Session(agent, service="ProcessStart")
     s.authorize(user, password)
 
-    option = _OPTION_VALUE_STR % ("--archive", archive)
-    opts = [ ElementTree.fromstring(option) ]
+    opts = []
+
+    if archive:
+        option = _OPTION_VALUE_STR % ("--archive", archive)
+        opts.append(ElementTree.fromstring(option))
 
     if options:
         for (k,v) in options:
@@ -233,3 +257,4 @@ def getArchiveHistory(agent, user, password, archive, options=None):
             opts.append(ElementTree.fromstring(option))
 
     return s.doRequest(attributes={"Process" : "archiveHistory"}, children=opts)
+

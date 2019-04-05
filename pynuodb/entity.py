@@ -41,7 +41,7 @@ should be raised to help the caller make this happen.
 """
 
 from .session import BaseListener, Session, SessionMonitor, SessionException
-from .util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine
+from .util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine, logString
 
 import time, json, socket
 from threading import Event, Lock
@@ -592,6 +592,9 @@ class Peer(object):
         """
         element = ElementTree.fromstring("<Tag Key=\"%s\"/>" % (key))
         self.__domain._send_domain_message("Tag", {'Action': 'DeleteHostTags', 'AgentId': self.id}, children=[element])
+
+    def log_string(self, message):
+        return logString(self.connect_str, self.__domain.user, self.__domain.password, message)
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
