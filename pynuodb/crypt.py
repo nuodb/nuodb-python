@@ -1,4 +1,4 @@
-__all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher" ]
+__all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher", "NoCipher" ]
 
 # This module provides the basic cryptographic rouintes (SRP and RC4) used to
 # establish authenticated, confidential sessions with agents and engines. Note
