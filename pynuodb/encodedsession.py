@@ -73,9 +73,9 @@ class EncodedSession(Session):
 
     """
 
-    def __init__(self, host, port, service='SQL2'):
+    def __init__(self, host, port, service='SQL2', tls_options=None):
         """Constructor for the EncodedSession class."""
-        Session.__init__(self, host, port=port, service=service)
+        Session.__init__(self, host, port=port, service=service, tls_options=tls_options)
         self.doConnect()
 
         self.__output = None
@@ -179,6 +179,34 @@ class EncodedSession(Session):
 
         return protocolVersion, serverKey, salt
 
+    def open_database_on_secure_connection(self, db_name, parameters):
+        if not self.encrypted:
+            raise RuntimeError("Sessions needs to be encrypted")
+
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(
+            len(parameters))
+        for (k, v) in parameters.items():
+            self.putString(k).putString(v)
+
+        self._exchangeMessages()
+        protocolVersion = self.getInt()
+
+        self.__connectionDatabaseUUID = self.getUUID()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION15:
+            self.__connectionID = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION16:
+            self.__effectivePlatformVersion = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION17:
+            self.__connectedNodeID = self.getInt()
+            self.__maxNodes = self.getInt()
+
+        self.__sessionVersion = protocolVersion
+
+        return protocolVersion
+
     def check_auth(self):
         try:
             self._putMessageId(protocol.AUTHENTICATION).putString(protocol.AUTH_TEST_STR)
@@ -187,6 +215,7 @@ class EncodedSession(Session):
                 self._setCiphers(NoCipher(), NoCipher())
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
+
 
     def get_version(self):
         """

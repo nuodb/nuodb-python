@@ -86,27 +86,50 @@ class Connection(object):
         :type password: str
         :type options: dict[str,str]
         """
-        (host, port) = getCloudEntry(broker, dbName)
-        self.__session = EncodedSession(host, port)
+
+        tlsOptions = ['trustStore', 'trustStorePassword', 'sslVersion', 'ciphers']
+        extractedTlsOptions = None
+        if any(option in options for option in tlsOptions):
+            extractedTlsOptions = dict()
+            for option in tlsOptions:
+                val = options.pop(option, None)
+                if val:
+                    extractedTlsOptions[option] = val
+
+        (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
+
+        self.__session = EncodedSession(host, port, tls_options=extractedTlsOptions)
         self._trans_id = None
 
-        cp = ClientPassword()
+        parameters = {'user': username,
+                      'timezone': time.strftime('%Z'),
+                      'clientProcessId': str(getpid())
+                      }
 
-        parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
-        if options:
-            parameters.update(options)
-            if 'cipher' in options and options['cipher'] == 'None':
-                self.__session.set_encryption(False)
+        if not self.__session.encrypted:
+            if options:
+                parameters.update(options)
+                if 'cipher' in options and options['cipher'] == 'None':
+                    self.__session.set_encryption(False)
 
-        parameters['clientProcessId'] = str(getpid())
+            # Establish SRP Connection
+            cp = ClientPassword()
+            version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
+            sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
+            self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+            self.__session.check_auth()
 
-        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
-        self.__protocolVersion = version
+            self.__protocolVersion = version
+        else:
+            if options:
+                parameters.update(options)
 
-        sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
-        self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+            # TLS is already established
+            parameters['password'] = password
 
-        self.__session.check_auth()
+            version = self.__session.open_database_on_secure_connection(dbName, parameters)
+
+            self.__protocolVersion = version
 
         # set auto commit to false by default per PEP
         self.__session.set_autocommit(0)

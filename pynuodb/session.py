@@ -72,7 +72,7 @@ class Session(object):
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
     def __init__(self, host, port=None, service="Identity", timeout=None,
-                 connect_timeout=None, read_timeout=None):
+                 connect_timeout=None, read_timeout=None, tls_options=None):
         if not port:
             hostElements = host.split(":")
             if len(hostElements) == 2:
@@ -83,6 +83,7 @@ class Session(object):
 
         self.__address = host
         self.__port = port
+        self.__isTLSEncrypted = False
 
         # for backwards-compatibility, set connect and read timeout to
         # `timeout` if either is not specified
@@ -106,6 +107,32 @@ class Session(object):
         self.__service = service
 
         self.__pyversion = sys.version[0]
+
+        if tls_options:
+            self.establish_secure_tls_connection(tls_options)
+
+    def establish_secure_tls_connection(self, tls_options):
+        try:
+            import ssl
+            sslcontext = ssl.SSLContext(tls_options.get('sslVersion', ssl.PROTOCOL_TLSv1_2))
+            sslcontext.options |= ssl.OP_NO_SSLv2
+            sslcontext.options |= ssl.OP_NO_SSLv3
+            sslcontext.verify_mode = ssl.CERT_REQUIRED
+            sslcontext.load_verify_locations(tls_options['trustStore'])
+            if tls_options.get('ciphers', None):
+                sslcontext.set_ciphers(tls_options.get('ciphers'))
+
+            self.__sock = sslcontext.wrap_socket(self.__sock)
+
+            self.__isTLSEncrypted = True
+
+        except ImportError:
+            raise RuntimeError(
+                "SSL required but ssl module not available in this python installation")
+
+    @property
+    def encrypted(self):
+        return self.__isTLSEncrypted
 
     @property
     def address(self):
