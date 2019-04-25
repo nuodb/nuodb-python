@@ -63,6 +63,15 @@ class SessionException(Exception):
         return repr(self.__value)
 
 
+class TLSFailedRetryPossibleError(RuntimeError):
+    """The TLS requested connection has failed but SRP is available"""
+    def __init__(self, value):
+        self.__value = value
+
+    def __str__(self):
+        return repr(self.__value)
+
+
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
@@ -123,13 +132,18 @@ class Session(object):
             if tls_options.get('ciphers', None):
                 sslcontext.set_ciphers(tls_options.get('ciphers'))
 
-            self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
-
-            self.__isTLSEncrypted = True
+            try:
+                self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
+                self.__isTLSEncrypted = True
+            except socket.error as e:
+                if tls_options.get('allowSRPFallback', False):
+                    # the socket has been closed by the NuoDB server, this object is now unusable
+                    raise TLSFailedRetryPossibleError(e.message)
+                else:
+                    raise
 
         except ImportError:
-            raise RuntimeError(
-                "SSL required but ssl module not available in this python installation")
+            raise RuntimeError("SSL required but ssl module not available in this python installation")
 
     @property
     def encrypted(self):

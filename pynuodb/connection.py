@@ -7,20 +7,21 @@ Exported Functions:
 connect -- Creates a connection object.
 """
 
-__all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
+__all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 
 from .cursor import Cursor
 from .encodedsession import EncodedSession
 from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
+from .session import TLSFailedRetryPossibleError
 from os import getpid
 
-import platform
 import time
 
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
+
 
 def connect(database, host, user, password, options=None):
     """Creates a connection object.
@@ -40,6 +41,7 @@ def connect(database, host, user, password, options=None):
     :type options: dict[str,str]
     """
     return Connection(database, host, user, password, options)
+
 
 class Connection(object):
 
@@ -61,9 +63,7 @@ class Connection(object):
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
 
-    from .exception import Warning, Error, InterfaceError, DatabaseError, \
-            OperationalError, IntegrityError, InternalError, \
-            ProgrammingError, NotSupportedError
+    from .exception import Error
 
     def __init__(self, dbName, broker, username, password, options):
         """Constructor for the Connection class.
@@ -87,7 +87,7 @@ class Connection(object):
         :type options: dict[str,str]
         """
 
-        tlsOptions = ['trustStore', 'dnNameMatch']
+        tlsOptions = ['trustStore', 'dnNameMatch', 'allowSRPFallback']
         extractedTlsOptions = None
         if any(option in options for option in tlsOptions):
             extractedTlsOptions = dict()
@@ -96,9 +96,16 @@ class Connection(object):
                 if val is not None:
                     extractedTlsOptions[option] = val
 
-        (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
+        try:
+            (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
+        except TLSFailedRetryPossibleError:
+            (host, port) = getCloudEntry(broker, dbName, tls_options=None)
 
-        self.__session = EncodedSession(host, port, tls_options=extractedTlsOptions)
+        try:
+            self.__session = EncodedSession(host, port, tls_options=extractedTlsOptions)
+        except TLSFailedRetryPossibleError:
+            self.__session = EncodedSession(host, port, tls_options=None)
+
         self._trans_id = None
 
         parameters = {'user': username,
@@ -106,9 +113,11 @@ class Connection(object):
                       'clientProcessId': str(getpid())
                       }
 
+        if options:
+            parameters.update(options)
+
         if not self.__session.encrypted:
             if options:
-                parameters.update(options)
                 if 'cipher' in options and options['cipher'] == 'None':
                     self.__session.set_encryption(False)
 
@@ -121,9 +130,6 @@ class Connection(object):
 
             self.__protocolVersion = version
         else:
-            if options:
-                parameters.update(options)
-
             # TLS is already established
             parameters['password'] = password
 
