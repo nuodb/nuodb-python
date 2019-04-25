@@ -118,11 +118,12 @@ class Session(object):
             sslcontext.options |= ssl.OP_NO_SSLv2
             sslcontext.options |= ssl.OP_NO_SSLv3
             sslcontext.verify_mode = ssl.CERT_REQUIRED
+            sslcontext.check_hostname = tls_options.get('dnNameMatch', True)
             sslcontext.load_verify_locations(tls_options['trustStore'])
             if tls_options.get('ciphers', None):
                 sslcontext.set_ciphers(tls_options.get('ciphers'))
 
-            self.__sock = sslcontext.wrap_socket(self.__sock)
+            self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
 
             self.__isTLSEncrypted = True
 

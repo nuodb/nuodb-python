@@ -87,13 +87,13 @@ class Connection(object):
         :type options: dict[str,str]
         """
 
-        tlsOptions = ['trustStore', 'trustStorePassword', 'sslVersion', 'ciphers']
+        tlsOptions = ['trustStore', 'dnNameMatch']
         extractedTlsOptions = None
         if any(option in options for option in tlsOptions):
             extractedTlsOptions = dict()
             for option in tlsOptions:
                 val = options.pop(option, None)
-                if val:
+                if val is not None:
                     extractedTlsOptions[option] = val
 
         (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
