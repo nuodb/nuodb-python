@@ -87,7 +87,10 @@ class Connection(object):
         :type options: dict[str,str]
         """
 
-        tlsOptions = ['trustStore', 'dnNameMatch', 'allowSRPFallback']
+        if options is None:
+            options = {}
+
+        tlsOptions = ['trustStore', 'verifyHostname', 'allowSRPFallback']
         extractedTlsOptions = None
         if any(option in options for option in tlsOptions):
             extractedTlsOptions = dict()
@@ -113,13 +116,12 @@ class Connection(object):
                       'clientProcessId': str(getpid())
                       }
 
-        if options:
-            parameters.update(options)
 
-        if not self.__session.encrypted:
-            if options:
-                if 'cipher' in options and options['cipher'] == 'None':
-                    self.__session.set_encryption(False)
+        parameters.update(options)
+
+        if not self.__session.tls_encrypted:
+            if 'cipher' in options and options['cipher'] == 'None':
+                self.__session.set_encryption(False)
 
             # Establish SRP Connection
             cp = ClientPassword()

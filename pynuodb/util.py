@@ -233,7 +233,7 @@ def getCloudEntry(broker, db_name, attrs=None, tls_options=None):
 
     root = ElementTree.fromstring(connectDetail)
     if root.tag != "Cloud":
-        raise SessionException("Unexpecetd response type: " + root.tag)
+        raise SessionException("Unexpected response type: " + root.tag)
 
     return (root.get("Address"), int(root.get("Port")))
 

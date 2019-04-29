@@ -127,7 +127,7 @@ class Session(object):
             sslcontext.options |= ssl.OP_NO_SSLv2
             sslcontext.options |= ssl.OP_NO_SSLv3
             sslcontext.verify_mode = ssl.CERT_REQUIRED
-            sslcontext.check_hostname = tls_options.get('dnNameMatch', True)
+            sslcontext.check_hostname = tls_options.get('verifyHostname', True)
             sslcontext.load_verify_locations(tls_options['trustStore'])
             if tls_options.get('ciphers', None):
                 sslcontext.set_ciphers(tls_options.get('ciphers'))
@@ -138,7 +138,7 @@ class Session(object):
             except socket.error as e:
                 if tls_options.get('allowSRPFallback', False):
                     # the socket has been closed by the NuoDB server, this object is now unusable
-                    raise TLSFailedRetryPossibleError(e.message)
+                    raise TLSFailedRetryPossibleError(str(e))
                 else:
                     raise
 
@@ -146,7 +146,7 @@ class Session(object):
             raise RuntimeError("SSL required but ssl module not available in this python installation")
 
     @property
-    def encrypted(self):
+    def tls_encrypted(self):
         return self.__isTLSEncrypted
 
     @property

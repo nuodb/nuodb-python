@@ -180,7 +180,12 @@ class EncodedSession(Session):
         return protocolVersion, serverKey, salt
 
     def open_database_on_secure_connection(self, db_name, parameters):
-        if not self.encrypted:
+        """
+        :type db_name: str
+        :type parameters: dict[str,str]
+        :rtype protocolVersion: int
+        """
+        if not self.tls_encrypted:
             raise RuntimeError("Sessions needs to be encrypted")
 
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(
