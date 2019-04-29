@@ -102,11 +102,13 @@ class Connection(object):
         try:
             (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
         except TLSFailedRetryPossibleError:
+            # If SRP fallback is allowed, connect using SRP
             (host, port) = getCloudEntry(broker, dbName, tls_options=None)
 
         try:
             self.__session = EncodedSession(host, port, tls_options=extractedTlsOptions)
         except TLSFailedRetryPossibleError:
+            # If SRP fallback is allowed, connect using SRP
             self.__session = EncodedSession(host, port, tls_options=None)
 
         self._trans_id = None
@@ -115,7 +117,6 @@ class Connection(object):
                       'timezone': time.strftime('%Z'),
                       'clientProcessId': str(getpid())
                       }
-
 
         parameters.update(options)
 
