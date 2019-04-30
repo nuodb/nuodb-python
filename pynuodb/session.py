@@ -123,7 +123,7 @@ class Session(object):
         remote_options = {}
         tls_options = {}
         if options:
-            for (k, v) in options.iteritems():
+            for (k, v) in options.items():
                 if k in expected_tls_options:
                     tls_options[k] = v
                 else:
