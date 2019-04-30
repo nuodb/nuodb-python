@@ -221,7 +221,6 @@ class EncodedSession(Session):
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
 
-
     def get_version(self):
         """
         :rtype sessionVersion: int

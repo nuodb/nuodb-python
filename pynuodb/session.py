@@ -114,6 +114,7 @@ class Session(object):
                 self.establish_secure_tls_connection(tls_options)
             except socket.error:
                 if tls_options.get('allowSRPFallback', False):
+                    # fall back to SRP, do not attempt to TLS handshake
                     self.close()
                     self._open_socket(connect_timeout, host, port, read_timeout)
                 else:
