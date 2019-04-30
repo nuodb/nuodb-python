@@ -13,7 +13,6 @@ from .cursor import Cursor
 from .encodedsession import EncodedSession
 from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
-from .session import TLSFailedRetryPossibleError
 from os import getpid
 
 import time
@@ -90,26 +89,9 @@ class Connection(object):
         if options is None:
             options = {}
 
-        tlsOptions = ['trustStore', 'verifyHostname', 'allowSRPFallback']
-        extractedTlsOptions = None
-        if any(option in options for option in tlsOptions):
-            extractedTlsOptions = dict()
-            for option in tlsOptions:
-                val = options.pop(option, None)
-                if val is not None:
-                    extractedTlsOptions[option] = val
+        (host, port) = getCloudEntry(broker, dbName, options=options)
 
-        try:
-            (host, port) = getCloudEntry(broker, dbName, tls_options=extractedTlsOptions)
-        except TLSFailedRetryPossibleError:
-            # If SRP fallback is allowed, connect using SRP
-            (host, port) = getCloudEntry(broker, dbName, tls_options=None)
-
-        try:
-            self.__session = EncodedSession(host, port, tls_options=extractedTlsOptions)
-        except TLSFailedRetryPossibleError:
-            # If SRP fallback is allowed, connect using SRP
-            self.__session = EncodedSession(host, port, tls_options=None)
+        self.__session = EncodedSession(host, port, options=options)
 
         self._trans_id = None
 

@@ -73,9 +73,9 @@ class EncodedSession(Session):
 
     """
 
-    def __init__(self, host, port, service='SQL2', tls_options=None):
+    def __init__(self, host, port, service='SQL2', options=None):
         """Constructor for the EncodedSession class."""
-        Session.__init__(self, host, port=port, service=service, tls_options=tls_options)
+        Session.__init__(self, host, port=port, service=service, options=options)
         self.doConnect()
 
         self.__output = None

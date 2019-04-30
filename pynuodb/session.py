@@ -62,16 +62,6 @@ class SessionException(Exception):
     def __str__(self):
         return repr(self.__value)
 
-
-class TLSFailedRetryPossibleError(RuntimeError):
-    """The TLS requested connection has failed but SRP is available"""
-    def __init__(self, value):
-        self.__value = value
-
-    def __str__(self):
-        return repr(self.__value)
-
-
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
@@ -81,7 +71,7 @@ class Session(object):
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
     def __init__(self, host, port=None, service="Identity", timeout=None,
-                 connect_timeout=None, read_timeout=None, tls_options=None):
+                 connect_timeout=None, read_timeout=None, options=None):
         if not port:
             hostElements = host.split(":")
             if len(hostElements) == 2:
@@ -100,6 +90,36 @@ class Session(object):
             connect_timeout = timeout
         if read_timeout is None:
             read_timeout = timeout
+
+        self.__cipherOut = None
+        self.__cipherIn = None
+
+        self.__service = service
+
+        self.__pyversion = sys.version[0]
+
+        self._open_socket(connect_timeout, host, port, read_timeout)
+
+        tlsOptions = ['trustStore', 'verifyHostname', 'allowSRPFallback']
+        tls_options = None
+        if any(option in options for option in tlsOptions):
+            tls_options = dict()
+            for option in tlsOptions:
+                val = options.pop(option, None)
+                if val is not None:
+                    tls_options[option] = val
+
+        if tls_options:
+            try:
+                self.establish_secure_tls_connection(tls_options)
+            except socket.error:
+                if tls_options.get('allowSRPFallback', False):
+                    self.close()
+                    self._open_socket(connect_timeout, host, port, read_timeout)
+                else:
+                    raise
+
+    def _open_socket(self, connect_timeout, host, port, read_timeout):
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -109,16 +129,6 @@ class Session(object):
         self.__sock.settimeout(connect_timeout)
         self.__sock.connect((host, port))
         self.__sock.settimeout(read_timeout)
-
-        self.__cipherOut = None
-        self.__cipherIn = None
-
-        self.__service = service
-
-        self.__pyversion = sys.version[0]
-
-        if tls_options:
-            self.establish_secure_tls_connection(tls_options)
 
     def establish_secure_tls_connection(self, tls_options):
         try:
@@ -132,15 +142,9 @@ class Session(object):
             if tls_options.get('ciphers', None):
                 sslcontext.set_ciphers(tls_options.get('ciphers'))
 
-            try:
-                self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
-                self.__isTLSEncrypted = True
-            except socket.error as e:
-                if tls_options.get('allowSRPFallback', False):
-                    # the socket has been closed by the NuoDB server, this object is now unusable
-                    raise TLSFailedRetryPossibleError(str(e))
-                else:
-                    raise
+            self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
+            self.__isTLSEncrypted = True
+
 
         except ImportError:
             raise RuntimeError("SSL required but ssl module not available in this python installation")
