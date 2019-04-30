@@ -75,7 +75,7 @@ class EncodedSession(Session):
 
     def __init__(self, host, port, service='SQL2', options=None):
         """Constructor for the EncodedSession class."""
-        Session.__init__(self, host, port=port, service=service, options=options)
+        super(EncodedSession, self).__init__( host, port=port, service=service, options=options)
         self.doConnect()
 
         self.__output = None
@@ -154,8 +154,11 @@ class EncodedSession(Session):
         :rtype serverKey: str
         :rtype salt: str
         """
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
-        for (k, v) in parameters.items():
+
+        (remote_options, _) = self._split_options(parameters)
+
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))
+        for (k, v) in remote_options.items():
             self.putString(k).putString(v)
         self.putNull().putString(cp.genClientKey())
 
@@ -188,9 +191,11 @@ class EncodedSession(Session):
         if not self.tls_encrypted:
             raise RuntimeError("Sessions needs to be encrypted")
 
+        (remote_options, _) = self._split_options(parameters)
+
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(
-            len(parameters))
-        for (k, v) in parameters.items():
+            len(remote_options))
+        for (k, v) in remote_options.items():
             self.putString(k).putString(v)
 
         self._exchangeMessages()

@@ -85,10 +85,6 @@ class Connection(object):
         :type password: str
         :type options: dict[str,str]
         """
-
-        if options is None:
-            options = {}
-
         (host, port) = getCloudEntry(broker, dbName, options=options)
 
         self.__session = EncodedSession(host, port, options=options)
@@ -100,7 +96,8 @@ class Connection(object):
                       'clientProcessId': str(getpid())
                       }
 
-        parameters.update(options)
+        if options:
+            parameters.update(options)
 
         if not self.__session.tls_encrypted:
             if 'cipher' in options and options['cipher'] == 'None':

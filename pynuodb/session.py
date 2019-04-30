@@ -62,6 +62,7 @@ class SessionException(Exception):
     def __str__(self):
         return repr(self.__value)
 
+
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
@@ -98,16 +99,11 @@ class Session(object):
 
         self.__pyversion = sys.version[0]
 
+        self.__sock = None
+
         self._open_socket(connect_timeout, host, port, read_timeout)
 
-        tlsOptions = ['trustStore', 'verifyHostname', 'allowSRPFallback']
-        tls_options = None
-        if any(option in options for option in tlsOptions):
-            tls_options = dict()
-            for option in tlsOptions:
-                val = options.pop(option, None)
-                if val is not None:
-                    tls_options[option] = val
+        (_, tls_options) = self._split_options(options)
 
         if tls_options:
             try:
@@ -119,6 +115,19 @@ class Session(object):
                     self._open_socket(connect_timeout, host, port, read_timeout)
                 else:
                     raise
+
+    @staticmethod
+    def _split_options(options):
+        expected_tls_options = ['trustStore', 'verifyHostname', 'allowSRPFallback']
+        remote_options = {}
+        tls_options = {}
+        for (k, v) in options.iteritems():
+            if k in expected_tls_options:
+                tls_options[k] = v
+            else:
+                remote_options[k] = v
+
+        return remote_options, tls_options
 
     def _open_socket(self, connect_timeout, host, port, read_timeout):
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -140,12 +149,9 @@ class Session(object):
             sslcontext.verify_mode = ssl.CERT_REQUIRED
             sslcontext.check_hostname = tls_options.get('verifyHostname', True)
             sslcontext.load_verify_locations(tls_options['trustStore'])
-            if tls_options.get('ciphers', None):
-                sslcontext.set_ciphers(tls_options.get('ciphers'))
 
             self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
             self.__isTLSEncrypted = True
-
 
         except ImportError:
             raise RuntimeError("SSL required but ssl module not available in this python installation")
