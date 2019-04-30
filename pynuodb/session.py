@@ -121,11 +121,12 @@ class Session(object):
         expected_tls_options = ['trustStore', 'verifyHostname', 'allowSRPFallback']
         remote_options = {}
         tls_options = {}
-        for (k, v) in options.iteritems():
-            if k in expected_tls_options:
-                tls_options[k] = v
-            else:
-                remote_options[k] = v
+        if options:
+            for (k, v) in options.iteritems():
+                if k in expected_tls_options:
+                    tls_options[k] = v
+                else:
+                    remote_options[k] = v
 
         return remote_options, tls_options
 
