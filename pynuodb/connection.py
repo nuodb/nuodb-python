@@ -62,7 +62,9 @@ class Connection(object):
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
 
-    from .exception import Error
+    from .exception import Warning, Error, InterfaceError, DatabaseError, \
+                OperationalError, IntegrityError, InternalError, \
+                ProgrammingError, NotSupportedError
 
     def __init__(self, dbName, broker, username, password, options):
         """Constructor for the Connection class.
@@ -100,7 +102,7 @@ class Connection(object):
             parameters.update(options)
 
         if not self.__session.tls_encrypted:
-            if 'cipher' in options and options['cipher'] == 'None':
+            if options and 'cipher' in options and options['cipher'] == 'None':
                 self.__session.set_encryption(False)
 
             # Establish SRP Connection
