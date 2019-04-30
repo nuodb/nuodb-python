@@ -4,7 +4,7 @@
 import unittest
 
 import pynuodb
-from .nuodb_base import NuoBase
+from .nuodb_base import NuoBase, DATABASE_NAME, DBA_PASSWORD, DBA_USER
 from pynuodb.exception import ProgrammingError
 from pynuodb.session import SessionException
 
@@ -27,21 +27,21 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchport(self):
         try:
-            con = pynuodb.connect("pynuodb_test", "localhost:23456", "dba", "dba_password")
+            con = pynuodb.connect(DATABASE_NAME, "localhost:23456", DBA_USER, DBA_PASSWORD)
             self.fail()
         except:
             pass
 
     def test_nosuchhost(self):
         try:
-            con = pynuodb.connect("pynuodb_test", "nosuchhost", "dba", "dba_password")
+            con = pynuodb.connect(DATABASE_NAME, "nosuchhost", DBA_USER, DBA_PASSWORD)
             self.fail()
         except:
             pass
 
     def test_nosuchuser(self):
         try:
-            con = pynuodb.connect("pynuodb_test", self.host, "nosuchuser", "dba_password")
+            con = pynuodb.connect(DATABASE_NAME, self.host, "nosuchuser", DBA_PASSWORD)
             self.fail()
         except ProgrammingError:
             pass
@@ -50,7 +50,7 @@ class NuoDBConnectTest(NuoBase):
 
     def test_nosuchpassword(self):
         try:
-            con = pynuodb.connect("pynuodb_test", self.host, "dba", "nosuchpassword")
+            con = pynuodb.connect(DATABASE_NAME, self.host, DBA_USER, "nosuchpassword")
             self.fail()
         except ProgrammingError:
             pass

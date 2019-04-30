@@ -7,7 +7,7 @@ Exported Functions:
 connect -- Creates a connection object.
 """
 
-__all__ = [ 'apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection' ]
+__all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 
 from .cursor import Cursor
 from .encodedsession import EncodedSession
@@ -15,12 +15,12 @@ from .crypt import ClientPassword, RC4Cipher
 from .util import getCloudEntry
 from os import getpid
 
-import platform
 import time
 
 apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
+
 
 def connect(database, host, user, password, options=None):
     """Creates a connection object.
@@ -40,6 +40,7 @@ def connect(database, host, user, password, options=None):
     :type options: dict[str,str]
     """
     return Connection(database, host, user, password, options)
+
 
 class Connection(object):
 
@@ -62,8 +63,8 @@ class Connection(object):
     """
 
     from .exception import Warning, Error, InterfaceError, DatabaseError, \
-            OperationalError, IntegrityError, InternalError, \
-            ProgrammingError, NotSupportedError
+                OperationalError, IntegrityError, InternalError, \
+                ProgrammingError, NotSupportedError
 
     def __init__(self, dbName, broker, username, password, options):
         """Constructor for the Connection class.
@@ -86,27 +87,39 @@ class Connection(object):
         :type password: str
         :type options: dict[str,str]
         """
-        (host, port) = getCloudEntry(broker, dbName)
-        self.__session = EncodedSession(host, port)
+        (host, port) = getCloudEntry(broker, dbName, options=options)
+
+        self.__session = EncodedSession(host, port, options=options)
+
         self._trans_id = None
 
-        cp = ClientPassword()
+        parameters = {'user': username,
+                      'timezone': time.strftime('%Z'),
+                      'clientProcessId': str(getpid())
+                      }
 
-        parameters = {'user' : username, 'timezone' : time.strftime('%Z')}
         if options:
             parameters.update(options)
-            if 'cipher' in options and options['cipher'] == 'None':
+
+        if not self.__session.tls_encrypted:
+            if options and 'cipher' in options and options['cipher'] == 'None':
                 self.__session.set_encryption(False)
 
-        parameters['clientProcessId'] = str(getpid())
+            # Establish SRP Connection
+            cp = ClientPassword()
+            version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
+            sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
+            self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+            self.__session.check_auth()
 
-        version, serverKey, salt = self.__session.open_database(dbName, parameters, cp)
-        self.__protocolVersion = version
+            self.__protocolVersion = version
+        else:
+            # TLS is already established
+            parameters['password'] = password
 
-        sessionKey = cp.computeSessionKey(username.upper(), password, salt, serverKey)
-        self.__session.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+            version = self.__session.open_database_on_secure_connection(dbName, parameters)
 
-        self.__session.check_auth()
+            self.__protocolVersion = version
 
         # set auto commit to false by default per PEP
         self.__session.set_autocommit(0)

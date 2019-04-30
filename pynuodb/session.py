@@ -59,6 +59,7 @@ def checkForError(message):
 class SessionException(Exception):
     def __init__(self, value):
         self.__value = value
+
     def __str__(self):
         return repr(self.__value)
 
@@ -72,7 +73,7 @@ class Session(object):
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
     def __init__(self, host, port=None, service="Identity", timeout=None,
-                 connect_timeout=None, read_timeout=None):
+                 connect_timeout=None, read_timeout=None, options=None):
         if not port:
             hostElements = host.split(":")
             if len(hostElements) == 2:
@@ -83,6 +84,7 @@ class Session(object):
 
         self.__address = host
         self.__port = port
+        self.__isTLSEncrypted = False
 
         # for backwards-compatibility, set connect and read timeout to
         # `timeout` if either is not specified
@@ -90,6 +92,46 @@ class Session(object):
             connect_timeout = timeout
         if read_timeout is None:
             read_timeout = timeout
+
+        self.__cipherOut = None
+        self.__cipherIn = None
+
+        self.__service = service
+
+        self.__pyversion = sys.version[0]
+
+        self.__sock = None
+
+        self._open_socket(connect_timeout, host, port, read_timeout)
+
+        (_, tls_options) = self._split_options(options)
+
+        if tls_options:
+            try:
+                self.establish_secure_tls_connection(tls_options)
+            except socket.error:
+                if tls_options.get('allowSRPFallback', False):
+                    # fall back to SRP, do not attempt to TLS handshake
+                    self.close()
+                    self._open_socket(connect_timeout, host, port, read_timeout)
+                else:
+                    raise
+
+    @staticmethod
+    def _split_options(options):
+        expected_tls_options = ['trustStore', 'verifyHostname', 'allowSRPFallback']
+        remote_options = {}
+        tls_options = {}
+        if options:
+            for (k, v) in options.items():
+                if k in expected_tls_options:
+                    tls_options[k] = v
+                else:
+                    remote_options[k] = v
+
+        return remote_options, tls_options
+
+    def _open_socket(self, connect_timeout, host, port, read_timeout):
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -100,12 +142,25 @@ class Session(object):
         self.__sock.connect((host, port))
         self.__sock.settimeout(read_timeout)
 
-        self.__cipherOut = None
-        self.__cipherIn = None
+    def establish_secure_tls_connection(self, tls_options):
+        try:
+            import ssl
+            sslcontext = ssl.SSLContext(tls_options.get('sslVersion', ssl.PROTOCOL_TLSv1_2))
+            sslcontext.options |= ssl.OP_NO_SSLv2
+            sslcontext.options |= ssl.OP_NO_SSLv3
+            sslcontext.verify_mode = ssl.CERT_REQUIRED
+            sslcontext.check_hostname = tls_options.get('verifyHostname', True)
+            sslcontext.load_verify_locations(tls_options['trustStore'])
 
-        self.__service = service
+            self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
+            self.__isTLSEncrypted = True
 
-        self.__pyversion = sys.version[0]
+        except ImportError:
+            raise RuntimeError("SSL required but ssl module not available in this python installation")
+
+    @property
+    def tls_encrypted(self):
+        return self.__isTLSEncrypted
 
     @property
     def address(self):

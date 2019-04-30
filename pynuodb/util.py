@@ -218,12 +218,12 @@ def queryEngine(address, port, target, dbPassword, msgBody=None):
     return response
 
 
-def getCloudEntry(broker, db_name, attrs=None):
+def getCloudEntry(broker, db_name, attrs=None, options=None):
     if not attrs:
         attrs = dict()
     attrs["Database"] = db_name
 
-    s = Session(broker, service="SQL2")
+    s = Session(broker, service="SQL2", options=options)
 
     s.doConnect(attributes=attrs)
     connectDetail = s.recv()
@@ -233,7 +233,7 @@ def getCloudEntry(broker, db_name, attrs=None):
 
     root = ElementTree.fromstring(connectDetail)
     if root.tag != "Cloud":
-        raise SessionException("Unexpecetd response type: " + root.tag)
+        raise SessionException("Unexpected response type: " + root.tag)
 
     return (root.get("Address"), int(root.get("Port")))
 

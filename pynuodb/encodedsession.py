@@ -73,9 +73,9 @@ class EncodedSession(Session):
 
     """
 
-    def __init__(self, host, port, service='SQL2'):
+    def __init__(self, host, port, service='SQL2', options=None):
         """Constructor for the EncodedSession class."""
-        Session.__init__(self, host, port=port, service=service)
+        super(EncodedSession, self).__init__( host, port=port, service=service, options=options)
         self.doConnect()
 
         self.__output = None
@@ -154,8 +154,11 @@ class EncodedSession(Session):
         :rtype serverKey: str
         :rtype salt: str
         """
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(parameters))
-        for (k, v) in parameters.items():
+
+        (remote_options, _) = self._split_options(parameters)
+
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))
+        for (k, v) in remote_options.items():
             self.putString(k).putString(v)
         self.putNull().putString(cp.genClientKey())
 
@@ -178,6 +181,41 @@ class EncodedSession(Session):
         self.__sessionVersion = protocolVersion
 
         return protocolVersion, serverKey, salt
+
+    def open_database_on_secure_connection(self, db_name, parameters):
+        """
+        :type db_name: str
+        :type parameters: dict[str,str]
+        :rtype protocolVersion: int
+        """
+        if not self.tls_encrypted:
+            raise RuntimeError("Sessions needs to be encrypted")
+
+        (remote_options, _) = self._split_options(parameters)
+
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(
+            len(remote_options))
+        for (k, v) in remote_options.items():
+            self.putString(k).putString(v)
+
+        self._exchangeMessages()
+        protocolVersion = self.getInt()
+
+        self.__connectionDatabaseUUID = self.getUUID()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION15:
+            self.__connectionID = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION16:
+            self.__effectivePlatformVersion = self.getInt()
+
+        if protocolVersion >= protocol.PROTOCOL_VERSION17:
+            self.__connectedNodeID = self.getInt()
+            self.__maxNodes = self.getInt()
+
+        self.__sessionVersion = protocolVersion
+
+        return protocolVersion
 
     def check_auth(self):
         try:
