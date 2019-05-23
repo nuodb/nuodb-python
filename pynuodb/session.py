@@ -64,6 +64,15 @@ class SessionException(Exception):
         return repr(self.__value)
 
 
+def strToBool(s):
+    if s == 'True':
+        return True
+    elif s == 'False':
+        return False
+    else:
+        raise ValueError('"%s" is not a valid boolean string' % s)
+
+
 class Session(object):
 
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
@@ -110,7 +119,7 @@ class Session(object):
             try:
                 self.establish_secure_tls_connection(tls_options)
             except socket.error:
-                if tls_options.get('allowSRPFallback', False):
+                if strToBool(tls_options.get('allowSRPFallback', "False")):
                     # fall back to SRP, do not attempt to TLS handshake
                     self.close()
                     self._open_socket(connect_timeout, host, port, read_timeout)
@@ -149,7 +158,8 @@ class Session(object):
             sslcontext.options |= ssl.OP_NO_SSLv2
             sslcontext.options |= ssl.OP_NO_SSLv3
             sslcontext.verify_mode = ssl.CERT_REQUIRED
-            sslcontext.check_hostname = tls_options.get('verifyHostname', True)
+            sslcontext.check_hostname = strToBool(tls_options.get('verifyHostname', "True"))
+
             sslcontext.load_verify_locations(tls_options['trustStore'])
 
             self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
