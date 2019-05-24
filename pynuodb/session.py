@@ -65,9 +65,9 @@ class SessionException(Exception):
 
 
 def strToBool(s):
-    if s == 'True':
+    if s.lower() == 'true':
         return True
-    elif s == 'False':
+    elif s.lower() == 'false':
         return False
     else:
         raise ValueError('"%s" is not a valid boolean string' % s)
