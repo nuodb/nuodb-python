@@ -42,8 +42,11 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 from .crypt import ClientPassword, RC4Cipher, NoCipher
 
 from ipaddress import ip_address
-from urlparse import urlparse
-
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+    
 import socket
 import struct
 import threading
