@@ -41,6 +41,9 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 
 from .crypt import ClientPassword, RC4Cipher, NoCipher
 
+from ipaddress import ip_address
+from urlparse import urlparse
+
 import socket
 import struct
 import threading
@@ -81,18 +84,50 @@ class Session(object):
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
+    def parse_addr(self, addr):
+        try:
+            # ipv4 address
+            ip = ip_address(unicode(addr,'utf_8'))
+            port = None
+            ver = ip.version
+        except ValueError:
+            # ipv6 address
+            parsed = urlparse('//{}'.format(addr))
+            try:
+                ip = ip_address(unicode(parsed.hostname, 'utf_8'))
+                port = parsed.port
+                ver = ip.version
+            except ValueError:
+                # hostname[:port]
+                if addr.find(":", 0, len(addr)) == -1:
+                    ip = addr
+                    port = None
+                else:
+                    ip = addr.split(':')[0]
+                    port = int(addr.split(':')[1])
+                ver = 4
+        return ip, port, ver
+
     def __init__(self, host, port=None, service="Identity", timeout=None,
                  connect_timeout=None, read_timeout=None, options=None):
-        if not port:
-            hostElements = host.split(":")
-            if len(hostElements) == 2:
-                host = hostElements[0]
-                port = int(hostElements[1])
-            else:
-                port = 48004
 
-        self.__address = host
-        self.__port = port
+        addr, prt, ver = self.parse_addr(host)
+
+        self.__address = str(addr)
+
+        if port is None:
+            if prt is None:
+                self.__port = 48004
+            else:
+                self.__port = prt
+            port = self.__port
+        else:
+            self.__port = port
+
+        af = socket.AF_INET
+        if ver == 6:
+            af = socket.AF_INET6
+
         self.__isTLSEncrypted = False
 
         # for backwards-compatibility, set connect and read timeout to
@@ -111,7 +146,7 @@ class Session(object):
 
         self.__sock = None
 
-        self._open_socket(connect_timeout, host, port, read_timeout)
+        self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
 
         (_, tls_options) = self._split_options(options)
 
@@ -122,7 +157,7 @@ class Session(object):
                 if strToBool(tls_options.get('allowSRPFallback', "False")):
                     # fall back to SRP, do not attempt to TLS handshake
                     self.close()
-                    self._open_socket(connect_timeout, host, port, read_timeout)
+                    self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
                 else:
                     raise
 
@@ -140,8 +175,8 @@ class Session(object):
 
         return remote_options, tls_options
 
-    def _open_socket(self, connect_timeout, host, port, read_timeout):
-        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def _open_socket(self, connect_timeout, host, port, af, read_timeout):
+        self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         # separate connect and read timeout; we do not necessarily want to
