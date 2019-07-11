@@ -42,6 +42,7 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 from .crypt import ClientPassword, RC4Cipher, NoCipher
 
 from ipaddress import ip_address
+
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -90,14 +91,20 @@ class Session(object):
     def parse_addr(self, addr):
         try:
             # ipv4 address
-            ip = ip_address(unicode(addr,'utf_8'))
+            if sys.version_info >= (3, 0):
+                ip = ip_address(str(addr))
+            else:
+                ip = ip_address(unicode(addr,'utf_8'))
             port = None
             ver = ip.version
         except ValueError:
             # ipv6 address
             parsed = urlparse('//{}'.format(addr))
             try:
-                ip = ip_address(unicode(parsed.hostname, 'utf_8'))
+                if sys.version_info >= (3, 0):
+                    ip = ip_address(str(parsed.hostname))
+                else:
+                    ip = ip_address(unicode(parsed.hostname, 'utf_8'))
                 port = parsed.port
                 ver = ip.version
             except ValueError:
