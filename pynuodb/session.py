@@ -183,7 +183,10 @@ class Session(object):
                 elif len(parts) == 2:
                     # hostname with port e.g. ad0:53, testdb@ad0:53
                     ip = parts[0]
-                    port = parts[1]
+                    try:
+                        port = int(parts[1])
+                    except ValueError:
+                        raise SessionException("Invalid Host/IP Address Format %s" % addr)                        
                 else:
                     # failed
                     raise SessionException("Invalid Host/IP Address Format %s" % addr)
