@@ -88,42 +88,10 @@ class Session(object):
     __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
 
-    def parse_addr(self, addr):
-        try:
-            # ipv4 address
-            if sys.version_info >= (3, 0):
-                ip = ip_address(str(addr))
-            else:
-                ip = ip_address(unicode(addr,'utf_8'))
-            port = None
-            ver = ip.version
-        except ValueError:
-            # ipv6 address
-            parsed = urlparse('//{}'.format(addr))
-            try:
-                if sys.version_info >= (3, 0):
-                    ip = ip_address(str(parsed.hostname))
-                else:
-                    ip = ip_address(unicode(parsed.hostname, 'utf_8'))
-                port = parsed.port
-                ver = ip.version
-            except ValueError:
-                # hostname[:port]
-                if addr.find(":", 0, len(addr)) == -1:
-                    ip = addr
-                    port = None
-                else:
-                    ip = addr.split(':')[0]
-                    port = int(addr.split(':')[1])
-                ver = 4
-        return ip, port, ver
-
     def __init__(self, host, port=None, service="Identity", timeout=None,
                  connect_timeout=None, read_timeout=None, options=None):
 
-        addr, prt, ver = self.parse_addr(host)
-
-        self.__address = str(addr)
+        self.__address, prt, ver = self._parse_addr(host)
 
         if port is None:
             if prt is None:
@@ -185,6 +153,39 @@ class Session(object):
 
         return remote_options, tls_options
 
+    @staticmethod
+    def _to_ipaddr(addr):
+        if sys.version_info >= (3, 0):
+            ip = ip_address(str(addr))
+        else:
+            ip = ip_address(unicode(addr,'utf_8'))
+        return ip
+    
+    def _parse_addr(self, addr):
+        try:
+            # v4/v6 addr w/o port e.g. 192.168.1.1, 2001:3200:3200::10
+            ip = self._to_ipaddr(addr)
+            port = None
+            ver = ip.version
+        except ValueError:
+            # v4/v6 addr w/port e.g. 2001:3200:3200::10, [2001::10]:53
+            parsed = urlparse('//{}'.format(addr))
+            try:
+                ip = self._to_ipaddr(parsed.hostname)                
+                port = parsed.port
+                ver = ip.version
+            except ValueError:
+                if addr.find(":", 0, len(addr)) == -1:
+                    # hostname w/o port e.g. ad0, testdb@ad0
+                    ip = addr
+                    port = None
+                else:
+                    # hostname with port e.g. ad0:53, testdb@ad0:53
+                    ip = addr.split(':')[0]
+                    port = int(addr.split(':')[1])
+                ver = 4
+        return str(ip), port, ver
+    
     def _open_socket(self, connect_timeout, host, port, af, read_timeout):
         self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
