@@ -190,7 +190,7 @@ class Session(object):
 
                 # select v6/v4 for hostname based on user option
                 ver = 4
-                if 'ipVersion' in options:
+                if options != None and 'ipVersion' in options:
                     if options['ipVersion'] == 'v6':
                         ver = 6
                 
