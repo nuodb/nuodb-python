@@ -91,7 +91,7 @@ class Session(object):
     def __init__(self, host, port=None, service="Identity", timeout=None,
                  connect_timeout=None, read_timeout=None, options=None):
 
-        self.__address, prt, ver = self._parse_addr(host)
+        self.__address, prt, ver = self._parse_addr(host, options)
 
         if port is None:
             if prt is None:
@@ -161,29 +161,39 @@ class Session(object):
             ip = ip_address(unicode(addr,'utf_8'))
         return ip
     
-    def _parse_addr(self, addr):
+    def _parse_addr(self, addr, options):
         try:
             # v4/v6 addr w/o port e.g. 192.168.1.1, 2001:3200:3200::10
             ip = self._to_ipaddr(addr)
             port = None
             ver = ip.version
         except ValueError:
-            # v4/v6 addr w/port e.g. 2001:3200:3200::10, [2001::10]:53
+            # v4/v6 addr w/port e.g. 192.168.1.1:53, [2001::10]:53
             parsed = urlparse('//{}'.format(addr))
             try:
                 ip = self._to_ipaddr(parsed.hostname)                
                 port = parsed.port
                 ver = ip.version
             except ValueError:
-                if addr.find(":", 0, len(addr)) == -1:
+                parts = addr.split(":")
+                if len(parts) == 1:
                     # hostname w/o port e.g. ad0, testdb@ad0
                     ip = addr
                     port = None
-                else:
+                elif len(parts) == 2:
                     # hostname with port e.g. ad0:53, testdb@ad0:53
-                    ip = addr.split(':')[0]
-                    port = int(addr.split(':')[1])
+                    ip = parts[0]
+                    port = parts[1]
+                else:
+                    # failed
+                    raise SessionException("Invalid Host/IP Address Format %s" % addr)
+
+                # select v6/v4 for hostname based on user option
                 ver = 4
+                if 'ipVersion' in options:
+                    if options['ipVersion'] == 'v6':
+                        ver = 6
+                
         return str(ip), port, ver
     
     def _open_socket(self, connect_timeout, host, port, af, read_timeout):
