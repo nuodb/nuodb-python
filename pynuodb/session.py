@@ -47,7 +47,7 @@ try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-    
+
 import socket
 import struct
 import threading
@@ -160,7 +160,7 @@ class Session(object):
         else:
             ip = ip_address(unicode(addr,'utf_8'))
         return ip
-    
+
     def _parse_addr(self, addr, options):
         try:
             # v4/v6 addr w/o port e.g. 192.168.1.1, 2001:3200:3200::10
@@ -171,22 +171,22 @@ class Session(object):
             # v4/v6 addr w/port e.g. 192.168.1.1:53, [2001::10]:53
             parsed = urlparse('//{}'.format(addr))
             try:
-                ip = self._to_ipaddr(parsed.hostname)                
+                ip = self._to_ipaddr(parsed.hostname)
                 port = parsed.port
                 ver = ip.version
             except ValueError:
                 parts = addr.split(":")
                 if len(parts) == 1:
-                    # hostname w/o port e.g. ad0, testdb@ad0
-                    ip = addr
+                    # hostname w/o port e.g. ad0
+                    host = addr
                     port = None
                 elif len(parts) == 2:
-                    # hostname with port e.g. ad0:53, testdb@ad0:53
-                    ip = parts[0]
+                    # hostname with port e.g. ad0:53
+                    host = parts[0]
                     try:
                         port = int(parts[1])
                     except ValueError:
-                        raise SessionException("Invalid Host/IP Address Format %s" % addr)                        
+                        raise SessionException("Invalid Host/IP Address Format %s" % addr)
                 else:
                     # failed
                     raise SessionException("Invalid Host/IP Address Format %s" % addr)
@@ -196,9 +196,18 @@ class Session(object):
                 if options != None and 'ipVersion' in options:
                     if options['ipVersion'] == 'v6':
                         ver = 6
-                
+
+                # get ip addr from hostname
+                af = socket.AF_INET
+                if ver == 6:
+                    af = socket.AF_INET6
+                try:
+                    ip = socket.getaddrinfo(host, port, af)[0][4][0]
+                except:
+                    raise SessionException("Addr lookup failed %s %d %d" % (host,port,af))
+
         return str(ip), port, ver
-    
+
     def _open_socket(self, connect_timeout, host, port, af, read_timeout):
         self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
