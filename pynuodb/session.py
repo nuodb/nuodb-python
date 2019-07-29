@@ -41,6 +41,13 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 
 from .crypt import ClientPassword, RC4Cipher, NoCipher
 
+from ipaddress import ip_address
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import socket
 import struct
 import threading
@@ -83,16 +90,22 @@ class Session(object):
 
     def __init__(self, host, port=None, service="Identity", timeout=None,
                  connect_timeout=None, read_timeout=None, options=None):
-        if not port:
-            hostElements = host.split(":")
-            if len(hostElements) == 2:
-                host = hostElements[0]
-                port = int(hostElements[1])
-            else:
-                port = 48004
 
-        self.__address = host
-        self.__port = port
+        self.__address, prt, ver = self._parse_addr(host, options)
+
+        if port is None:
+            if prt is None:
+                self.__port = 48004
+            else:
+                self.__port = prt
+            port = self.__port
+        else:
+            self.__port = port
+
+        af = socket.AF_INET
+        if ver == 6:
+            af = socket.AF_INET6
+
         self.__isTLSEncrypted = False
 
         # for backwards-compatibility, set connect and read timeout to
@@ -111,7 +124,7 @@ class Session(object):
 
         self.__sock = None
 
-        self._open_socket(connect_timeout, host, port, read_timeout)
+        self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
 
         (_, tls_options) = self._split_options(options)
 
@@ -122,7 +135,7 @@ class Session(object):
                 if strToBool(tls_options.get('allowSRPFallback', "False")):
                     # fall back to SRP, do not attempt to TLS handshake
                     self.close()
-                    self._open_socket(connect_timeout, host, port, read_timeout)
+                    self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
                 else:
                     raise
 
@@ -140,8 +153,63 @@ class Session(object):
 
         return remote_options, tls_options
 
-    def _open_socket(self, connect_timeout, host, port, read_timeout):
-        self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    @staticmethod
+    def _to_ipaddr(addr):
+        if sys.version_info >= (3, 0):
+            ip = ip_address(str(addr))
+        else:
+            ip = ip_address(unicode(addr,'utf_8'))
+        return ip
+
+    def _parse_addr(self, addr, options):
+        try:
+            # v4/v6 addr w/o port e.g. 192.168.1.1, 2001:3200:3200::10
+            ip = self._to_ipaddr(addr)
+            port = None
+            ver = ip.version
+        except ValueError:
+            # v4/v6 addr w/port e.g. 192.168.1.1:53, [2001::10]:53
+            parsed = urlparse('//{}'.format(addr))
+            try:
+                ip = self._to_ipaddr(parsed.hostname)
+                port = parsed.port
+                ver = ip.version
+            except ValueError:
+                parts = addr.split(":")
+                if len(parts) == 1:
+                    # hostname w/o port e.g. ad0
+                    host = addr
+                    port = None
+                elif len(parts) == 2:
+                    # hostname with port e.g. ad0:53
+                    host = parts[0]
+                    try:
+                        port = int(parts[1])
+                    except ValueError:
+                        raise SessionException("Invalid Host/IP Address Format %s" % addr)
+                else:
+                    # failed
+                    raise SessionException("Invalid Host/IP Address Format %s" % addr)
+
+                # select v6/v4 for hostname based on user option
+                ver = 4
+                if options != None and 'ipVersion' in options:
+                    if options['ipVersion'] == 'v6':
+                        ver = 6
+
+                # get ip addr from hostname
+                af = socket.AF_INET
+                if ver == 6:
+                    af = socket.AF_INET6
+                try:
+                    ip = socket.getaddrinfo(host, port, af)[0][4][0]
+                except:
+                    raise SessionException("Addr lookup failed %s %d %d" % (host,port,af))
+
+        return str(ip), port, ver
+
+    def _open_socket(self, connect_timeout, host, port, af, read_timeout):
+        self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         # separate connect and read timeout; we do not necessarily want to
