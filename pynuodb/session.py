@@ -178,11 +178,11 @@ class Session(object):
                 parts = addr.split(":")
                 if len(parts) == 1:
                     # hostname w/o port e.g. ad0
-                    host = addr
+                    ip = addr
                     port = None
                 elif len(parts) == 2:
                     # hostname with port e.g. ad0:53
-                    host = parts[0]
+                    ip = parts[0]
                     try:
                         port = int(parts[1])
                     except ValueError:
@@ -196,15 +196,6 @@ class Session(object):
                 if options != None and 'ipVersion' in options:
                     if options['ipVersion'] == 'v6':
                         ver = 6
-
-                # get ip addr from hostname
-                af = socket.AF_INET
-                if ver == 6:
-                    af = socket.AF_INET6
-                try:
-                    ip = socket.getaddrinfo(host, port, af)[0][4][0]
-                except:
-                    raise SessionException("Addr lookup failed %s %d %d" % (host,port,af))
 
         return str(ip), port, ver
 
