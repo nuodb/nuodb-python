@@ -232,7 +232,14 @@ INVALID_INDEX_NULL              = -55
 INVALID_OPERATION               = -56
 INVALID_STATISTICS              = -57
 INVALID_GENERATOR               = -58
-FINAL_ENUM_MEMBER_IS_UNUSED     = -59
+OPERATION_TIMEOUT               = -59
+NO_SUCH_INDEX                   = -60
+NO_SUCH_SEQUENCE                = -61
+XAER_PROTO                      = -62
+UNKNOWN_ERROR                   = -63
+TRANSACTIONAL_LOCK_ERROR        = -64
+TRANSACTION_UNKNOWN_STATE       = -65
+LOCK_NOT_GRANTED                = -66
 
 
 DATA_ERRORS = {COMPILE_ERROR,
@@ -327,7 +334,17 @@ stringifyError = {
                       JAVA_ERROR                      : 'JAVA_ERROR',
                       INVALID_FIELD                   : 'INVALID_FIELD',
                       INVALID_INDEX_NULL              : 'INVALID_INDEX_NULL',
-                      INVALID_OPERATION               : 'INVALID_OPERATION'
+                      INVALID_OPERATION               : 'INVALID_OPERATION',
+                      INVALID_STATISTICS              : 'INVALID_STATISTICS',
+                      INVALID_GENERATOR               : 'INVALID_GENERATOR',
+                      OPERATION_TIMEOUT               : 'OPERATION_TIMEOUT',
+                      NO_SUCH_INDEX                   : 'NO_SUCH_INDEX',
+                      NO_SUCH_SEQUENCE                : 'NO_SUCH_SEQUENCE',
+                      XAER_PROTO                      : 'XAER_PROTO',
+                      UNKNOWN_ERROR                   : 'UNKNOWN_ERROR',
+                      TRANSACTIONAL_LOCK_ERROR        : 'TRANSACTIONAL_LOCK_ERROR',
+                      TRANSACTION_UNKNOWN_STATE       : 'TRANSACTION_UNKNOWN_STATE',
+                      LOCK_NOT_GRANTED                : 'LOCK_NOT_GRANTED'
                  }
 
 def lookup_code(error_code):
