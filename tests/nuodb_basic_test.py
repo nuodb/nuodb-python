@@ -24,7 +24,7 @@ from pynuodb.exception import DataError, ProgrammingError
 class NuoDBBasicTest(NuoBase):
     def connectManyTimesUsingOptions(self, options):
         connected_node_ids = set()
-        for _ in xrange(10):
+        for _ in range(10):
             con = self._connect(options)
             try:
                 cursor = con.cursor()
