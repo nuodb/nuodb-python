@@ -19,9 +19,7 @@ DATABASE_NAME   = 'pynuodb_test'
 class NuoBase(unittest.TestCase):
     driver = pynuodb
     connect_args = ()
-    options = {"schema": "test"}
     host = HOST + (':'+os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
-    connect_kw_args = {'database': DATABASE_NAME, 'host': host, 'user': DBA_USER, 'password': DBA_PASSWORD, 'options': options }
 
     lower_func = 'lower' # For stored procedure test
 
@@ -34,9 +32,15 @@ class NuoBase(unittest.TestCase):
             if DATABASE_NAME not in [db.name for db in domain.databases]:
                 cls.db_started = True
                 peer = domain.entry_peer
-                archive = os.path.join(tempfile.gettempdir(), ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(20)))
+                archive = os.path.join(tempfile.gettempdir(), ''.join(
+                    random.choice(string.ascii_uppercase + string.digits) for x in range(20)))
                 peer.start_storage_manager(DATABASE_NAME, archive, True, wait_seconds=10)
-                peer.start_transaction_engine(DATABASE_NAME,  [('--dba-user', DBA_USER),('--dba-password', DBA_PASSWORD)], wait_seconds=10)
+                peer.start_transaction_engine(DATABASE_NAME,
+                                              [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                              wait_seconds=10)
+                peer.start_transaction_engine(DATABASE_NAME,
+                                              [('--dba-user', DBA_USER), ('--dba-password', DBA_PASSWORD)],
+                                              wait_seconds=10)
 
         finally:
             domain.disconnect()
@@ -61,9 +65,12 @@ class NuoBase(unittest.TestCase):
         finally:
             domain.disconnect()
 
+    def _connect(self, options={}):
+        if "schema" not in options:
+            options["schema"] = "test"
 
-    def _connect(self):
-        return pynuodb.connect(**NuoBase.connect_kw_args)
+        return pynuodb.connect(database=DATABASE_NAME, host=self.host, user=DBA_USER, password=DBA_PASSWORD,
+                               options=options)
 
 class TestDomainListener(object):
     def __init__(self):

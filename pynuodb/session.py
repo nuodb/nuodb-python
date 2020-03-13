@@ -140,6 +140,22 @@ class Session(object):
                     raise
 
     @staticmethod
+    def _extract_options(options):
+        expected_extracted_options = ['password', 'user',
+                             'trustStore', 'verifyHostname', 'allowSRPFallback', 'ciphers',
+                             'ipVersion', 'direct']
+        remote_options = {}
+        extracted_options = {}
+        if options:
+            for (k, v) in options.items():
+                if k in expected_extracted_options:
+                    extracted_options[k] = v
+                else:
+                    remote_options[k] = v
+
+        return remote_options, extracted_options
+
+    @staticmethod
     def _split_options(options):
         expected_tls_options = ['trustStore', 'verifyHostname', 'allowSRPFallback']
         remote_options = {}

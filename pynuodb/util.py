@@ -218,14 +218,13 @@ def queryEngine(address, port, target, dbPassword, msgBody=None):
     return response
 
 
-def getCloudEntry(broker, db_name, attrs=None, options=None):
-    if not attrs:
-        attrs = dict()
-    attrs["Database"] = db_name
+def getCloudEntry(broker, db_name, options=None):
+    attributes, session_options = Session._extract_options(options)
+    attributes["Database"] = db_name
 
-    s = Session(broker, service="SQL2", options=options)
+    s = Session(broker, service="SQL2", options=session_options)
 
-    s.doConnect(attributes=attrs)
+    s.doConnect(attributes=attributes)
     connectDetail = s.recv()
     s.close()
 
