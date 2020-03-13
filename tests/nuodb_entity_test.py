@@ -81,7 +81,6 @@ class NuoDBEntityTest(unittest.TestCase):
 
     def test_listenDomain(self):
         domain = None
-        database = None
         dl = NuoTestListener()
         try:
             domain = Domain(self.host, DOMAIN_USER, DOMAIN_PASSWORD, dl)

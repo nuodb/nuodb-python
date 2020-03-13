@@ -22,6 +22,35 @@ from pynuodb.exception import DataError, ProgrammingError
 
 
 class NuoDBBasicTest(NuoBase):
+    def connectManyTimesUsingOptions(self, options):
+        connected_node_ids = set()
+        for _ in xrange(10):
+            con = self._connect(options)
+            try:
+                cursor = con.cursor()
+
+                cursor.execute("select nodeId from system.localtransactions where id=gettransactionid()")
+                rows = cursor.fetchall()
+
+                for row in rows:
+                    connected_node_ids.add(row[0])
+            finally:
+                con.close()
+        return connected_node_ids
+
+    def assertMultipleTEsRunning(self):
+        con = self._connect()
+        try:
+            cursor = con.cursor()
+            cursor.execute("select id from system.nodes where type = 'Transaction'")
+            rows = cursor.fetchall()
+            transaction_node_ids = set()
+            for row in rows:
+                transaction_node_ids.add(row[0])
+        finally:
+            con.close()
+        self.assertGreaterEqual(len(transaction_node_ids), 2, "Test requires 2+ TEs")
+
     def test_noop(self):
         con = self._connect()
         try:
@@ -485,19 +514,18 @@ class NuoDBBasicTest(NuoBase):
             con.close()
 
         clientInfo = "NuoDB Python driver"
-        tmp_args = self.connect_kw_args.copy()
-        tmp_args['options'] = {'schema': 'test', 'clientInfo': clientInfo}
-        con = pynuodb.connect(**tmp_args)
+        options = {'clientInfo': clientInfo}
+        con = self._connect(options)
         try:
             cursor = con.cursor()
-            cursor.execute("select clientprocessid, clientinfo from SYSTEM.CONNECTIONS")
+            cursor.execute("select clientprocessid, clientinfo from SYSTEM.LOCALCONNECTIONS where connid=getconnectionid()")
 
             result = cursor.fetchone()
 
-            #Make sure our clientProcessId and clientInfo remain the same in
-            #the SYSTEM.CONNECTIONS table
-            self.assertEqual(str(os.getpid()), result[0]) #clientProcessId
-            self.assertEqual(clientInfo, result[1]) #clientInfo
+            # Make sure our clientProcessId and clientInfo remain the same in
+            # the SYSTEM.CONNECTIONS table
+            self.assertEqual(str(os.getpid()), result[0]) # clientProcessId
+            self.assertEqual(clientInfo, result[1]) # clientInfo
         finally:
             con.close()
 
@@ -898,6 +926,18 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
+
+    def test_NodeKey_LoadBalancing(self):
+        self.assertMultipleTEsRunning()
+
+        options = {"NodeKey": "1"}
+        connected_node_ids = self.connectManyTimesUsingOptions(options)
+        self.assertEquals(1, len(connected_node_ids), "Unexpectedly connected to multiple TEs")
+
+        options = {}
+        connected_node_ids = self.connectManyTimesUsingOptions(options)
+        self.assertGreaterEqual(2, len(connected_node_ids), "Unexpectedly connected to multiple TEs")
+
 
 if __name__ == '__main__':
     unittest.main()
