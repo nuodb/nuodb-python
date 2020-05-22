@@ -277,7 +277,7 @@ class Session(object):
 
         cipher = root.get("Cipher")
         if cipher == 'None':
-            self._setCiphers(NoCipher(sessionKey), NoCipher(sessionKey))
+            self._setCiphers(NoCipher(), NoCipher())
         else:
             self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
 
