@@ -73,9 +73,9 @@ class EncodedSession(Session):
 
     """
 
-    def __init__(self, host, port, service='SQL2', options=None):
+    def __init__(self, host, port, service='SQL2', options=None, **kwargs):
         """Constructor for the EncodedSession class."""
-        super(EncodedSession, self).__init__( host, port=port, service=service, options=options)
+        super(EncodedSession, self).__init__(host, port=port, service=service, options=options, **kwargs)
         (remote_options, _) = self._split_options(options)
         self.doConnect(attributes = remote_options)
 

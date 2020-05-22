@@ -22,7 +22,7 @@ threadsafety = 1
 paramstyle = "qmark"
 
 
-def connect(database, host, user, password, options=None):
+def connect(database, host, user, password, options=None, **kwargs):
     """Creates a connection object.
     Arguments:
     database -- Name of the database to access.
@@ -39,7 +39,7 @@ def connect(database, host, user, password, options=None):
     :type password: str
     :type options: dict[str,str]
     """
-    return Connection(database, host, user, password, options)
+    return Connection(database, host, user, password, options, **kwargs)
 
 
 class Connection(object):
@@ -66,7 +66,7 @@ class Connection(object):
                 OperationalError, IntegrityError, InternalError, \
                 ProgrammingError, NotSupportedError
 
-    def __init__(self, dbName, broker, username, password, options):
+    def __init__(self, dbName, broker, username, password, options, **kwargs):
         """Constructor for the Connection class.
 
         Arguments:
@@ -77,6 +77,7 @@ class Connection(object):
         options -- A dictionary of NuoDB connection options
             Some common options include:
             "schema"
+        kwargs -- Extra arguments passed to EncodedSession
 
         Returns:
         a Connection instance
@@ -89,7 +90,7 @@ class Connection(object):
         """
         (host, port) = getCloudEntry(broker, dbName, options=options)
 
-        self.__session = EncodedSession(host, port, options=options)
+        self.__session = EncodedSession(host, port, options=options, **kwargs)
 
         self._trans_id = None
 
