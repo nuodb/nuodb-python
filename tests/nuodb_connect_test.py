@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+import socket
 
 import pynuodb
 from .nuodb_base import NuoBase, DATABASE_NAME, DBA_PASSWORD, DBA_USER
@@ -17,45 +18,28 @@ class NuoDBConnectTest(NuoBase):
         pass
 
     def test_nosuchdatabase(self):
-        try:
-            con = pynuodb.connect("nosuchdatabase", self.host, "dba", "dba_password")
-            self.fail()
-        except SessionException:
-            pass
-        except:
-            self.fail()
+        with self.assertRaises(SessionException):
+            pynuodb.connect("nosuchdatabase", self.host, "dba", "dba_password")
 
     def test_nosuchport(self):
+        # Different versions of Python give different exceptions here
         try:
-            con = pynuodb.connect(DATABASE_NAME, "localhost:23456", DBA_USER, DBA_PASSWORD)
-            self.fail()
-        except:
+            pynuodb.connect(DATABASE_NAME, "localhost:23456", DBA_USER, DBA_PASSWORD)
+            self.fail("Connection to bogus port succeeded")
+        except Exception:
             pass
 
     def test_nosuchhost(self):
-        try:
-            con = pynuodb.connect(DATABASE_NAME, "nosuchhost", DBA_USER, DBA_PASSWORD)
-            self.fail()
-        except:
-            pass
+        with self.assertRaises(socket.gaierror):
+            pynuodb.connect(DATABASE_NAME, "nosuchhost", DBA_USER, DBA_PASSWORD)
 
     def test_nosuchuser(self):
-        try:
-            con = pynuodb.connect(DATABASE_NAME, self.host, "nosuchuser", DBA_PASSWORD)
-            self.fail()
-        except ProgrammingError:
-            pass
-        except:
-            self.fail()
+        with self.assertRaises(ProgrammingError):
+            pynuodb.connect(DATABASE_NAME, self.host, "nosuchuser", DBA_PASSWORD)
 
     def test_nosuchpassword(self):
-        try:
-            con = pynuodb.connect(DATABASE_NAME, self.host, DBA_USER, "nosuchpassword")
-            self.fail()
-        except ProgrammingError:
-            pass
-        except:
-            self.fail()
+        with self.assertRaises(ProgrammingError):
+            pynuodb.connect(DATABASE_NAME, self.host, DBA_USER, "nosuchpassword")
 
 
 if __name__ == '__main__':

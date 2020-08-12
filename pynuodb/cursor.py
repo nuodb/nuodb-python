@@ -1,5 +1,10 @@
 """A module for housing the Cursor class.
 
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+
 Exported Classes:
 
 Cursor -- Class for representing a database cursor.
@@ -8,14 +13,13 @@ Cursor -- Class for representing a database cursor.
 
 from collections import deque
 
-from .statement import Statement, PreparedStatement
 from .exception import Error, NotSupportedError, ProgrammingError
 
 
 class Cursor(object):
 
     """Class for representing a database cursor.
-    
+
     Public Functions:
     close -- Closes the cursor into the database.
     callproc -- Currently not supported.
@@ -27,16 +31,16 @@ class Cursor(object):
     nextset -- Currently not supported.
     setinputsizes -- Currently not supported.
     setoutputsize -- Currently not supported.
-    
+
     Private Functions:
     __init__ -- Constructor for the Cursor class.
     _check_closed -- Checks if the cursor is closed.
     _reset -- Resets SQL transaction variables.
     _execute -- Handles operations without parameters.
     _executeprepared -- Handles operations with parameters.
-    _get_next_results -- Gets the next set of results.    
+    _get_next_results -- Gets the next set of results.
     """
-    
+
     def __init__(self, session, prepared_statement_cache_size):
         """
         Constructor for the Cursor class.
@@ -53,14 +57,14 @@ class Cursor(object):
 
         self.closed = False
         self.arraysize = 1
-        
+
         self.description = None
         self.rowcount = -1
         self.colcount = -1
         self.rownumber = 0
         self.__query = None
-        
-    @property    
+
+    @property
     def query(self):
         """Return the most recent query"""
         return self.__query
@@ -92,7 +96,6 @@ class Cursor(object):
         self.colcount = -1
         self._close_result_set()
 
-
     def callproc(self, procname, parameters=None):
         """Currently not supported."""
         if(procname is not None or parameters is not None):
@@ -100,15 +103,16 @@ class Cursor(object):
 
     def execute(self, operation, parameters=None):
         """Executes an SQL operation.
-        
-        The SQL operations can be with or without parameters, if parameters are included
-        then _executeprepared is invoked to prepare and execute the operation.
-        
+
+        The SQL operations can be with or without parameters, if parameters
+        are included then _executeprepared is invoked to prepare and execute
+        the operation.
+
         Arguments:
         operation -- SQL operation to be performed.
-        parameters -- Additional parameters for the operation may be supplied, but these
-                      are optional.
-        
+        parameters -- Additional parameters for the operation may be supplied,
+                      but these are optional.
+
         Returns:
         None
         """
@@ -130,13 +134,13 @@ class Cursor(object):
         if self.rowcount < 0:
             self.rowcount = -1
         self.rownumber = 0
-        
+
     def executesqltest(self, test):
         """Executes an SQL test.
-        
+
         Arguments:
         test -- xml string containing the SQL test to be performed.
-        
+
         Returns:
         String containing the result in the form of xml
         """
@@ -145,7 +149,6 @@ class Cursor(object):
         self.__query = test
 
         return self._executesqltest(test)
-
 
     def _execute(self, operation):
         """Handles operations without parameters."""
@@ -156,11 +159,11 @@ class Cursor(object):
         """Handles operations with parameters."""
         # Create a statement handle
         p_statement = self._statement_cache.get_prepared_statement(operation)
-        
+
         if p_statement.parameter_count != len(parameters):
             raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
                                    (p_statement.parameter_count, len(parameters)))
-        
+
         # Use handle to query
         return self.session.execute_prepared_statement(p_statement, parameters)
 
@@ -187,10 +190,10 @@ class Cursor(object):
     def fetchmany(self, size=None):
         """Fetches the number of rows that are passed in."""
         self._check_closed()
-        
+
         if size is None:
             size = self.arraysize
-            
+
         fetched_rows = []
         num_fetched_rows = 0
         while num_fetched_rows < size:
@@ -213,7 +216,7 @@ class Cursor(object):
                 break
             else:
                 fetched_rows.append(row)
-        return fetched_rows   
+        return fetched_rows
 
     def nextset(self):
         """Currently not supported."""
@@ -286,4 +289,3 @@ class StatementCache(object):
 
         self._ps_cache.clear()
         self._ps_key_queue.clear()
-

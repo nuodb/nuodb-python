@@ -1,9 +1,16 @@
+"""Utilities for the NuoDB Python driver
 
-__all__ = [ "DatabaseAction", "EngineMonitor",
-            "getLicense", "setLicense", "getIdentity", "getState",
-            "doDatabaseAction", "startProcess", "stopProcess", "killProcess",
-            "monitorDomainStats", "monitorEngine",
-            "getCloudEntry" ]
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
+
+__all__ = ["DatabaseAction", "EngineMonitor",
+           "getLicense", "setLicense", "getIdentity", "getState",
+           "doDatabaseAction", "startProcess", "stopProcess", "killProcess",
+           "monitorDomainStats", "monitorEngine",
+           "getCloudEntry"]
 
 # This module contains a collection of static routines useful for interacting
 # with an agent, domain or engine. It is the module that the Peer, Database
@@ -43,8 +50,9 @@ class _DatabaseActions(set):
             return name
         raise AttributeError
 
+
 DatabaseAction = _DatabaseActions(["Quiesce", "Unquiesce", "Validate",
-                               "UpdateConfiguration", "EvictNodes"])
+                                   "UpdateConfiguration", "EvictNodes"])
 
 
 class _StandardOutListener(BaseListener):
@@ -76,21 +84,21 @@ def logString(broker, user, password, message):
     s = Session(broker, service="DebugConsole")
     s.authorize(user, password)
 
-    return s.doRequest(attributes={ "RequestType" : "LogString" }, text=message)
+    return s.doRequest(attributes={"RequestType": "LogString"}, text=message)
 
 
 def getLicense(broker, user, password):
     s = Session(broker, service="License")
     s.authorize(user, password)
 
-    return s.doRequest(attributes={ "Action" : "GetCurrentLicense" })
+    return s.doRequest(attributes={"Action": "GetCurrentLicense"})
 
 
 def setLicense(broker, user, password, licenseText):
     s = Session(broker, service="License")
     s.authorize(user, password)
 
-    s.doRequest(attributes={ "Action" : "ApplyLicense" }, text=licenseText)
+    s.doRequest(attributes={"Action": "ApplyLicense"}, text=licenseText)
 
 
 def getIdentity(agent):
@@ -102,7 +110,7 @@ def getIdentity(agent):
 def getState(broker, user, password):
     s = Session(broker, service="State")
     s.authorize(user, password)
-    
+
     return s.doRequest()
 
 
@@ -111,8 +119,8 @@ def doDatabaseAction(broker, user, password, db_name, action, child=None):
     s.authorize(user, password)
 
     if child is not None:
-        child = [ child ]
-    s.doConnect(attributes={"Database" : db_name, "Action" : action}, children=child)
+        child = [child]
+    s.doConnect(attributes={"Database": db_name, "Action": action}, children=child)
     response = s.recv()
     checkForError(response)
 
@@ -131,15 +139,15 @@ def startProcess(agent, user, password, db_name, options=None, waitSeconds=-1):
     options.append(("--database", db_name))
 
     opts = []
-    for (k,v) in options:
+    for (k, v) in options:
         if v:
             optStr = _OPTION_VALUE_STR % (k, v)
         else:
             optStr = _OPTION_FLAG_STR % k
         opts.append(ElementTree.fromstring(optStr))
 
-    return s.doRequest(attributes={"Process" : "server",
-                                   "StartBarrierTimeout" : str(waitSeconds*1000) if waitSeconds > 0 else "-1" },
+    return s.doRequest(attributes={"Process": "server",
+                                   "StartBarrierTimeout": str(waitSeconds * 1000) if waitSeconds > 0 else "-1"},
                        children=opts)
 
 
@@ -160,7 +168,7 @@ def killProcess(agent, user, password, pid):
     s = Session(agent, service="ProcessStop")
     s.authorize(user, password)
 
-    response = s.doRequest(attributes={"PID" : str(pid)})
+    response = s.doRequest(attributes={"PID": str(pid)})
 
     return int(ElementTree.fromstring(response).get("ExitCode"))
 
@@ -248,12 +256,11 @@ def getArchiveHistory(agent, user, password, archive, options=None):
         opts.append(ElementTree.fromstring(option))
 
     if options:
-        for (k,v) in options:
+        for (k, v) in options:
             if v:
                 option = _OPTION_VALUE_STR % (k, v)
             else:
                 option = _OPTION_FLAG_STR % k
             opts.append(ElementTree.fromstring(option))
 
-    return s.doRequest(attributes={"Process" : "archiveHistory"}, children=opts)
-
+    return s.doRequest(attributes={"Process": "archiveHistory"}, children=opts)

@@ -1,4 +1,12 @@
-__all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "BaseListener" ]
+"""Establish and manage a session with an agent or engine.
+
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
+
+__all__ = ["checkForError", "SessionException", "Session", "SessionMonitor", "BaseListener"]
 
 # This module abstracts the common functionaliy needed to establish a session
 # with an agent or engine. It separates incoming and outgoing stream handling,
@@ -20,14 +28,6 @@ __all__ = [ "checkForError", "SessionException", "Session", "SessionMonitor", "B
 #   s = Session('localhost', service='State')
 #   s.authorize('admin', 'bird')
 #   print s.doRequest()
-#
-# Quiescing a database:
-#
-#   s = Session('localhost', service='ChorusManagement')
-#   s.authorize('admin', 'bird')
-#   s.doConnect(attributes={"Database" : 'db', "Action" : DatabaseAction.Quiesce})
-#   checkForError(s.recv())
-#   s.close()
 #
 # For both doRequest() and doConnect() the attributes parameter is a map from
 # attribute key name to value (its a map so that the same attribute key isn't
@@ -141,14 +141,13 @@ class Session(object):
 
     @staticmethod
     def _extract_options(options):
-        expected_extracted_options = ['password', 'user',
-                             'trustStore', 'verifyHostname', 'allowSRPFallback', 'ciphers',
-                             'ipVersion', 'direct']
+        expected = ['password', 'user', 'trustStore', 'verifyHostname',
+                    'allowSRPFallback', 'ciphers', 'ipVersion', 'direct']
         remote_options = {}
         extracted_options = {}
         if options:
             for (k, v) in options.items():
-                if k in expected_extracted_options:
+                if k in expected:
                     extracted_options[k] = v
                 else:
                     remote_options[k] = v
@@ -157,12 +156,12 @@ class Session(object):
 
     @staticmethod
     def _split_options(options):
-        expected_tls_options = ['trustStore', 'verifyHostname', 'allowSRPFallback']
+        expected = ['trustStore', 'verifyHostname', 'allowSRPFallback']
         remote_options = {}
         tls_options = {}
         if options:
             for (k, v) in options.items():
-                if k in expected_tls_options:
+                if k in expected:
                     tls_options[k] = v
                 else:
                     remote_options[k] = v
@@ -174,7 +173,7 @@ class Session(object):
         if sys.version_info >= (3, 0):
             ip = ip_address(str(addr))
         else:
-            ip = ip_address(unicode(addr,'utf_8'))
+            ip = ip_address(unicode(addr, 'utf_8'))
         return ip
 
     def _parse_addr(self, addr, options):
@@ -209,7 +208,7 @@ class Session(object):
 
                 # select v6/v4 for hostname based on user option
                 ver = 4
-                if options != None and 'ipVersion' in options:
+                if options is not None and 'ipVersion' in options:
                     if options['ipVersion'] == 'v6':
                         ver = 6
 
@@ -370,8 +369,6 @@ class Session(object):
             lengthHeader = self.__readFully(4)
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
             msg = self.__readFully(msgLength)
-
-
         except Exception:
             self.close()
             raise
@@ -385,7 +382,6 @@ class Session(object):
         if type(msg) is bytes and self.__pyversion == '3':
             msg = msg.decode("latin-1")
         return msg
-
 
     def __readFully(self, msgLength):
         """ Pull the entire next raw bytes message from the socket """
@@ -437,35 +433,35 @@ class SessionMonitor(threading.Thread):
         while True:
             try:
                 message = self.__session.recv()
-            except:
+            except Exception:
                 # the session was closed out from under us
                 break
 
             try:
                 root = ElementTree.fromstring(message)
-            except:
+            except Exception:
                 if self.__listener:
                     try:
                         self.__listener.invalid_message(message)
-                    except:
+                    except Exception:
                         pass
             else:
                 if self.__listener:
                     try:
                         self.__listener.message_received(root)
-                    except:
+                    except Exception:
                         pass
 
         try:
             self.close()
-        except:
+        except Exception:
             pass
 
     def close(self):
         if self.__listener:
             try:
                 self.__listener.closed()
-            except:
+            except Exception:
                 pass
             self.__listener = None
         self.__session.close(force=True)

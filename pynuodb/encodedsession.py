@@ -1,27 +1,35 @@
 """A module for housing the EncodedSession class.
 
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+
 Exported Classes:
 EncodedSession -- Class for representing an encoded session with the database.
 """
 
-__all__  = [ 'EncodedSession' ]
+__all__ = ['EncodedSession']
 
 import uuid
 import struct
 import decimal
 import sys
 
-from .crypt import toByteString, fromByteString, toSignedByteString, fromSignedByteString, NoCipher
+from .crypt import toByteString, fromByteString, toSignedByteString
+from .crypt import fromSignedByteString, NoCipher
 from .session import Session, SessionException
 from . import protocol
 from . import datatype
-from .exception import DataError, EndOfStream, ProgrammingError, db_error_handler, BatchError
+from .exception import DataError, EndOfStream, ProgrammingError
+from .exception import db_error_handler, BatchError
 from .datatype import TypeObjectFromNuodb
 from .statement import Statement, PreparedStatement, ExecutionResult
 from .result_set import ResultSet
 
 systemVersion = sys.version[0]
 REMOVE_FORMAT = 0
+
 
 class EncodedSession(Session):
     """Class for representing an encoded session with the database.
@@ -77,7 +85,7 @@ class EncodedSession(Session):
         """Constructor for the EncodedSession class."""
         super(EncodedSession, self).__init__(host, port=port, service=service, options=options, **kwargs)
         (remote_options, _) = self._split_options(options)
-        self.doConnect(attributes = remote_options)
+        self.doConnect(attributes=remote_options)
 
         self.__output = None
         """
@@ -169,13 +177,13 @@ class EncodedSession(Session):
         salt = self.getString()
         self.__connectionDatabaseUUID = self.getUUID()
 
-        if protocolVersion >= protocol.SEND_CONNID_TO_CLIENT :
+        if protocolVersion >= protocol.SEND_CONNID_TO_CLIENT:
             self.__connectionID = self.getInt()
 
-        if protocolVersion >= protocol.SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT :
+        if protocolVersion >= protocol.SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT:
             self.__effectivePlatformVersion = self.getInt()
 
-        if protocolVersion >= protocol.LAST_COMMIT_INFO :
+        if protocolVersion >= protocol.LAST_COMMIT_INFO:
             self.__connectedNodeID = self.getInt()
             self.__maxNodes = self.getInt()
 
@@ -194,8 +202,7 @@ class EncodedSession(Session):
 
         (remote_options, _) = self._split_options(parameters)
 
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(
-            len(remote_options))
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))
         for (k, v) in remote_options.items():
             self.putString(k).putString(v)
 
@@ -323,7 +330,6 @@ class EncodedSession(Session):
         self._exchangeMessages()
 
         return self.getString()
-
 
     def close_statement(self, statement):
         """
@@ -533,18 +539,19 @@ class EncodedSession(Session):
         self.__output += packed
         return self
 
-    #Does not preserve E notation
+    # Does not preserve E notation
     def putScaledInt(self, value):
         """
         Appends a Scaled Integer value to the message.
         :type value: decimal.Decimal
         """
-        #Convert the decimal's notation into decimal
+        # Convert the decimal's notation into decimal
         value += REMOVE_FORMAT
         scale = abs(value.as_tuple()[2])
         valueStr = toSignedByteString(int(value * decimal.Decimal(10**scale)))
 
-        #If our length is more than 9 bytes we will need to send the data using ScaledCount2
+        # If our length is more than 9 bytes we will need to send the data
+        # using ScaledCount2
         if len(valueStr) > 8:
             return self.putScaledCount2(value)
 
@@ -741,7 +748,8 @@ class EncodedSession(Session):
             return self.putDouble(value)
         elif isinstance(value, decimal.Decimal):
             return self.putScaledInt(value)
-        elif isinstance(value, datatype.Timestamp): #Note: Timestamp must be above Date because it inherits from Date
+        elif isinstance(value, datatype.Timestamp):
+            # Note: Timestamp must be above Date because it inherits from Date
             return self.putScaledTimestamp(value)
         elif isinstance(value, datatype.Date):
             return self.putScaledDate(value)
@@ -772,7 +780,7 @@ class EncodedSession(Session):
 
         raise DataError('Not an integer')
 
-    #Does not preserve E notation
+    # Does not preserve E notation
     def getScaledInt(self):
         """
         Read the next Scaled Integer value off the session.
@@ -850,7 +858,8 @@ class EncodedSession(Session):
                 for i in range(0, protocol.DOUBLELEN8 - typeCode):
                     test = test + chr(0)
             if systemVersion == '3':
-                #Python 3 returns an array, we want the 0th element and remove form
+                # Python 3 returns an array: we want the 0th element and
+                # remove form
                 return struct.unpack('!d', bytes(test, 'latin-1'))[0] + REMOVE_FORMAT
             return struct.unpack('!d', test)[0]
 
@@ -961,7 +970,7 @@ class EncodedSession(Session):
         if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             scale = fromByteString(self._takeBytes(1))
             date = fromSignedByteString(self._takeBytes(typeCode - 200))
-            return datatype.DateFromTicks(round(date/10.0**scale))
+            return datatype.DateFromTicks(round(date / 10.0 ** scale))
 
         raise DataError('Not a scaled date')
 
@@ -1000,72 +1009,70 @@ class EncodedSession(Session):
         raise DataError('Not a Scaled Count 2')
 
     def getValue(self):
-        """Determine the datatype of the next value off the session, then call the
-        supporting function.
+        """Determine the datatype of the next value off the session, then call
+        the supporting function.
         """
         typeCode = self._peekTypeCode()
 
-
         # get string type
         if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1) or \
-             typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
+           typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
             return self.getString()
 
         # get integer type
-        elif typeCode in range(protocol.INTMINUS10, protocol.INTLEN8 + 1):
+        if typeCode in range(protocol.INTMINUS10, protocol.INTLEN8 + 1):
             return self.getInt()
 
         # get double precision type
-        elif typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
+        if typeCode in range(protocol.DOUBLELEN0, protocol.DOUBLELEN8 + 1):
             return self.getDouble()
 
         # get boolean type
-        elif typeCode in [protocol.TRUE, protocol.FALSE]:
+        if typeCode in [protocol.TRUE, protocol.FALSE]:
             return self.getBoolean()
 
         # get uuid type
-        elif typeCode is [protocol.UUID, protocol.SCALEDCOUNT1]:
+        if typeCode is [protocol.UUID, protocol.SCALEDCOUNT1]:
             return self.getUUID()
 
         # get Scaled Count 2 type
-        elif typeCode is protocol.SCALEDCOUNT2:
+        if typeCode is protocol.SCALEDCOUNT2:
             return self.getScaledCount2()
 
         # get scaled int type
-        elif typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
+        if typeCode in range(protocol.SCALEDLEN0, protocol.SCALEDLEN8 + 1):
             return self.getScaledInt()
 
         # get opaque type
-        elif typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1) or \
-             typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
+        if typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1) or \
+           typeCode in range(protocol.OPAQUELEN0, protocol.OPAQUELEN39 + 1):
             return self.getOpaque()
 
         # get blob/clob type
-        elif typeCode in range(protocol.BLOBLEN0, protocol.CLOBLEN4 + 1):
+        if typeCode in range(protocol.BLOBLEN0, protocol.CLOBLEN4 + 1):
             return self.getBlob()
 
         # get time type
-        elif typeCode in range(protocol.MILLISECLEN0, protocol.TIMELEN4 + 1):
+        if typeCode in range(protocol.MILLISECLEN0, protocol.TIMELEN4 + 1):
             return self.getTime()
 
         # get scaled time
-        elif typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
+        if typeCode in range(protocol.SCALEDTIMELEN1, protocol.SCALEDTIMELEN8 + 1):
             return self.getScaledTime()
 
         # get scaled timestamp
-        elif typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
+        if typeCode in range(protocol.SCALEDTIMESTAMPLEN1, protocol.SCALEDTIMESTAMPLEN8 + 1):
             return self.getScaledTimestamp()
 
         # get scaled date
-        elif typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
+        if typeCode in range(protocol.SCALEDDATELEN1, protocol.SCALEDDATELEN8 + 1):
             return self.getScaledDate()
 
         # get null type
-        elif typeCode is protocol.NULL:
+        if typeCode is protocol.NULL:
             return self.getNull()
 
-        else:
-            raise NotImplementedError("not implemented")
+        raise NotImplementedError("not implemented")
 
     def _exchangeMessages(self, getResponse=True):
         """Exchange the pending message for an optional response from the server."""

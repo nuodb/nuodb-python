@@ -1,6 +1,11 @@
-__all__ = [ "Domain", "Peer", "Database", "Process" ]
+"""Basic "entity" support.
 
-""" This module provides basic "entity" support, similar to what's available
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+
+This module provides basic "entity" support, similar to what's available
 in the com.nuodb.entity Java package. A Domain instance provides entry into
 a domain, and optionally a hook for getting called back when domain-level
 events happen. The Domain provides access to Peers, Databases and Processes.
@@ -40,18 +45,23 @@ to another broker. Either this should be added, or some clear exception
 should be raised to help the caller make this happen.
 """
 
-from .session import BaseListener, Session, SessionMonitor, SessionException
-from .util import DatabaseAction, startProcess, killProcess, doDatabaseAction, queryEngine, logString
+__all__ = ["Domain", "Peer", "Database", "Process"]
 
-import time, json, socket
+from .session import BaseListener, Session, SessionMonitor, SessionException
+from .util import DatabaseAction, startProcess, killProcess, doDatabaseAction
+from .util import queryEngine, logString
+
+import time
+import json
+import socket
 from threading import Event, Lock
 import xml.etree.ElementTree as ElementTree
 
 
 class Domain(BaseListener):
     """Represents the NuoDB domain.
-    
-    The domain is the top level NuoDB management object. The domain object 
+
+    The domain is the top level NuoDB management object. The domain object
     provides access to the peers and databases that are contained within.
     """
 
@@ -79,8 +89,8 @@ class Domain(BaseListener):
         """ :type : dict[str, Database] """
 
         self.__monitor = SessionMonitor(self.__session, self)
-        
-        # These will be set in handle status after joining the domain 
+
+        # These will be set in handle status after joining the domain
         self.__domain_name = None
         """ :type : str """
         self.__entry_peer = None
@@ -101,7 +111,7 @@ class Domain(BaseListener):
     def disconnect(self):
         """Disconnect from the domain."""
         self.__monitor.close()
-        
+
     def _send_domain_message(self, service, attributes=None, text=None, children=None):
         session = Session(self.__entry_peer.address, port=self.__entry_peer.port, service=service)
         session.authorize(self.__user, self.__password)
@@ -116,7 +126,7 @@ class Domain(BaseListener):
     def password(self):
         """Return the domain password."""
         return self.__password
-    
+
     @property
     def domain_name(self):
         """Return the domain name."""
@@ -140,10 +150,8 @@ class Domain(BaseListener):
 
         ip = socket.gethostbyname(address)
         inet_sock_addr = ":".join([ip, str(port)])
-        try:
+        if inet_sock_addr in self.__peers_by_addr:
             return self.__peers_by_addr[inet_sock_addr]
-        except Exception as exception:
-            print(exception.message)
 
         session = Session(address, port=port, service="Identity")
         session.authorize(self.__user, self.__password)
@@ -152,12 +160,12 @@ class Domain(BaseListener):
             root = ElementTree.fromstring(response)
             if self.__domain_name != root.get("Domain"):
                 return None
-            peer =  self.get_peer(root.get("AgentId"))
+            peer = self.get_peer(root.get("AgentId"))
             if peer:
                 self.__peers_by_addr[peer._get_normalized_addr()] = peer
             return peer
         except Exception as exception:
-            print(exception.message)
+            print(str(exception))
             return None
 
     def get_peer(self, agent_id):
@@ -257,7 +265,7 @@ class Domain(BaseListener):
 
     def shutdown(self, graceful=True):
         """Shutdown all databases in the domain.
-        
+
         graceful -- (default True) means that the database will first
         be quiesced and then shutdown.
         """
@@ -266,7 +274,7 @@ class Domain(BaseListener):
 
     def message_received(self, root):
         """Process a management message from the broker.
-        
+
         Override from session.BaseListener.
         """
         if root.tag == "Event":
@@ -302,19 +310,18 @@ class Domain(BaseListener):
                             self.__listener.database_joined(self.__databases[db_name])
                         except AttributeError:
                             pass
-                            
 
                 if event_type == "NewProcess":
                     start_id = process_element.get("StartId")
                     self.__process_joined(Process.from_message(self.__databases[db_name],
-                                                       process_element), start_id)
+                                                               process_element), start_id)
                 else:
                     self.__process_left(Process.from_message(self.__databases[db_name],
-                                                     process_element))
+                                                             process_element))
 
     def closed(self):
         """Called when the session is closed.
-        
+
         Override from session.BaseListener.
         """
         if self.__listener:
@@ -325,7 +332,7 @@ class Domain(BaseListener):
 
     def __handle_status(self, message):
         """Handle initial domain status on domain connection.
-        
+
         Note that this is ONLY for processing the initial status message. All
         further update messages are processed by message_received()."""
         root = ElementTree.fromstring(message)
@@ -335,8 +342,8 @@ class Domain(BaseListener):
         self.__domain_name = root.get("Domain")
 
         self.__entry_peer = Peer(self, self.__session.address, root.get("AgentId"),
-                                (root.get("Role") == "Broker"), self.__session.port,
-                                root.get("Hostname"), root.get("Version"))
+                                 (root.get("Role") == "Broker"), self.__session.port,
+                                 root.get("Hostname"), root.get("Version"))
         self.__peer_joined(self.__entry_peer)
 
         for child in list(root):
@@ -389,7 +396,7 @@ class Domain(BaseListener):
                 self.__listener.process_joined(process)
             except AttributeError:
                 pass
-    
+
     def __process_left(self, process):
         """Called when a process leaves the domain."""
         database = process.database
@@ -427,15 +434,14 @@ class Domain(BaseListener):
             except AttributeError:
                 pass
 
-
     def _send_management_message(self, message, peer, process):
         """Send a management message.
-        
-        Note that this is an initial verison only to support the shutdown 
-        routine that doesn't need to watch for return messages ... right now 
-        this module is only supporting the tests, which don't need the other 
-        management routines at this point, so we'll flesh this out (as in the 
-        Java implementation) in the second round when other utilites get 
+
+        Note that this is an initial verison only to support the shutdown
+        routine that doesn't need to watch for return messages ... right now
+        this module is only supporting the tests, which don't need the other
+        management routines at this point, so we'll flesh this out (as in the
+        Java implementation) in the second round when other utilites get
         updated as well
         """
         root = ElementTree.fromstring("<ManagementRequest AgentId=\"%s\" ProcessId=\"%i\"/>" % (peer.id, process.pid))
@@ -485,7 +491,7 @@ class Peer(object):
         return self.id == other.id
 
     def __ne__(self, other):
-        return self.__eq__(other) != True
+        return not self.__eq__(other)
 
     def __str__(self):
         role = "broker" if self.is_broker else "agent"
@@ -538,7 +544,7 @@ class Peer(object):
         :rtype: str
         """
         return self.__hostname
-    
+
     @property
     def version(self):
         """
@@ -567,8 +573,8 @@ class Peer(object):
         for tag in tags:
             data[tag.get('Key')] = tag.get('Value')
 
-        return data        
-    
+        return data
+
     def get_tag(self, tag):
         """
         Return host tag
@@ -584,7 +590,7 @@ class Peer(object):
         """
         element = ElementTree.fromstring("<Tag Key=\"%s\" Value=\"%s\"/>" % (key, value))
         self.__domain._send_domain_message("Tag", {'Action': 'SetHostTags', 'AgentId': self.id}, children=[element])
-        
+
     def delete_tag(self, key):
         """
         Delete host tag
@@ -598,17 +604,17 @@ class Peer(object):
 
     def start_transaction_engine(self, db_name, options=None, wait_seconds=None):
         """Start a transaction engine on this peer for a given database.
-        
+
         options -- accepts a list of two element tuples, where the first element
         is a nuodb option flag and the second is the value. For options that
         do not accept a value, pass None as the value.
-         
+
         If this is the first transaction engine to be started for a database
         you must include --dba-user and --dba-password in the options.
-        
-        wait_seconds -- defines how long to wait for the transaction engine to 
-        start. The default is None, which does not wait for a response. 
-        Specifying a wait_seconds value will cause this function to block 
+
+        wait_seconds -- defines how long to wait for the transaction engine to
+        start. The default is None, which does not wait for a response.
+        Specifying a wait_seconds value will cause this function to block
         until a response is received indicating success or failure. If the
         time elapses without a response a SessionException will be raised.
 
@@ -621,19 +627,19 @@ class Peer(object):
 
     def start_storage_manager(self, db_name, archive, initialize, options=None, wait_seconds=None):
         """Start a storage manager on this peer for a given database.
-              
-        archive -- the archive location for the new storage manager. 
-        
+
+        archive -- the archive location for the new storage manager.
+
         initialize -- should be set to True if this storage manager is being
-        started with a new archive. 
-        
-        options -- accepts a list of two element tuples, where the first 
-        element is a nuodb option flag and the second is the value. For 
+        started with a new archive.
+
+        options -- accepts a list of two element tuples, where the first
+        element is a nuodb option flag and the second is the value. For
         options that do not accept a value, pass None as the value.
-        
-        wait_seconds -- defines how long to wait for the storage manager to 
-        start. The default is None, which does not wait for a response. 
-        Specifying a wait_seconds value will cause this function to block 
+
+        wait_seconds -- defines how long to wait for the storage manager to
+        start. The default is None, which does not wait for a response.
+        Specifying a wait_seconds value will cause this function to block
         until a response is received indicating success or failure. If the
         time elapses without a response, a SessionException will be raised.
 
@@ -668,7 +674,8 @@ class Peer(object):
             return
 
         e = Event()
-        # acquire the lock to avoid _notify_start_id reading the __start_id_slots map before we put the event inside it
+        # acquire the lock to avoid _notify_start_id reading the
+        # __start_id_slots map before we put the event inside it
         self.__lock.acquire()
         try:
             start_response = startProcess(self.connect_str, self.__domain.user, self.__domain.password, db_name, options)
@@ -715,10 +722,10 @@ class Peer(object):
 
     def get_local_processes(self, db_name=None):
         """Return a list of the NuoDB processes on this host.
-        
+
         db_name -- (default None) if not None, only return processes on this peer that belong
         to a given database. Note that if the database spans multiple peers
-        this method will only return the subset of processes that are on this 
+        this method will only return the subset of processes that are on this
         peer.
 
         :rtype: list[Process]
@@ -752,8 +759,8 @@ class Peer(object):
         """
         try:
             del self.__processes[process.pid]
-        except Exception as exception:
-            print(exception.message)
+        except Exception:
+            print("Unknown process pid %d" % (process.pid))
             pass
 
     def _get_normalized_addr(self):
@@ -767,8 +774,9 @@ class Peer(object):
             self.__inet_sock_addr = inet_sock_addr
         return self.__inet_sock_addr
 
+
 class Database(object):
-    
+
     """Represents a NuoDB database."""
 
     def __init__(self, domain, name):
@@ -791,7 +799,7 @@ class Database(object):
         return self.name == other.name and self.domain == other.domain
 
     def __ne__(self, other):
-        return self.__eq__(other) != True
+        return not self.__eq__(other)
 
     def __str__(self):
         return self.name
@@ -821,7 +829,7 @@ class Database(object):
     @property
     def status(self):
         """Return the status of the database."""
-        #TODO: hack to determine database state
+        # TODO: hack to determine database state
         data = {'RUNNING': 0, 'QUIESCED': 0}
         for process in self.processes:
             if process.status == "RUNNING":
@@ -837,7 +845,7 @@ class Database(object):
     def storage_managers(self):
         """Return storage managers."""
         return [process for process in self.__processes.values() if not process.is_transactional]
-      
+
     @property
     def transaction_engines(self):
         """Return transaction engines."""
@@ -859,7 +867,7 @@ class Database(object):
 
     def shutdown(self, graceful=True):
         """Shutdown this database.
-        
+
         graceful -- (default True) if True, the database processes will be shutdown gracefully.
         """
         if len(self.__processes) == 0:
@@ -875,7 +883,7 @@ class Database(object):
                         process.shutdown()
                     else:
                         process.kill()
-                    
+
                 except Exception as e:
                     failure_count = failure_count + 1
                     failure_text = failure_text + str(e) + "\n"
@@ -896,12 +904,12 @@ class Database(object):
 
     def quiesce(self, wait_seconds=0):
         """Quiesce the database.
-        
-        wait_seconds -- (default 0) defines how long to wait for the database 
+
+        wait_seconds -- (default 0) defines how long to wait for the database
         to quiesce. If wait_seconds is 0 quiesce will not wait for a response.
-        If wait_seconds is not 0 quiesce will block until the database is 
-        quiesced or wait_seconds seconds pass. If the database does not 
-        respond with a status of QUIESCED within the timeout, a 
+        If wait_seconds is not 0 quiesce will block until the database is
+        quiesced or wait_seconds seconds pass. If the database does not
+        respond with a status of QUIESCED within the timeout, a
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
@@ -915,12 +923,12 @@ class Database(object):
 
     def unquiesce(self, wait_seconds=0):
         """Unquiesce the database.
-        
-        wait_seconds -- (default 0) defines how long to wait for the database 
+
+        wait_seconds -- (default 0) defines how long to wait for the database
         to unquiesce. If wait_seconds is 0 unquiesce will not wait for a response.
-        If wait_seconds is not 0 unquiesce will block until the database is 
-        running or wait_seconds seconds pass. If the database does not 
-        respond with a status of RUNNING within the timeout, a 
+        If wait_seconds is not 0 unquiesce will block until the database is
+        running or wait_seconds seconds pass. If the database does not
+        respond with a status of RUNNING within the timeout, a
         SessionException will be raised.
         """
         doDatabaseAction(self.__domain.entry_peer.connect_str,
@@ -934,11 +942,11 @@ class Database(object):
 
     def update_configuration(self, name, value=None):
         option_element = ElementTree.fromstring("<Option Name=\"%s\">%s</Option>" %
-                                               (name, value if value is not None else ""))
+                                                (name, value if value is not None else ""))
         doDatabaseAction(self.__domain.entry_peer.connect_str,
-                       self.__domain.user, self.__domain.password,
-                       self.__name, DatabaseAction.UpdateConfiguration,
-                       child=option_element)
+                         self.__domain.user, self.__domain.password,
+                         self.__name, DatabaseAction.UpdateConfiguration,
+                         child=option_element)
 
     def __wait_for_status(self, status, wait_seconds):
         remaining_processes = list(self.__processes.values())
@@ -957,8 +965,9 @@ class Database(object):
 
         return False
 
+
 class Process(object):
-    
+
     """Represents a NuoDB process (TE or SM)"""
 
     def __init__(self, peer, database, port, pid, transactional, status, hostname, version, node_id):
@@ -1005,9 +1014,9 @@ class Process(object):
             return process
 
         return Process(peer, database, int(process_element.get("Port")),
-                    pid, int(process_element.get("NodeType")) == 1,
-                     process_element.get("State"), process_element.get("Hostname"),
-                     process_element.get("Version"), process_element.get("NodeId"))
+                       pid, int(process_element.get("NodeType")) == 1,
+                       process_element.get("State"), process_element.get("Hostname"),
+                       process_element.get("Version"), process_element.get("NodeId"))
 
     def __hash__(self):
         return self.__pid
@@ -1018,11 +1027,11 @@ class Process(object):
         return self.port == other.port and self.peer == other.peer
 
     def __ne__(self, other):
-        return self.__eq__(other) != True
+        return not self.__eq__(other)
 
     def __str__(self):
         process_type = "(TE)" if self.is_transactional else "(SM)"
-        return self.address + ":" + str(self.port) + " [pid=" + str(self.pid)+ "] " + process_type
+        return self.address + ":" + str(self.port) + " [pid=" + str(self.pid) + "] " + process_type
 
     @property
     def peer(self):
@@ -1053,11 +1062,11 @@ class Process(object):
     def node_id(self):
         """Return the NodeId of this process."""
         return self.__node_id
-    
+
     @property
     def is_transactional(self):
         """Return True if this process is a Transaction Engine.
-        
+
         Return False if it is a Storage Manager.
         """
         return self.__transactional
@@ -1066,7 +1075,7 @@ class Process(object):
     def hostname(self):
         """Return the hostname of this process."""
         return self.__hostname
-    
+
     @property
     def version(self):
         """Return the NuoDB release version of this process."""
@@ -1074,7 +1083,7 @@ class Process(object):
 
     def shutdown(self, wait_time=0):
         """Shutdown this process.
-        
+
         This is used in a graceful=True database shutdown.
         """
         msg = ElementTree.fromstring("<Request Service=\"Admin\" Type=\"Shutdown\" WaitTime=\"%i\"/>" % wait_time)
@@ -1082,8 +1091,8 @@ class Process(object):
 
     def kill(self):
         """Kill this process.
-        
-        This is used in a graceful=False database shutdown. 
+
+        This is used in a graceful=False database shutdown.
         """
         domain = self.__peer.domain
         killProcess(self.__peer.connect_str, domain.user, domain.password, self.pid)
@@ -1091,7 +1100,7 @@ class Process(object):
     @property
     def status(self):
         """Return the status of this process.
-        
+
         Possible statuses are:
         ACTIVE - The process has reported that it's ready for database participation.
         RUNNING - The process is in its running/active state.
@@ -1102,22 +1111,22 @@ class Process(object):
         DIED - The process is recognized as having left the database.
         QUIESCING2 - An internal state change in the process of quiescing.
         SHUTTING_DOWN - The process is in the process of a soft shutdown.
-        UNKNOWN - Any unknown state ... this should always be last in this enum 
+        UNKNOWN - Any unknown state ... this should always be last in this enum
                   to protect against skew between this enum and the C++ constants.
         """
         return self.__status
 
     def wait_for_status(self, status, wait_seconds):
         """Block until this process has a specified status.
-        
+
         If the status is not reached within wait_seconds seconds this method
-        will return False. If the status is reached it will immediately return 
+        will return False. If the status is reached it will immediately return
         True.
         """
         while wait_seconds >= 0:
             if self.status == status:
                 return True
-            
+
             if wait_seconds > 0:
                 time.sleep(1)
 
@@ -1242,7 +1251,8 @@ class Description(object):
             variable_child.set("Key", key)
             variable_child.text = variables[key]
 
-        if db_options is None: db_options = {}
+        if db_options is None:
+            db_options = {}
         options_element = ElementTree.Element("Options")
         for key in db_options:
             option_child = ElementTree.SubElement(options_element, "Option")
@@ -1266,7 +1276,8 @@ class Description(object):
             variable_child.set("Key", key)
             variable_child.text = variables[key]
 
-        if db_options is None: db_options = {}
+        if db_options is None:
+            db_options = {}
         options_element = ElementTree.Element("Options")
         for key in db_options:
             option_child = ElementTree.SubElement(options_element, "Option")

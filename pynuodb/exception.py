@@ -1,10 +1,17 @@
-"""Classes containing the exceptions for reporting errors."""
+"""Classes containing the exceptions for reporting errors.
+
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
 
 from . import protocol
 
-__all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError', 'DataError',
-           'OperationalError', 'IntegrityError', 'InternalError',
-           'ProgrammingError', 'NotSupportedError', 'EndOfStream', 'db_error_handler']
+__all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError',
+           'DataError', 'OperationalError', 'IntegrityError', 'InternalError',
+           'ProgrammingError', 'NotSupportedError', 'EndOfStream',
+           'db_error_handler']
 
 
 class Warning(Exception):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from datetime import timedelta
 from datetime import tzinfo
 from datetime import datetime
 import os
@@ -19,6 +18,7 @@ else:
 
 UTC = pytz.timezone('UTC')
 
+
 class _MyOffset(tzinfo):
     '''
     A timezone class that uses the current offset for all times in the past and
@@ -29,7 +29,9 @@ class _MyOffset(tzinfo):
     def utcoffset(self, dt):
         return Local.localize(datetime.now()).utcoffset()
 
+
 MyOffset = _MyOffset()
+
 
 class EscapingTimestamp(pynuodb.Timestamp):
     '''
@@ -56,8 +58,8 @@ class EscapingTimestamp(pynuodb.Timestamp):
             sqlformat = sqlformat.replace(pyspec, sqlspec)
         return "DATE_FROM_STR('%s', '%s')" % (self.strftime(pyformat), sqlformat)
 
+
 if __name__ == '__main__':
     print(str(EscapingTimestamp(2014, 7, 15, 23, 59, 58, 72, Local)))
     print(repr(EscapingTimestamp(2014, 7, 15, 23, 59, 58, 72, Local)))
     print(str(EscapingTimestamp(2014, 12, 15, 23, 59, 58, 72, Local)))
-

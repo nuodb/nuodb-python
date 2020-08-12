@@ -6,7 +6,8 @@ import os
 
 import pynuodb
 
-host = 'localhost' + (':' + os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
+port = os.environ.get('NUODB_PORT')
+host = 'localhost' + (':' + port if port else '')
 
 connection = pynuodb.connect("test", host, "dba", "goalie", options={"schema": "hockey"})
 cursor = connection.cursor()

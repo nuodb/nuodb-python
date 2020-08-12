@@ -1,0 +1,6 @@
+[flake8]
+ignore =
+    # Allow long lines
+    E501,
+    # Allow multiple spaces before operators
+    E221

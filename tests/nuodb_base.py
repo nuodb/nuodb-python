@@ -16,18 +16,21 @@ DBA_USER        = 'dba'
 DBA_PASSWORD    = 'dba_password'
 DATABASE_NAME   = 'pynuodb_test'
 
+
 class NuoBase(unittest.TestCase):
     driver = pynuodb
     connect_args = ()
-    host = HOST + (':'+os.environ['NUODB_PORT'] if 'NUODB_PORT' in os.environ else '')
+    port = os.environ.get('NUODB_PORT')
+    host = HOST + (':' + port if port else '')
 
-    lower_func = 'lower' # For stored procedure test
+    lower_func = 'lower'  # For stored procedure test
 
     @classmethod
     def setUpClass(cls):
         cls.longMessage = True
         domain = pynuodb.entity.Domain(cls.host, DOMAIN_USER, DOMAIN_PASSWORD)
         cls.db_started = False
+        print("starting a database")
         try:
             if DATABASE_NAME not in [db.name for db in domain.databases]:
                 cls.db_started = True
@@ -44,7 +47,6 @@ class NuoBase(unittest.TestCase):
 
         finally:
             domain.disconnect()
-
 
     @classmethod
     def tearDownClass(cls):
@@ -71,6 +73,7 @@ class NuoBase(unittest.TestCase):
 
         return pynuodb.connect(database=DATABASE_NAME, host=self.host, user=DBA_USER, password=DBA_PASSWORD,
                                options=options)
+
 
 class TestDomainListener(object):
     def __init__(self):

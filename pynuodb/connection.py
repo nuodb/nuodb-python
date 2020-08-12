@@ -1,5 +1,10 @@
 """A module for connecting to a NuoDB database.
 
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+
 Exported Classes:
 Connection -- Class for establishing connection with host.
 
@@ -62,9 +67,9 @@ class Connection(object):
     auto_commit (setter) -- Sets the value of auto_commit on the database.
     """
 
-    from .exception import Warning, Error, InterfaceError, DatabaseError, \
-                OperationalError, IntegrityError, InternalError, \
-                ProgrammingError, NotSupportedError
+    from .exception import Warning, Error, InterfaceError, DatabaseError
+    from .exception import OperationalError, IntegrityError, InternalError
+    from .exception import ProgrammingError, NotSupportedError
 
     def __init__(self, dbName, broker, username, password, options, **kwargs):
         """Constructor for the Connection class.

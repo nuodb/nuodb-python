@@ -7,7 +7,6 @@ E.g., attempting to run a query after being disconnected from the database.
 """
 
 import unittest
-import os
 
 from .nuodb_base import NuoBase
 from pynuodb.exception import Error
@@ -187,7 +186,7 @@ class NuoDBExecutionFlowTest(NuoBase):
             con.commit()
             cursor.execute("select count(*) from execute_ten_million_with_result_sets;")
             res = cursor.fetchone()[0]
-            self.assertEqual(i+1,res)
+            self.assertEqual(i + 1, res)
 
 
 if __name__ == '__main__':

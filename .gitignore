@@ -1,7 +1,16 @@
+*~
+\#*\#
+
+*.diff
+*.patch
+*.orig
+
 *.py[cod]
 
-# C extensions
 *.so
+
+/.virttemp
+/.testtemp
 
 # Packages
 *.egg

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import unittest
-import binascii
 import pynuodb
 
 

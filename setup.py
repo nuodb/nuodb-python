@@ -24,9 +24,8 @@ import re
 
 from setuptools import setup, find_packages
 
-v = open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py'))
-VERSION = re.compile(r".*__version__ = '(.*?)'", re.S).match(v.read()).group(1)
-v.close()
+with open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py')) as v:
+    VERSION = re.compile(r"^ *__version__ *= *'(.*?)'", re.M).search(v.read()).group(1)
 
 readme = os.path.join(os.path.dirname(__file__), 'README.rst')
 
@@ -37,8 +36,7 @@ setup(
     author_email='drivers@nuodb.com',
     description='NuoDB Python driver',
     keywords='nuodb scalable cloud database',
-    packages=find_packages(),
-    package_dir={'pynuodb': 'pynuodb'},
+    packages=['pynuodb'],
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),

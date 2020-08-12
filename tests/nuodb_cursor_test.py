@@ -4,7 +4,6 @@ import unittest
 
 from .nuodb_base import NuoBase
 from pynuodb.exception import DataError, ProgrammingError, BatchError, OperationalError
-from os import getenv
 
 
 class NuoDBCursorTest(NuoBase):
@@ -20,13 +19,12 @@ class NuoDBCursorTest(NuoBase):
         self.assertEqual(descriptions[0][0], 'XYZ', dstr)
         self.assertEqual(descriptions[0][1], self.driver.STRING, dstr)
         # We don't get back a length for this type (it's 0)
-        #self.assertEqual(descriptions[0][2], 3, dstr)
+        # self.assertEqual(descriptions[0][2], 3, dstr)
 
         self.assertEqual(descriptions[1][0], '123', dstr)
         self.assertEqual(descriptions[1][1], self.driver.NUMBER, dstr)
         # I think this should be 6 but there is disagreement?
-        #self.assertEqual(descriptions[1][2], 5, dstr)
-
+        # self.assertEqual(descriptions[1][2], 5, dstr)
 
     def test_cursor_rowcount_and_last_query(self):
         con = self._connect()
@@ -114,15 +112,15 @@ class NuoDBCursorTest(NuoBase):
         # 3rd tuple has uniqueness conflict
         try:
             cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
-            self.fail()
+            self.fail("executemany succeeded")
         except BatchError as e:
             self.assertEqual(e.results[0], 1)
             self.assertEqual(e.results[1], 1)
             self.assertEqual(e.results[2], -3)
             self.assertEqual(e.results[3], 1)
             self.assertEqual(e.results[4], -3)
-        except:
-            self.fail()
+        except Exception as ex:
+            self.fail("executemany failed with %s" % (str(ex)))
 
         # test that they all made it save the bogus one
         cursor.execute("select * from executemany_table;")

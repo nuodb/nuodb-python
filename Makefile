@@ -46,13 +46,13 @@ install:
 	$(PIP) install '.[crypto]'
 
 test:
-	$(PIP) install -r requirements.txt
+	$(PIP) install '.[crypto]'
 	$(PIP) install -r test_requirements.txt
 	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing $(PYTEST_ARGS)
 
 virtual-%:
 	$(RMDIR) '$(VIRTDIR)'
-	$(VIRTUALENV) '$(VIRTDIR)'
+	$(VIRTUALENV) -p $(PYTHON) '$(VIRTDIR)'
 	. '$(VIRTDIR)/bin/activate' && $(MAKE) '$*'
 
 deploy:

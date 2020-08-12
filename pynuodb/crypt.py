@@ -1,4 +1,12 @@
-__all__ = [ "ClientPassword", "ServerPassword", "RC4Cipher", "NoCipher" ]
+""" Manage encryption
+
+(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
+
+__all__ = ["ClientPassword", "ServerPassword", "RC4Cipher", "NoCipher"]
 
 # This module provides the basic cryptographic rouintes (SRP and RC4) used to
 # establish authenticated, confidential sessions with agents and engines. Note
@@ -35,6 +43,7 @@ except ImportError:
 
 systemVersion = sys.version[0]
 
+
 def toHex(bigInt):
     # Python 3 will no longer insert an L for type formatting
     if systemVersion == '3':
@@ -47,8 +56,10 @@ def toHex(bigInt):
         hexStr = "0" + hexStr
     return hexStr.upper()
 
+
 def fromHex(hexStr):
     return int(hexStr, 16)
+
 
 def toSignedByteString(value):
     if value == 0 or value == -1:
@@ -84,6 +95,7 @@ def fromSignedByteString(byteStr):
 
     return ((-1)**is_neg) * (result + is_neg)
 
+
 def toByteString(bigInt):
     resultBytes = []
     if bigInt == -1 or bigInt == 0:
@@ -98,6 +110,7 @@ def toByteString(bigInt):
     result = ''.join(resultBytes)
 
     return result
+
 
 def fromByteString(byteStr):
     result = 0
@@ -114,11 +127,11 @@ def fromByteString(byteStr):
 
 class RemoteGroup(object):
 
-    defaultPrime = "EEAF0AB9ADB38DD69C33F80AFA8FC5E86072618775FF3C0B9EA2314C" + \
-        "9C256576D674DF7496EA81D3383B4813D692C6E0E0D5D8E250B98BE4" + \
-        "8E495C1D6089DAD15DC7D7B46154D6B6CE8EF4AD69B15D4982559B29" + \
-        "7BCF1885C529F566660E57EC68EDBC3C05726CC02FD4CBF4976EAA9A" + \
-        "FD5138FE8376435B9FC61D2FC0EB06E3"
+    defaultPrime = ("EEAF0AB9ADB38DD69C33F80AFA8FC5E86072618775FF3C0B9EA2314C"
+                    "9C256576D674DF7496EA81D3383B4813D692C6E0E0D5D8E250B98BE4"
+                    "8E495C1D6089DAD15DC7D7B46154D6B6CE8EF4AD69B15D4982559B29"
+                    "7BCF1885C529F566660E57EC68EDBC3C05726CC02FD4CBF4976EAA9A"
+                    "FD5138FE8376435B9FC61D2FC0EB06E3")
 
     defaultGenerator = "2"
 
@@ -153,11 +166,11 @@ class RemoteGroup(object):
     def getK(self):
         return self.__k
 
+
 class RemotePassword(object):
 
     def __init__(self):
         self.__group = RemoteGroup()
-
 
     def _getUserHash(self, account, password, salt):
         md = hashlib.sha1()
@@ -190,6 +203,7 @@ class RemotePassword(object):
 
     def _getGroup(self):
         return self.__group
+
 
 class ClientPassword(RemotePassword):
 
@@ -224,6 +238,7 @@ class ClientPassword(RemotePassword):
         md.update(secretBytes)
 
         return md.digest()
+
 
 class ServerPassword(RemotePassword):
 
@@ -267,6 +282,7 @@ class ServerPassword(RemotePassword):
 
         return md.digest()
 
+
 class RC4CipherNuoDB(object):
     def __init__(self, key):
         if systemVersion == '3':
@@ -288,14 +304,19 @@ class RC4CipherNuoDB(object):
             state[i], state[j] = state[j], state[i]
 
     def transform(self, data):
-        """
-        Preforms a byte by byte RC4 transform on the stream
+        """Preforms a byte by byte RC4 transform on the stream
         Python 2:
-            automatically handles encoding bytes into an extended ASCII encoding [0,255] w/ 1 byte per character
+            automatically handles encoding bytes into an extended ASCII
+            encoding [0,255] w/ 1 byte per character
+
         Python 3:
-            bytes objects must be converted into extended ASCII, latin-1 uses the desired range of [0,255]
-        For utf-8 strings (characters consisting of more than 1 byte) the values are broken into 1 byte sections and shifted
-        The RC4 stream cipher processes 1 byte at a time, as does ord when converting character values to integers
+            bytes objects must be converted into extended ASCII, latin-1 uses
+            the desired range of [0,255]
+
+        For utf-8 strings (characters consisting of more than 1 byte) the
+        values are broken into 1 byte sections and shifted The RC4 stream
+        cipher processes 1 byte at a time, as does ord when converting
+        character values to integers
         """
         transformed = []
         state = self.__state
@@ -309,6 +330,7 @@ class RC4CipherNuoDB(object):
             cipherByte = ord(char) ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
             transformed.append(chr(cipherByte))
         return ''.join(transformed)
+
 
 class RC4CipherCryptography(object):
 
@@ -326,17 +348,20 @@ class RC4CipherCryptography(object):
         else:
             return transformed
 
+
 if cryptographyImported:
     RC4Cipher = RC4CipherCryptography
 else:
     RC4Cipher = RC4CipherNuoDB
 
+
 class NoCipher(object):
 
     def __init__(self):
-        """ A class to allow polymorphic cipher streams"""
+        """A class to allow polymorphic cipher streams"""
         pass
 
     def transform(self, data):
-        """ Returns the data as passed in so that it will be sent unencrypted to the server"""
+        """Returns the data as passed in so that it will be sent unencrypted
+        to the server"""
         return data

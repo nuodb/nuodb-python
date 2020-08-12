@@ -139,9 +139,6 @@ SETSTATEMENTFETCHSIZE             = 124
 RECOVERTRANSACTION                = 125
 SQLTEST                           = 126
 
-
-
-
 # Error code values
 SYNTAX_ERROR                      = -1
 FEATURE_NOT_YET_IMPLEMENTED       = -2
@@ -313,8 +310,10 @@ stringifyError = {
     LOCK_NOT_GRANTED                  : 'LOCK_NOT_GRANTED'
 }
 
+
 def lookup_code(error_code):
     return stringifyError.get(error_code, '[UNKNOWN ERROR CODE]')
+
 
 #
 # NuoDB Client-Server Features
