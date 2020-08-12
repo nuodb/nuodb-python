@@ -169,13 +169,13 @@ class EncodedSession(Session):
         salt = self.getString()
         self.__connectionDatabaseUUID = self.getUUID()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION15 :
+        if protocolVersion >= protocol.SEND_CONNID_TO_CLIENT :
             self.__connectionID = self.getInt()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION16 :
+        if protocolVersion >= protocol.SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT :
             self.__effectivePlatformVersion = self.getInt()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION17 :
+        if protocolVersion >= protocol.LAST_COMMIT_INFO :
             self.__connectedNodeID = self.getInt()
             self.__maxNodes = self.getInt()
 
@@ -204,13 +204,13 @@ class EncodedSession(Session):
 
         self.__connectionDatabaseUUID = self.getUUID()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION15:
+        if protocolVersion >= protocol.SEND_CONNID_TO_CLIENT:
             self.__connectionID = self.getInt()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION16:
+        if protocolVersion >= protocol.SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT:
             self.__effectivePlatformVersion = self.getInt()
 
-        if protocolVersion >= protocol.PROTOCOL_VERSION17:
+        if protocolVersion >= protocol.LAST_COMMIT_INFO:
             self.__connectedNodeID = self.getInt()
             self.__maxNodes = self.getInt()
 
@@ -557,7 +557,7 @@ class EncodedSession(Session):
         Appends a String to the message.
         :type value: str
         """
-        if systemVersion is '3' and not self.isASCII(value):
+        if systemVersion == '3' and not self.isASCII(value):
             value = value.encode('utf-8').decode('latin-1')
         length = len(value)
         if length < 40:
@@ -599,7 +599,7 @@ class EncodedSession(Session):
         """
         data = value.string
         length = len(data)
-        if systemVersion is '3' and type(data) is bytes:
+        if systemVersion == '3' and type(data) is bytes:
             data = data.decode('latin-1')
         if length < 40:
             packed = chr(protocol.OPAQUELEN0 + length) + data
@@ -615,7 +615,7 @@ class EncodedSession(Session):
         :type value: decimal.Decimal
         """
         valueStr = struct.pack('!d', value)
-        if systemVersion is '3':
+        if systemVersion == '3':
             valueStr = valueStr.decode('latin-1')
         packed = chr(protocol.DOUBLELEN0 + len(valueStr)) + valueStr
         self.__output += packed
@@ -799,14 +799,14 @@ class EncodedSession(Session):
 
         if typeCode in range(protocol.UTF8LEN0, protocol.UTF8LEN39 + 1):
             value = self._takeBytes(typeCode - 109)
-            if systemVersion is '3' and not self.isASCII(value):
+            if systemVersion == '3' and not self.isASCII(value):
                 value = value.encode('latin-1').decode('utf-8')
             return value
 
         if typeCode in range(protocol.UTF8COUNT1, protocol.UTF8COUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 68))
             value = self._takeBytes(strLength)
-            if systemVersion is '3' and not self.isASCII(value):
+            if systemVersion == '3' and not self.isASCII(value):
                 value = value.encode('latin-1').decode('utf-8')
             return value
 
@@ -849,7 +849,7 @@ class EncodedSession(Session):
             if typeCode < protocol.DOUBLELEN8:
                 for i in range(0, protocol.DOUBLELEN8 - typeCode):
                     test = test + chr(0)
-            if systemVersion is '3':
+            if systemVersion == '3':
                 #Python 3 returns an array, we want the 0th element and remove form
                 return struct.unpack('!d', bytes(test, 'latin-1'))[0] + REMOVE_FORMAT
             return struct.unpack('!d', test)[0]
@@ -888,7 +888,7 @@ class EncodedSession(Session):
         if typeCode in range(protocol.OPAQUECOUNT1, protocol.OPAQUECOUNT4 + 1):
             strLength = fromByteString(self._takeBytes(typeCode - 72))
             value = self._takeBytes(strLength)
-            if systemVersion is '3':
+            if systemVersion == '3':
                 value = value.encode('latin-1')
             return datatype.Binary(value)
 
@@ -972,7 +972,7 @@ class EncodedSession(Session):
         """
         if self._getTypeCode() == protocol.UUID:
             byteString = self._takeBytes(16)
-            if systemVersion is '3':
+            if systemVersion == '3':
                 byteString = byteString.encode('latin-1')
             return uuid.UUID(bytes=byteString)
         if self._getTypeCode() == protocol.SCALEDCOUNT1:
@@ -1102,7 +1102,7 @@ class EncodedSession(Session):
         :type msgId: int
         """
         self._putMessageId(msgId)
-        if self.__sessionVersion >= protocol.PROTOCOL_VERSION17:
+        if self.__sessionVersion >= protocol.LAST_COMMIT_INFO:
             self.putInt(self.getCommitInfo(self.__connectedNodeID))
         self.putInt(handle)
 
