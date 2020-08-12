@@ -43,7 +43,7 @@ all:
 	$(MAKE) test
 
 install:
-	$(PYTHON) setup.py install
+	$(PIP) install '.[crypto]'
 
 test:
 	$(PIP) install -r requirements.txt

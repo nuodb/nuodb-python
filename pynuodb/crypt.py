@@ -22,21 +22,22 @@ import hashlib
 import random
 import binascii
 import sys
-if sys.platform.startswith('linux'):
-    try:
+
+try:
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
         from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        cryptographyImported = True
-    except ImportError:
-        cryptographyImported = False
-else:
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
+    cryptographyImported = True
+except ImportError:
     cryptographyImported = False
 
 systemVersion = sys.version[0]
 
 def toHex(bigInt):
-    #Python 3 will no longer insert an L for type formatting
-    if systemVersion is '3':
+    # Python 3 will no longer insert an L for type formatting
+    if systemVersion == '3':
         hexStr = (hex(bigInt)[2:])
     else:
         hexStr = (hex(bigInt)[2:])[:-1]
