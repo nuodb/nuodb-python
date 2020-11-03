@@ -1,6 +1,6 @@
 [flake8]
+max-line-length = 100
+max-complexity = 20
 ignore =
-    # Allow long lines
-    E501,
     # Allow multiple spaces before operators
     E221
