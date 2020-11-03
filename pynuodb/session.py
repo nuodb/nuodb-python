@@ -360,13 +360,23 @@ class Session(object):
             self.close()
             raise
 
-    def recv(self, doStrip=True):
-        """ Pull the next message from the socket and decode / trim it if needed """
+    def recv(self, doStrip=True, timeout=None):
+        """Pull the next message from the socket and decode/trim it if needed
+
+        If timeout is None, wait forever (until read_timeout, if set).
+        If timeout is a float, then set this timeout for this recv().
+        If the timeout is hit return None and do not close the connection.
+        """
         if not self.__sock:
             raise SessionException("Session is not open to receive")
 
         try:
-            lengthHeader = self.__readFully(4)
+            # We only wait on timeout to read the header.  Once we read
+            # a header we'll wait as long as it takes to read the data.
+            lengthHeader = self.__readFully(4, timeout=timeout)
+            if lengthHeader is None:
+                # This can only happen if the recv timed out
+                return None
             msgLength = int(struct.unpack("!I", lengthHeader)[0])
             msg = self.__readFully(msgLength)
         except Exception:
@@ -383,17 +393,32 @@ class Session(object):
             msg = msg.decode("latin-1")
         return msg
 
-    def __readFully(self, msgLength):
+    def __readFully(self, msgLength, timeout=None):
         """ Pull the entire next raw bytes message from the socket """
         msg = b''
+        old_tmout = self.__sock.gettimeout()
         while msgLength > 0:
+            if timeout is not None:
+                # It's a little wrong that this timeout applies to each recv()
+                # instead of to the entire operation; however we only use this
+                # when reading the header which will always be read in one
+                # pass anyway.
+                self.__sock.settimeout(timeout)
             try:
                 received = self.__sock.recv(msgLength)
+            except socket.timeout:
+                return None
             except IOError as e:
-                raise SessionException("Session was closed while receiving: network error %s: %s" % (str(e.errno), e.strerror if e.strerror else str(e.args)))
+                raise SessionException("Session was closed while receiving: network error %s: %s" %
+                                       (str(e.errno), e.strerror if e.strerror else str(e.args)))
+            finally:
+                if timeout is not None:
+                    self.__sock.settimeout(old_tmout)
+
             if not received:
-                raise SessionException("Session was closed while receiving msgLength=[%d] len(msg)=[%d] "
-                                       "len(received)=[%d]" % (msgLength, len(msg), len(received)))
+                raise SessionException("Session was closed while receiving msgLength=[%d] "
+                                       "len(msg)=[%d] len(received)=[%d]" %
+                                       (msgLength, len(msg), len(received)))
             if self.__pyversion == '3':
                 msg = b''.join([msg, received])
                 msgLength = msgLength - len(received.decode('latin-1'))
