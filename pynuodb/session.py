@@ -429,15 +429,17 @@ class Session(object):
 
     def close(self, force=False):
         """ Close the current socket connection with the server """
-        if not self.__sock:
+        if self.__sock is None:
             return
 
         try:
             if force:
-                self.__sock.shutdown(socket.SHUT_RDWR)
-
-            if self.__sock:
-                self.__sock.close()
+                try:
+                    self.__sock.shutdown(socket.SHUT_RDWR)
+                except (OSError, socket.error):
+                    # On MacOS this can raise "Socket is not connected"
+                    pass
+            self.__sock.close()
         finally:
             self.__sock = None
 
