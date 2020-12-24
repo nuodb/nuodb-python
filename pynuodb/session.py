@@ -135,7 +135,8 @@ class Session(object):
                 if strToBool(tls_options.get('allowSRPFallback', "False")):
                     # fall back to SRP, do not attempt to TLS handshake
                     self.close()
-                    self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
+                    self._open_socket(connect_timeout, self.__address,
+                                      self.__port, af, read_timeout)
                 else:
                     raise
 
@@ -429,17 +430,20 @@ class Session(object):
 
     def close(self, force=False):
         """ Close the current socket connection with the server """
-        if self.__sock is None:
+        # The SessionMonitor thread also calls close() which resets
+        # self.__sock to None, so cache the value here.
+        sock = self.__sock
+        if sock is None:
             return
 
         try:
             if force:
                 try:
-                    self.__sock.shutdown(socket.SHUT_RDWR)
+                    sock.shutdown(socket.SHUT_RDWR)
                 except (OSError, socket.error):
                     # On MacOS this can raise "Socket is not connected"
                     pass
-            self.__sock.close()
+            sock.close()
         finally:
             self.__sock = None
 
