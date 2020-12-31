@@ -1085,6 +1085,9 @@ class EncodedSession(Session):
             self.__input = self.recv(False)
             self.__inpos = 0
 
+            if self.__input is None:
+                db_error_handler(protocol.OPERATION_TIMEOUT, "timed out")
+
             error = self.getInt()
 
             if error != 0:
