@@ -68,14 +68,17 @@ class EncodedSession(Session):
     getScaledTimestamp -- Read the next Scaled Timestamp value off the session.
     getScaledDate -- Read the next Scaled Date value off the session.
     getUUID -- Read the next UUID value off the session.
-    getValue -- Determine the datatype of the next value off the session, then call the
-                supporting function.
-    exchangeMessages -- Exchange the pending message for an optional response from the server.
+    getValue -- Determine the datatype of the next value off the session, then
+                call the supporting function.
+    exchangeMessages -- Exchange the pending message for an optional response
+                        from the server.
     setCiphers -- Re-sets the incoming and outgoing ciphers for the session.
-    set_encryption -- Takes a value of type boolean. Setting encryption to False will result in disabling encryption after the handshake
+    set_encryption -- Takes a value of type boolean. Setting encryption to False
+                      will result in disabling encryption after the handshake.
     Private Functions:
     __init__ -- Constructor for the EncodedSession class.
-    _peekTypeCode -- Looks at the next Type Code off the session. (Does not move inpos)
+    _peekTypeCode -- Looks at the next Type Code off the session.
+                     (Does not move inpos)
     _getTypeCode -- Read the next Type Code off the session.
     _takeBytes -- Gets the next length of bytes off the session.
 
@@ -83,7 +86,8 @@ class EncodedSession(Session):
 
     def __init__(self, host, port, service='SQL2', options=None, **kwargs):
         """Constructor for the EncodedSession class."""
-        super(EncodedSession, self).__init__(host, port=port, service=service, options=options, **kwargs)
+        super(EncodedSession, self).__init__(host, port=port, service=service,
+                                             options=options, **kwargs)
         (remote_options, _) = self._split_options(options)
         self.doConnect(attributes=remote_options)
 
@@ -166,7 +170,7 @@ class EncodedSession(Session):
 
         (remote_options, _) = self._split_options(parameters)
 
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))  # noqa: E501
         for (k, v) in remote_options.items():
             self.putString(k).putString(v)
         self.putNull().putString(cp.genClientKey())
@@ -202,7 +206,7 @@ class EncodedSession(Session):
 
         (remote_options, _) = self._split_options(parameters)
 
-        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))
+        self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))  # noqa: E501
         for (k, v) in remote_options.items():
             self.putString(k).putString(v)
 
@@ -294,7 +298,7 @@ class EncodedSession(Session):
         fieldValue = self.getInt()
         r2 = self.getInt()
 
-        if(rsHandle is None or count is None or colname is None or result is None or fieldValue is None or r2 is None):
+        if rsHandle is None or count is None or colname is None or result is None or fieldValue is None or r2 is None:  # noqa: E501
             raise ProgrammingError('Failed to connect!')
 
     # Mostly for cursors
@@ -387,8 +391,9 @@ class EncodedSession(Session):
 
         for parameters in param_lists:
             if prepared_statement.parameter_count != len(parameters):
-                raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d" %
-                                       (prepared_statement.parameter_count, len(parameters)))
+                raise ProgrammingError("Incorrect number of parameters specified, expected %d, got %d"  # noqa: E501
+                                       % (prepared_statement.parameter_count,
+                                          len(parameters)))
             self.putInt(len(parameters))
             for param in parameters:
                 self.putValue(param)
@@ -941,7 +946,8 @@ class EncodedSession(Session):
             scale = fromByteString(self._takeBytes(1))
             time = fromSignedByteString(self._takeBytes(typeCode - 208))
             ticks = decimal.Decimal(str(time)) / decimal.Decimal(10**scale)
-            return datatype.TimeFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
+            return datatype.TimeFromTicks(round(int(ticks)),
+                                          int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled time')
 
@@ -956,7 +962,8 @@ class EncodedSession(Session):
             scale = fromByteString(self._takeBytes(1))
             timestamp = fromSignedByteString(self._takeBytes(typeCode - 216))
             ticks = decimal.Decimal(str(timestamp)) / decimal.Decimal(10**scale)
-            return datatype.TimestampFromTicks(round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
+            return datatype.TimestampFromTicks(round(int(ticks)),
+                                               int((ticks % 1) * decimal.Decimal(1000000)))
 
         raise DataError('Not a scaled timestamp')
 
