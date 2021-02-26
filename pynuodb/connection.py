@@ -37,6 +37,7 @@ def connect(database, host, user, password, options=None, **kwargs):
     options -- A dictionary of NuoDB connection options
         Some common options include:
         "schema"
+        "clientInfo"
 
     :type database: str
     :type host: str
@@ -82,6 +83,7 @@ class Connection(object):
         options -- A dictionary of NuoDB connection options
             Some common options include:
             "schema"
+            "clientInfo"
         kwargs -- Extra arguments passed to EncodedSession
 
         Returns:
