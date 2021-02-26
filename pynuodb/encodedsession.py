@@ -170,6 +170,9 @@ class EncodedSession(Session):
 
         (remote_options, _) = self._split_options(parameters)
 
+        if 'clientInfo' not in remote_options:
+            remote_options['clientInfo'] = 'pynuodb'
+
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))  # noqa: E501
         for (k, v) in remote_options.items():
             self.putString(k).putString(v)
@@ -205,6 +208,9 @@ class EncodedSession(Session):
             raise RuntimeError("Sessions needs to be encrypted")
 
         (remote_options, _) = self._split_options(parameters)
+
+        if 'clientInfo' not in remote_options:
+            remote_options['clientInfo'] = 'pynuodb'
 
         self._putMessageId(protocol.OPENDATABASE).putInt(protocol.CURRENT_PROTOCOL_VERSION).putString(db_name).putInt(len(remote_options))  # noqa: E501
         for (k, v) in remote_options.items():
