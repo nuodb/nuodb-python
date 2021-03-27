@@ -1,6 +1,6 @@
 """A module for housing the EncodedSession class.
 
-(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+(C) Copyright 2013-2021 NuoDB, Inc.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -438,29 +438,26 @@ class EncodedSession(Session):
         handle = self.getInt()
         colcount = self.getInt()
 
-        col_num_iter = range(colcount)
-        for _ in col_num_iter:
+        # skip the header labels
+        for _ in range(colcount):
             self.getString()
 
         complete = False
         init_results = []
-        next_row = self.getInt()
 
-        while next_row == 1:
+        # If we hit the end of the stream without next==0, there are more
+        # results to fetch.
+        while self._hasBytes(1):
+            next_row = self.getInt()
+            if next_row == 0:
+                complete = True
+                break
+
             row = [None] * colcount
-            for i in col_num_iter:
+            for i in range(colcount):
                 row[i] = self.getValue()
 
             init_results.append(tuple(row))
-
-            try:
-                next_row = self.getInt()
-            except EndOfStream:
-                break
-
-        # the first chunk might be all of the data
-        if next_row == 0:
-            complete = True
 
         return ResultSet(handle, colcount, init_results, complete)
 
@@ -471,25 +468,18 @@ class EncodedSession(Session):
         self._putMessageId(protocol.NEXT).putInt(result_set.handle)
         self._exchangeMessages()
 
-        col_num_iter = range(result_set.col_count)
-
         result_set.clear_results()
 
-        next_row = self.getInt()
-        while next_row == 1:
+        while self._hasBytes(1):
+            if self.getInt() == 0:
+                result_set.complete = True
+                break
+
             row = [None] * result_set.col_count
-            for i in col_num_iter:
+            for i in range(result_set.col_count):
                 row[i] = self.getValue()
 
             result_set.add_row(tuple(row))
-
-            try:
-                next_row = self.getInt()
-            except EndOfStream:
-                break
-
-        if next_row == 0:
-            result_set.complete = True
 
     def fetch_result_set_description(self, result_set):
         """
@@ -1102,7 +1092,6 @@ class EncodedSession(Session):
                 db_error_handler(protocol.OPERATION_TIMEOUT, "timed out")
 
             error = self.getInt()
-
             if error != 0:
                 db_error_handler(error, self.getString())
         else:
@@ -1131,13 +1120,19 @@ class EncodedSession(Session):
 
         return self
 
+    def _hasBytes(self, length):
+        return self.__inpos + length <= len(self.__input)
+
     def _peekTypeCode(self):
         """Looks at the next Type Code off the session. (Does not move inpos)"""
+        if not self._hasBytes(1):
+            raise EndOfStream('end of stream reached')
+
         return ord(self.__input[self.__inpos])
 
     def _getTypeCode(self):
         """Read the next Type Code off the session."""
-        if self.__inpos >= len(self.__input):
+        if not self._hasBytes(1):
             raise EndOfStream('end of stream reached')
 
         try:
@@ -1151,8 +1146,8 @@ class EncodedSession(Session):
         :type length: int
         :rtype: bytes
         """
-        if self.__inpos + length > len(self.__input):
-            raise EndOfStream('end of stream reached')
+        if not self._hasBytes(length):
+            raise EndOfStream('end of stream reached (need %d bytes)' % (length))
 
         try:
             return self.__input[self.__inpos:self.__inpos + length]
