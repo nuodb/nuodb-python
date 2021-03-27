@@ -7,7 +7,9 @@ from pynuodb.exception import DataError, ProgrammingError, BatchError, Operation
 
 
 class NuoDBCursorTest(NuoBase):
-    def test_cursor_description(self):
+
+    # In VEE the column names are not set in the metadata (DB-33176)
+    def DISABLED_test_cursor_description(self):
         con = self._connect()
         cursor = con.cursor()
 
@@ -128,7 +130,8 @@ class NuoDBCursorTest(NuoBase):
 
         cursor.execute("DROP TABLE executemany_table")
 
-    def test_result_set_gets_closed(self):
+    # VEE doesn't implement this as of NuoDB 4.2 (DB-33175)
+    def DISABLED_test_result_set_gets_closed(self):
         # Server will throw error after 1000 open result sets
         con = self._connect()
         for j in [False, True]:

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, NuoDB, Inc.
+# Copyright (c) 2015-2021, NuoDB, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,13 @@ VIRTDIR ?= ./.virttemp
 
 PYTEST_ARGS ?=
 
+PYTEST_OPTS ?=
+PYTEST_COV ?= --cov=pynuodb --cov-report html --cov-report term-missing
+
+SUDO ?= sudo -n
+NUODB_HOME ?= /opt/nuodb
+NUO_CONFIG ?= /etc/nuodb/nuoadmin.conf
+
 all:
 	$(MAKE) install
 	$(MAKE) test
@@ -48,18 +55,24 @@ install:
 test:
 	$(PIP) install '.[crypto]'
 	$(PIP) install -r test_requirements.txt
-	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing $(PYTEST_ARGS)
+	TMPDIR='$(TMPDIR)' PATH="$(NUODB_HOME)/bin:$$PATH" \
+	    pytest $(PYTEST_COV) $(PYTEST_OPTS) $(PYTEST_ARGS)
 
 virtual-%:
 	$(RMDIR) '$(VIRTDIR)'
 	$(VIRTUALENV) -p $(PYTHON) '$(VIRTDIR)'
 	. '$(VIRTDIR)/bin/activate' && $(MAKE) '$*'
 
+start-nuoadmin:
+	$(SUDO) sed -ie 's,^\( *"ssl": *\)"[^"]*",\1"'"$(NUO_ENABLE_TLS)"'",' $(NUO_CONFIG)
+	$(SUDO) systemctl start nuoadmin
+
+
 deploy:
 	$(PYTHON) setup.py register
 	$(PYTHON) setup.py sdist upload
 
-clean:	
+clean:
 	$(RMDIR) build/ dist/ *.egg-info htmlcov/
 
 doc:

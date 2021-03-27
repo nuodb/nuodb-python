@@ -11,12 +11,6 @@ from pynuodb.session import SessionException
 
 
 class NuoDBConnectTest(NuoBase):
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def test_nosuchdatabase(self):
         with self.assertRaises(SessionException):
             pynuodb.connect("nosuchdatabase", self.host, "dba", "dba_password")
