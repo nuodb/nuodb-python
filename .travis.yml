@@ -1,4 +1,4 @@
-dist: xenial
+dist: focal
 
 language: python
 
@@ -10,8 +10,9 @@ env:
   global:
     - TZ=America/New_York
     - NUO_DOWNLOAD=https://ce-downloads.nuohub.org
-    - NUO_ADD_DOMAIN_PASS=yes
-    - NUO_START_AGENT=yes
+    - NUO_PREFIX=nuodb-ce
+    - NUO_ENABLE_TLS=false
+    - NUO_START_ADMIN=true
     - NUODB_HOME=/opt/nuodb
 
 notifications:
@@ -21,20 +22,19 @@ notifications:
 before_install:
   - echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null
   - echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null
-  - wget -q "${NUO_DOWNLOAD}/supportedversions.txt" --output-document=/tmp/supportedversions.txt
-  - wget -q "${NUO_DOWNLOAD}/nuodb-ce_$(tail -n1 /tmp/supportedversions.txt)_amd64.deb" --output-document=/var/tmp/nuodb.deb
+  - wget -q "$NUO_DOWNLOAD/supportedversions.txt" --output-document=/tmp/supportedversions.txt
+  - wget -q "$NUO_DOWNLOAD/${NUO_PREFIX}_$(tail -n1 /tmp/supportedversions.txt)_amd64.deb" --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
 
 install:
   - make install
 
 before_script:
-  - if [ "$NUO_ADD_DOMAIN_PASS" = yes ]; then printf '\ndomainPassword = bird\n' | sudo tee -a "$NUODB_HOME"/etc/default.properties >/dev/null; fi
-  - if [ "$NUO_START_AGENT" = yes ]; then sudo service nuoagent start; fi
+  - sed -ie 's,^\( *"ssl": *\)"[^"]*",\1"'"$NUO_ENABLE_TLS"'",' /etc/nuodb/nuoadmin.conf
+  - if "$NUO_START_ADMIN"; then sudo systemctl start nuoadmin; fi
 
 script:
   - make test
 
 after_failure:
-  - cat "$NUODB_HOME"/etc/default.properties
-  - cat /var/log/nuodb/agent.log
+  - cat /var/log/nuodb/nuoadmin.log*

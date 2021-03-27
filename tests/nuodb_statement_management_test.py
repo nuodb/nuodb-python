@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
-These tests assume that the quickstart database exists.
+(C) Copyright 2013-2021 NuoDB, Inc.  All Rights Reserved.
 
-To create it run /opt/nuodb/run-quickstart or use the web console.
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
 """
 
 import unittest
@@ -22,10 +22,10 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double precision)")
+                           "decimal_col decimal(10, 2), double_col double precision)")
 
             cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                           "number_col, double_col) values (0, 0, 0, 0, 0, 0, 0)")
+                           "double_col) values (0, 0, 0, 0, 0, 0)")
 
             con.commit()
 
@@ -65,12 +65,12 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
             query = "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " \
-                    "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
+                    "double_col) values (?, ?, ?, ?, ?, ?)"
 
             cursor.execute(query, test_vals)
 
@@ -97,12 +97,12 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
             query = "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " \
-                    "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
+                    "double_col) values (?, ?, ?, ?, ?, ?)"
 
             for _ in range(0, 20):
                 cursor.execute(query, test_vals)
@@ -130,12 +130,12 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
             query = "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, " \
-                    "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)"
+                    "double_col) values (?, ?, ?, ?, ?, ?)"
 
             handle = None
             for _ in range(0, 20):
@@ -168,15 +168,13 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
 
             queries = ["insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)",
-                       "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col) values (?, ?, ?, ?, ?, ?)",
+                       "double_col) values (?, ?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col) values "
                        "(?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col) values (?, ?, ?, ?)",
@@ -207,15 +205,13 @@ class NuoDBStatementManagementTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
 
             queries = ["insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)",
-                       "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col) values (?, ?, ?, ?, ?, ?)",
+                       "double_col) values (?, ?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col) values "
                        "(?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col) values (?, ?, ?, ?)",
@@ -239,21 +235,19 @@ class NuoDBStatementManagementTest(NuoBase):
 
     def test_prepared_statement_cache_eviction_lru(self):
         con = self._connect()
-        cache_size = 5
+        cache_size = 4
         cursor = con.cursor(prepared_statement_cache_size=cache_size)
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, "
                            "integer_col integer, bigint_col bigint, numeric_col numeric(10, 2), "
-                           "decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'),
-                         decimal.Decimal('34524584057.3434234'), 10000.999)
+                         10000.999)
 
             queries = ["insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col, double_col) values (?, ?, ?, ?, ?, ?, ?)",
-                       "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                       "number_col) values (?, ?, ?, ?, ?, ?)",
+                       "double_col) values (?, ?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col) values "
                        "(?, ?, ?, ?, ?)",
                        "insert into typetest (smallint_col, integer_col, bigint_col, numeric_col) values (?, ?, ?, ?)",
@@ -261,14 +255,15 @@ class NuoDBStatementManagementTest(NuoBase):
                        "insert into typetest (smallint_col, integer_col) values (?, ?)",
                        "insert into typetest (smallint_col) values (?)"]
 
-            query_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 5, 3, 1, 4, 6, 1, 5, 4, 5, 2, 3, 1, 5, 6, 4, 3,
-                           6, 1, 5, 6, 1, 6, 3, 1, 2, 1, 1]
+            query_order = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+                           3, 1, 4, 5, 1, 4, 2, 3, 1, 5, 4, 3, 5, 1,
+                           5, 1, 5, 3, 1, 2, 1, 1]
             for i in query_order:
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)
             self.assertEqual(cache_size, len(ps_cache))
-            for query in [queries[1], queries[2], queries[3], queries[5], queries[6]]:
+            for query in [queries[1], queries[2], queries[3], queries[5]]:
                 self.assertIn(query, ps_cache)
 
             for query in [queries[0], queries[4]]:

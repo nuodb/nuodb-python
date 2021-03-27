@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, NuoDB, Inc.
+# Copyright (c) 2015-2021, NuoDB, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,9 @@ VIRTDIR ?= ./.virttemp
 
 PYTEST_ARGS ?=
 
+PYTEST_OPTS ?=
+PYTEST_COV ?= --cov=pynuodb --cov-report html --cov-report term-missing
+
 all:
 	$(MAKE) install
 	$(MAKE) test
@@ -48,7 +51,7 @@ install:
 test:
 	$(PIP) install '.[crypto]'
 	$(PIP) install -r test_requirements.txt
-	TMPDIR='$(TMPDIR)' py.test --cov=pynuodb --cov-report html --cov-report term-missing $(PYTEST_ARGS)
+	TMPDIR='$(TMPDIR)' pytest $(PYTEST_COV) $(PYTEST_OPTS) $(PYTEST_ARGS)
 
 virtual-%:
 	$(RMDIR) '$(VIRTDIR)'
@@ -59,7 +62,7 @@ deploy:
 	$(PYTHON) setup.py register
 	$(PYTHON) setup.py sdist upload
 
-clean:	
+clean:
 	$(RMDIR) build/ dist/ *.egg-info htmlcov/
 
 doc:
