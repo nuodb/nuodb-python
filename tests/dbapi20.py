@@ -124,7 +124,7 @@ class DatabaseAPI20Test(unittest.TestCase):
         ''' self.drivers should override this method to perform required setup
             if any is necessary, such as creating the database.
         '''
-        pass
+        super(DatabaseAPI20Test, self).setUp()
 
     def tearDown(self):
         ''' self.drivers should override this method to perform required cleanup
@@ -144,6 +144,7 @@ class DatabaseAPI20Test(unittest.TestCase):
                     pass
         finally:
             con.close()
+        super(DatabaseAPI20Test, self).tearDown()
 
     def _connect(self):
         try:

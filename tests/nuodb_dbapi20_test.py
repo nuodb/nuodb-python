@@ -7,12 +7,6 @@ from .nuodb_base import NuoBase
 
 
 class test_NuoDB(NuoBase, dbapi20.DatabaseAPI20Test):
-    def setUp(self):
-        dbapi20.DatabaseAPI20Test.setUp(self)
-
-    def tearDown(self):
-        dbapi20.DatabaseAPI20Test.tearDown(self)
-
     # Unsupported tests
     def test_nextset(self):
         pass

@@ -2,7 +2,7 @@
 
 """Set up the NuoDB Python Driver package
 
-(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+(C) Copyright 2013-2021 NuoDB, Inc.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -22,7 +22,7 @@ is not intalled.
 import os
 import re
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 with open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py')) as v:
     VERSION = re.compile(r"^ *__version__ *= *'(.*?)'", re.M).search(v.read()).group(1)

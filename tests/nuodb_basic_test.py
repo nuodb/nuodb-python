@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
-These tests assume that the quickstart database exists.
+(C) Copyright 2013-2021 NuoDB, Inc.  All Rights Reserved.
 
-To create it run /opt/nuodb/run-quickstart or use the web console.
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
 """
 
 import unittest
@@ -16,7 +16,7 @@ import sys
 import pynuodb
 from .nuodb_base import NuoBase
 from .mock_tzs import Local
-from pynuodb.exception import DataError, ProgrammingError
+from pynuodb.exception import DataError
 
 
 class NuoDBBasicTest(NuoBase):
@@ -66,11 +66,11 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double precision)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double precision)")
 
             # Basic test
-            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) "
-                           "values (0, 0, 0, 0, 0, 0, 0)")
+            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, double_col) "
+                           "values (0, 0, 0, 0, 0, 0)")
 
             con.commit()
 
@@ -117,11 +117,11 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
-            test_vals = (0, 0, 0, decimal.Decimal(0), decimal.Decimal(0), decimal.Decimal(0), 0.0)
-            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) "
-                           "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
+            test_vals = (0, 0, 0, decimal.Decimal(0), decimal.Decimal(0), 0.0)
+            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, double_col) "
+                           "values (?, ?, ?, ?, ?, ?)", test_vals)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -141,11 +141,11 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
-            test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'), decimal.Decimal('34524584057.3434234'), 10000.999)
-            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) "
-                           "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
+            test_vals = (3424, 23453464, 45453453454545, decimal.Decimal('234355.33'), decimal.Decimal('976.2'), 10000.999)
+            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, double_col) "
+                           "values (?, ?, ?, ?, ?, ?)", test_vals)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -183,7 +183,8 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("CREATE TABLE t (x NUMERIC(%s,%s))" % (precision, scale))
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
-            self.fail("Incorrectly inserted %s as NUMERIC(%s,%s)" % (str(value), str(precision), str(scale)))
+            self.fail("Incorrectly inserted %s as NUMERIC(%s,%s)"
+                      % (str(value), str(precision), str(scale)))
 
         except DataError as err:
             # Older versions of NuoDB would throw a CONSTRAINT_ERROR.
@@ -266,11 +267,11 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
-            test_vals = (-13546, -156465465, -3135135132132104354, decimal.Decimal('-354564.12'), decimal.Decimal('-77788864.6'), decimal.Decimal('-46543213.01324654'), -999.999999)
-            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, number_col, double_col) "
-                           "values (?, ?, ?, ?, ?, ?, ?)", test_vals)
+            test_vals = (-13546, -156465465, -3135135132132104354, decimal.Decimal('-354564.12'), decimal.Decimal('-77788864.6'), -999.999999)
+            cursor.execute("insert into typetest (smallint_col, integer_col, bigint_col, numeric_col, decimal_col, double_col) "
+                           "values (?, ?, ?, ?, ?, ?)", test_vals)
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
@@ -290,7 +291,7 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
             with self.assertRaises(pynuodb.DatabaseError):
                 test_vals = (10**99,)
@@ -334,33 +335,12 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
             test_vals = (1,)
             cursor.execute("insert into typetest (decimal_col) values (?)",
                            test_vals)
             cursor.execute("select decimal_col from typetest order by id desc limit 1")
-            row = cursor.fetchone()
-            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
-
-        finally:
-            try:
-                cursor.execute("drop table typetest if exists")
-            finally:
-                con.close()
-
-    def test_float_into_number(self):
-        con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("drop table typetest if exists")
-        try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
-
-            test_vals = (1.215,)
-            cursor.execute("insert into typetest (number_col) values (?)",
-                           test_vals)
-            cursor.execute("select number_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
 
@@ -376,33 +356,12 @@ class NuoDBBasicTest(NuoBase):
         cursor.execute("drop table typetest if exists")
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
             test_vals = ('91.56',)
             cursor.execute("insert into typetest (decimal_col) values (?)",
                            test_vals)
             cursor.execute("select decimal_col from typetest order by id desc limit 1")
-            row = cursor.fetchone()
-            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
-
-        finally:
-            try:
-                cursor.execute("drop table typetest if exists")
-            finally:
-                con.close()
-
-    def test_string_into_number(self):
-        con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("drop table typetest if exists")
-        try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double)")
-
-            test_vals = ('54.4978',)
-            cursor.execute("insert into typetest (number_col) values (?)",
-                           test_vals)
-            cursor.execute("select number_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
             self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
 
@@ -468,9 +427,9 @@ class NuoDBBasicTest(NuoBase):
                            "clob_col clob)")
 
             # param
-            f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "holmes.txt"), "r")
-            text = f.read()
-            f.close()
+            with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                   "holmes.txt"), "r") as f:
+                text = f.read()
             test_vals = (text, text)
             cursor.execute("insert into typetest (string_col, clob_col) "
                            "values (?, ?)", test_vals)
@@ -488,25 +447,6 @@ class NuoDBBasicTest(NuoBase):
                 con.close()
 
     def test_connection_properties(self):
-        # Get NuoDB release
-        con = self._connect()
-        cursor = con.cursor()
-        try:
-            cursor.execute("select getReleaseversion() from dual")
-
-            # Determine NuoDB version in the form Major.Minor
-            version = cursor.fetchone()[0]
-            majorVersion = int(version[0])
-            minorVersion = int(version[2])
-            if(majorVersion == 2):
-                if(minorVersion < 3):
-                    return
-
-        except ProgrammingError:
-            return  # 2.0 or earlier, skip test
-        finally:
-            con.close()
-
         clientInfo = "NuoDB Python driver"
         options = {'clientInfo': clientInfo}
         con = self._connect(options)
@@ -713,9 +653,9 @@ class NuoDBBasicTest(NuoBase):
         try:
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary(100000))")
 
-            f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "640px-Starling.JPG"), "rb")
-            data = f.read()
-            f.close()
+            with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                   "640px-Starling.JPG"), "rb") as f:
+                data = f.read()
 
             test_vals = (pynuodb.Binary(data),)
             cursor.execute("insert into typetest (binary_col) values (?)",
@@ -833,7 +773,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, binary_col binary(10), "
                            "bool_col boolean, timestamp_col timestamp, time_col time, date_col date, string_col string, "
                            "varchar_col varchar(10), char_col char(10), smallint_col smallint, integer_col integer, bigint_col bigint, "
-                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), number_col number, double_col double, clob_col clob, blob_col blob)")
+                           "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double, clob_col clob, blob_col blob)")
 
             vals = (pynuodb.Binary("binary"),
                     False,
@@ -848,13 +788,12 @@ class NuoDBBasicTest(NuoBase):
                     -3135135132132104354,
                     decimal.Decimal('-354564.12'),
                     decimal.Decimal('77788864.6'),
-                    decimal.Decimal('-46543213.01324654'),
                     -999.999999,
                     "The test",
                     pynuodb.Binary("test"))
             cursor.execute("insert into typetest (binary_col, bool_col, timestamp_col, time_col, date_col, string_col, "
                            "varchar_col, char_col, smallint_col, integer_col, bigint_col, numeric_col, decimal_col, "
-                           "number_col, double_col, clob_col, blob_col) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", vals)
+                           "double_col, clob_col, blob_col) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", vals)
             con.commit()
 
             cursor.execute("select * from typetest order by id desc limit 1")
@@ -912,17 +851,6 @@ class NuoDBBasicTest(NuoBase):
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
-    def test_NodeKey_LoadBalancing(self):
-        self.assertMultipleTEsRunning()
-
-        options = {"NodeKey": "1"}
-        connected_node_ids = self.connectManyTimesUsingOptions(options)
-        self.assertEqual(1, len(connected_node_ids), "Unexpectedly connected to multiple TEs")
-
-        options = {}
-        connected_node_ids = self.connectManyTimesUsingOptions(options)
-        self.assertGreaterEqual(2, len(connected_node_ids), "Unexpectedly connected to multiple TEs")
 
 
 if __name__ == '__main__':
