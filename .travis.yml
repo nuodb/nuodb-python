@@ -11,7 +11,7 @@ env:
     - TZ=America/New_York
     - NUO_DOWNLOAD=https://ce-downloads.nuohub.org
     - NUO_PREFIX=nuodb-ce
-    - NUO_ENABLE_TLS=false
+    - NUO_SET_TLS=disable
     - NUODB_HOME=/opt/nuodb
 
 notifications:
@@ -24,12 +24,14 @@ before_install:
   - wget -q "$NUO_DOWNLOAD/supportedversions.txt" --output-document=/tmp/supportedversions.txt
   - wget -q "$NUO_DOWNLOAD/${NUO_PREFIX}_$(tail -n1 /tmp/supportedversions.txt)_amd64.deb" --output-document=/var/tmp/nuodb.deb
   - sudo dpkg -i /var/tmp/nuodb.deb
+  - echo "NuoDB Version:" && $NUODB_HOME/bin/nuodb --version
 
 install:
   - make install
 
 before_script:
-  - make start-nuoadmin NUO_ENABLE_TLS=$NUO_ENABLE_TLS
+  - sudo -n $NUODB_HOME/etc/nuoadmin tls $NUO_SET_TLS
+  - sudo -n systemctl start nuoadmin
 
 script:
   - make test NUODB_HOME=$NUODB_HOME

@@ -63,11 +63,6 @@ virtual-%:
 	$(VIRTUALENV) -p $(PYTHON) '$(VIRTDIR)'
 	. '$(VIRTDIR)/bin/activate' && $(MAKE) '$*'
 
-start-nuoadmin:
-	$(SUDO) sed -ie 's,^\( *"ssl": *\)"[^"]*",\1"'"$(NUO_ENABLE_TLS)"'",' $(NUO_CONFIG)
-	$(SUDO) systemctl start nuoadmin
-
-
 deploy:
 	$(PYTHON) setup.py register
 	$(PYTHON) setup.py sdist upload

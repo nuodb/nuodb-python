@@ -15,9 +15,8 @@ NuoDB - Python
 .. contents::
 
 This package contains the community driven pure-Python NuoDB_ client library
-that provides both a standard `PEP 249`_ SQL API, a NuoDB administration
-API. This is a community driven driver with limited support and testing from
-NuoDB.
+that provides a standard `PEP 249`_ SQL API. This is a community driven driver
+with limited support and testing from NuoDB.
 
 Requirements
 ------------
@@ -92,40 +91,6 @@ some data, runs a query, and cleans up after itself:
         cursor.execute(stmt_drop)
         cursor.close()
         connection.close()
-
-All sorts of management and monitoring operations may be performed through the
-NuoDB Python API, a few below include listening to database state, and shutting
-down a database:
-
-.. code:: python
-
-    import time
-    from pynuodb import entity
-
-    class DatabaseListener(object):
-        def __init__(self):
-            self.db_left = False
-
-        def process_left(self, process):
-            print("process left: %s" % process)
-
-        def database_left(self, database):
-            print("database shutdown: %s" % database)
-            self.db_left = True
-
-    listener = DatabaseListener()
-    domain = entity.Domain("localhost", "domain", "bird", listener)
-    try:
-        database = domain.get_database("test")
-        if database is not None:
-            database.shutdown(graceful=True)
-            for i in range(1, 20):
-                time.sleep(0.25)
-                if listener.db_left:
-                    time.sleep(1)
-                    break
-    finally:
-        domain.disconnect()
 
 For further information on getting started with NuoDB, please refer to the Documentation_.
 
