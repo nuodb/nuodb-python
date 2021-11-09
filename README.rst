@@ -2,15 +2,12 @@
 NuoDB - Python
 ==============
 
-.. image:: https://travis-ci.org/nuodb/nuodb-python.svg?branch=master
-    :target: https://travis-ci.org/nuodb/nuodb-python
+.. image:: https://app.travis-ci.com/nuodb/nuodb-python.svg?branch=master
+    :target: https://app.travis-ci.com/github/nuodb/nuodb-python
     :alt: Test Results
 .. image:: https://gitlab.com/cadmin/nuodb-python/badges/master/pipeline.svg
     :target: https://gitlab.com/nuodb-mirror/nuodb-python/-/jobs
     :alt: Dependency Verification
-.. image:: https://landscape.io/github/nuodb/nuodb-python/master/landscape.svg?style=flat
-   :target: https://landscape.io/github/nuodb/nuodb-python/master
-   :alt: Code Health
 
 .. contents::
 
