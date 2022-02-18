@@ -26,12 +26,13 @@ Requirements
 
   - NuoDB_ >= 2.0.4
 
-If you haven't done so already, `Download and Install NuoDB <https://www.nuodb.com/dev-center/community-edition-download>`_.
+If you don't have a NuoDB domain available you can create one using the Docker
+image on DockerHub.  See `Quick Start Guides / Docker <https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/>`_.
 
 Installation
 ------------
 
-The last stable release is available on PyPI and can be installed with
+The current stable release is available on PyPI and can be installed with
 ``pip``::
 
     $ pip install pynuodb
@@ -42,7 +43,7 @@ from GitHub and installed with Setuptools::
     $ curl -L https://github.com/nuodb/nuodb-python/archive/master.tar.gz | tar xz
     $ cd nuodb-python*
     $ python setup.py install
-    $ # The folder nuodb-python* can be safely removed now.
+    # The folder nuodb-python* can be safely removed now.
 
 Example
 -------
@@ -96,14 +97,14 @@ Resources
 
 DB-API 2.0: https://www.python.org/dev/peps/pep-0249/
 
-NuoDB Documentation: https://doc.nuodb.com/Latest/Default.htm
+NuoDB Documentation: https://doc.nuodb.com/nuodb/latest/introduction-to-nuodb/
 
 License
 -------
 
 PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
 
-.. _Documentation: https://doc.nuodb.com/Latest/Default.htm
+.. _Documentation: https://doc.nuodb.com/nuodb/latest/introduction-to-nuodb/
 .. _NuoDB: https://www.nuodb.com/
 .. _CPython: https://www.python.org/
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
