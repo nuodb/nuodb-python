@@ -23,26 +23,25 @@ commands:
   before_script:
     steps:
       - run: |
-          "$HOME/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
-          "$HOME/nuodb/etc/nuoadmin" start
+          "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+          "/opt/nuodb/etc/nuoadmin" start
 
 
   script:
     steps:
       - run:
           name: script_cmd
-          command: make test NUODB_HOME="$HOME/nuodb"
+          command: make test NUODB_HOME="/opt/nuodb"
   
   after_failure:
     steps:
       - run: |
-          cat "$HOME"/nuodb/var/log/nuoadmin.log*
-          grep ssl "$HOME/nuodb/etc/nuoadmin.conf"
+          cat /opt/nuodb/var/log/nuoadmin.log*
+          grep ssl /opt/nuodb/etc/nuoadmin.conf"
 
   build:
     steps:
       - checkout
-      - before_install
       - install
       - before_script
       - script
@@ -52,8 +51,7 @@ commands:
 jobs:
   build_n_run:
     docker:
-      - image: cimg/python:3.10.2
-        user: root
+      - image: nuodb/nuodb-ce:latest
     steps:
       - build
     environment:
