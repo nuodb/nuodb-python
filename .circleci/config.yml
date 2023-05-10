@@ -51,6 +51,7 @@ jobs:
   build_n_run:
     docker:
       - image: cimg/python:3.10.2
+      - image: cimg/openjdk:11.0
     steps:
       - build
     environment:
