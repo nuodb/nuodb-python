@@ -11,6 +11,8 @@ commands:
           mkdir -p "$HOME/nuodb"
           cd "$HOME/nuodb" && tar xzf /var/tmp/nuodb.tgz --strip-components 1
           echo "NuoDB Version:" && "$HOME/nuodb/bin/nuodb" --version
+          apt update
+          apt install openjdk-11-jre-headless
 
   install:
     steps:
@@ -44,14 +46,13 @@ commands:
       - install
       - before_script
       - script
-      - after_failure
+      # - after_failure
 
 
 jobs:
   build_n_run:
     docker:
       - image: cimg/python:3.10.2
-      - image: cimg/openjdk:11.0
     steps:
       - build
     environment:
