@@ -21,7 +21,8 @@ commands:
   before_script:
     steps:
       - run: |
-          echo "NuoDB Version:" && "$HOME/nuodb/bin/nuodb" --version
+          "$HOME/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+          "$HOME/nuodb/etc/nuoadmin" start
 
 
   script:
