@@ -42,7 +42,7 @@ commands:
   build:
     steps:
       - checkout
-      - install
+      # - install
       - before_script
       - script
       # - after_failure
