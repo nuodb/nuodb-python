@@ -1,0 +1,72 @@
+version: 2.1
+
+commands:
+  before_install:
+    steps:
+      - run: |
+          dnf install make -y
+
+  install:
+    steps:
+      - run:
+          name : list_folder
+          command : ls
+      - run:
+          name : install_cmd
+          command: make install
+  
+  before_script:
+    steps:
+      - run: |
+          sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+          sudo -u nuodb "/opt/nuodb/etc/nuoadmin" start
+
+
+  script:
+    steps:
+      - run:
+          name: script_cmd
+          command: make test NUODB_HOME="/opt/nuodb"
+  
+  after_failure:
+    parameters:
+      when:
+        type: string
+    steps:
+      - run:
+          command: |
+            cat /var/log/nuodb/nuoadmin.log*
+            grep ssl /opt/nuodb/etc/nuoadmin.conf"
+          when: <<parameters.when>>
+
+  build:
+    steps:
+      - checkout
+      - before_install
+      - install
+      - before_script
+      - script
+      - after_failure:
+          when : "on_fail"
+
+
+jobs:
+  build_n_run:
+    docker:
+      - image: nuodb/nuodb-ce:latest
+        user: root
+    steps:
+      - build
+    environment:
+      TZ : America/New_York
+      NUO_DOWNLOAD : https://ce-downloads.nuohub.org
+      NUO_ARCH : linux.x86_64
+      NUO_SET_TLS : disable
+
+
+
+workflows:
+  build-project:
+    jobs:
+      - build_n_run
+    
