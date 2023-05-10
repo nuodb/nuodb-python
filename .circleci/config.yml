@@ -1,0 +1,62 @@
+version: 2.1
+
+commands:
+  before_install:
+    steps:
+      run: |
+        echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null
+        echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null
+        wget -q "$NUO_DOWNLOAD/supportedversions.txt" --output-document=/tmp/supportedversions.txt
+        wget -q "$NUO_DOWNLOAD/nuodb-$(tail -n1 /tmp/supportedversions.txt).$NUO_ARCH.tar.gz" --output-document=/var/tmp/nuodb.tgz
+        mkdir -p "$HOME/nuodb"
+        cd "$HOME/nuodb" && tar xzf /var/tmp/nuodb.tgz --strip-components 1
+        echo "NuoDB Version:" && "$HOME/nuodb/bin/nuodb" --version
+
+  install:
+    steps:
+      run:
+        name : install_cmd
+        command: make install
+  
+  before_script:
+    steps:
+      run: |
+        "$HOME/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+        "$HOME/nuodb/etc/nuoadmin" start
+
+  script:
+    steps:
+      run:
+        name: script_cmd
+        command: make test NUODB_HOME="$HOME/nuodb"
+
+  build:
+    steps:
+      - checkout
+      - before_install
+      - install
+      - before_script
+      - script
+      - after_failure
+
+
+jobs:
+  build_n_run:
+    docker:
+      - image: cimg/python:3.10.2
+    steps:
+      - build
+
+  enivornment:
+    TZ = America/New_York
+    NUO_DOWNLOAD = https://ce-downloads.nuohub.org
+    NUO_ARCH = linux.x86_64
+    NUO_SET_TLS = disable
+
+
+
+workflows:
+  build-project:
+    jobs:
+      - build_n_run
+    
