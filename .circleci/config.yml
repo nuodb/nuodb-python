@@ -17,6 +17,9 @@ commands:
   install:
     steps:
       - run:
+          name : list_folder
+          command : ls
+      - run:
           name : install_cmd
           command: make install
   
@@ -42,7 +45,7 @@ commands:
   build:
     steps:
       - checkout
-      # - install
+      - install
       - before_script
       - script
       # - after_failure
