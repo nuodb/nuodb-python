@@ -29,10 +29,15 @@ commands:
           command: make test NUODB_HOME="/opt/nuodb"
   
   after_failure:
+    parameters:
+      when:
+        type: string
     steps:
-      - run: |
-          cat /opt/nuodb/var/log/nuoadmin.log*
-          grep ssl /opt/nuodb/etc/nuoadmin.conf"
+      - run:
+          command: |
+            cat /opt/nuodb/var/log/nuoadmin.log*
+            grep ssl /opt/nuodb/etc/nuoadmin.conf"
+          when: <<parameters.when>>
 
   build:
     steps:
@@ -41,7 +46,8 @@ commands:
       - install
       - before_script
       - script
-      # - after_failure
+      - after_failure:
+          when : "on_fail"
 
 
 jobs:
