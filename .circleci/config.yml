@@ -4,15 +4,7 @@ commands:
   before_install:
     steps:
       - run: |
-          # echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/enabled >/dev/null
-          # echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag >/dev/null
-          wget -q "$NUO_DOWNLOAD/supportedversions.txt" --output-document=/tmp/supportedversions.txt
-          wget -q "$NUO_DOWNLOAD/nuodb-$(tail -n1 /tmp/supportedversions.txt).$NUO_ARCH.tar.gz" --output-document=/var/tmp/nuodb.tgz
-          mkdir -p "$HOME/nuodb"
-          cd "$HOME/nuodb" && tar xzf /var/tmp/nuodb.tgz --strip-components 1
-          echo "NuoDB Version:" && "$HOME/nuodb/bin/nuodb" --version
-          apt update
-          apt install openjdk-11-jre-headless
+          dnf install make -y
 
   install:
     steps:
@@ -26,8 +18,8 @@ commands:
   before_script:
     steps:
       - run: |
-          "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
-          "/opt/nuodb/etc/nuoadmin" start
+          sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+          sudo -u nuodb "/opt/nuodb/etc/nuoadmin" start
 
 
   script:
@@ -45,6 +37,7 @@ commands:
   build:
     steps:
       - checkout
+      - before_install
       - install
       - before_script
       - script
@@ -55,6 +48,7 @@ jobs:
   build_n_run:
     docker:
       - image: nuodb/nuodb-ce:latest
+        user: root
     steps:
       - build
     environment:
