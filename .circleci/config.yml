@@ -35,7 +35,7 @@ commands:
     steps:
       - run:
           command: |
-            cat /opt/nuodb/var/log/nuoadmin.log*
+            cat /var/log/nuodb/nuoadmin.log*
             grep ssl /opt/nuodb/etc/nuoadmin.conf"
           when: <<parameters.when>>
 
