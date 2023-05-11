@@ -28,7 +28,7 @@
 
 PYTHON ?= python
 VIRTUALENV ?= virtualenv
-PIP ?= pip
+PIP ?= pip3
 
 MKDIR ?= mkdir -p
 RMDIR ?= rm -rf
