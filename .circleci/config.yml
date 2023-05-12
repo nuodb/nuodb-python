@@ -44,7 +44,7 @@ jobs:
       - run:
           name: Show list
           command: ls -a
-      - store_artifacts:
+      - store_test_results:
           path: htmlcov
 
       - after_failure:
