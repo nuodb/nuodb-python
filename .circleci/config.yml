@@ -45,7 +45,7 @@ jobs:
           name: Show list
           command: ls -a
       - store_test_results:
-          path: test-reports
+          path: /htmlcov
 
       - after_failure:
           when : "on_fail"
