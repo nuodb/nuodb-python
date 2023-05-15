@@ -13,10 +13,6 @@ commands:
             grep ssl /opt/nuodb/etc/nuoadmin.conf
           when: <<parameters.when>>
 
-      - run:
-          name: Upload Logs
-          command: curl --data /var/log/nuodb/nuoadmin.log
-
       - store_artifacts:
           path: /var/log/nuodb/nuoadmin.log
       
