@@ -12,6 +12,10 @@ commands:
             cat /var/log/nuodb/nuoadmin.log*
             grep ssl /opt/nuodb/etc/nuoadmin.conf
           when: <<parameters.when>>
+
+      - store_artifacts:
+          path: /var/log/nuodb/nuoadmin.log
+          when: <<parameter.when>>
       
 
 jobs:
