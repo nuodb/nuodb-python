@@ -12,6 +12,12 @@ commands:
             cat /var/log/nuodb/nuoadmin.log*
             grep ssl /opt/nuodb/etc/nuoadmin.conf
           when: <<parameters.when>>
+
+      - when:
+          condition: <<parameters.when>>
+          steps:
+            - store_artifacts:
+                path: /var/log/nuodb/nuoadmin.log
       
 
 jobs:
@@ -29,6 +35,9 @@ jobs:
           name : Install python dependencies
           command: make install
       - run:
+          name : Create test result folder
+          command: mkdir test_results
+      - run:
           name : Configure and run NuoDB Admin
           command: |
             sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
@@ -38,6 +47,8 @@ jobs:
           command: make test
       - store_artifacts:
           path: htmlcov
+      - store_test_results:
+          path: test_results
       - after_failure:
           when : "on_fail"
 
@@ -49,4 +60,3 @@ workflows:
   build-project:
     jobs:
       - build_n_run
-    
