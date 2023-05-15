@@ -1,7 +1,6 @@
 version: 2.1
 
 commands:
-
   after_failure:
     parameters:
       when:
@@ -14,7 +13,6 @@ commands:
             grep ssl /opt/nuodb/etc/nuoadmin.conf
           when: <<parameters.when>>
       
-
 
 jobs:
   build_n_run:
@@ -31,8 +29,8 @@ jobs:
           name : Install python dependencies
           command: make install
       - run:
-          name: Show list
-          command: ls -a
+          name : Create test result folder
+          command: mkdir test_results
       - run:
           name : Configure and run NuoDB Admin
           command: |
@@ -41,20 +39,16 @@ jobs:
       - run:
           name: Run test
           command: make test
-      - run:
-          name: Show list
-          command: ls -a
-      - store_test_results:
+      - store_artifacts:
           path: htmlcov
-
+      - store_test_results:
+          path: test_results
       - after_failure:
           when : "on_fail"
 
     environment:
       TZ : America/New_York
       NUO_SET_TLS : disable
-
-
 
 workflows:
   build-project:

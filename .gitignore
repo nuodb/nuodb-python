@@ -36,6 +36,7 @@ pip-log.txt
 .testtemp
 nosetests.xml
 htmlcov/
+test_results/
 
 # Translations
 *.mo
