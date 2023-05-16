@@ -1,0 +1,62 @@
+version: 2.1
+
+commands:
+  after_failure:
+    parameters:
+      when:
+        type: string
+    steps:
+      - run:
+          name: On failure action
+          command: |
+            cat /var/log/nuodb/nuoadmin.log*
+            grep ssl /opt/nuodb/etc/nuoadmin.conf
+          when: <<parameters.when>>
+
+      - when:
+          condition: <<parameters.when>>
+          steps:
+            - store_artifacts:
+                path: /var/log/nuodb/nuoadmin.log
+      
+
+jobs:
+  build_n_run:
+    docker:
+      - image: nuodb/nuodb-ce:latest
+        user: root
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          command: dnf install make -y
+          name: Install make
+      - run:
+          name : Install python dependencies
+          command: make install
+      - run:
+          name : Create test result folder
+          command: mkdir test_results
+      - run:
+          name : Configure and run NuoDB Admin
+          command: |
+            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" start
+      - run:
+          name: Run test
+          command: make test
+      - store_artifacts:
+          path: htmlcov
+      - store_test_results:
+          path: test_results
+      - after_failure:
+          when : "on_fail"
+
+    environment:
+      TZ : America/New_York
+      NUO_SET_TLS : disable
+
+workflows:
+  build-project:
+    jobs:
+      - build_n_run

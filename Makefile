@@ -28,7 +28,7 @@
 
 PYTHON ?= python
 VIRTUALENV ?= virtualenv
-PIP ?= pip
+PIP ?= pip3
 
 MKDIR ?= mkdir -p
 RMDIR ?= rm -rf
@@ -38,7 +38,7 @@ VIRTDIR ?= ./.virttemp
 
 PYTEST_ARGS ?=
 
-PYTEST_OPTS ?=
+PYTEST_OPTS ?= --junitxml=test_results/result.xml
 PYTEST_COV ?= --cov=pynuodb --cov-report html --cov-report term-missing
 
 SUDO ?= sudo -n
