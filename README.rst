@@ -2,8 +2,8 @@
 NuoDB - Python
 ==============
 
-.. image:: https://app.travis-ci.com/nuodb/nuodb-python.svg?branch=master
-    :target: https://app.travis-ci.com/github/nuodb/nuodb-python
+.. image::https://circleci.com/gh/nuodb/nuodb-python.svg?style=svg
+    :target: https://circleci.com/gh/nuodb/nuodb-python
     :alt: Test Results
 .. image:: https://gitlab.com/cadmin/nuodb-python/badges/master/pipeline.svg
     :target: https://gitlab.com/nuodb-mirror/nuodb-python/-/jobs
