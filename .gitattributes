@@ -1,0 +1,13 @@
+# Default
+*               text=auto
+
+# POSIX files
+*.sh            eol=lf
+*.initd         eol=lf
+
+# Windows files
+*.bat           eol=crlf
+*.cmd           eol=crlf
+*.sln           eol=crlf
+*.reg           eol=crlf
+*.hm            eol=crlf
