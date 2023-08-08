@@ -611,7 +611,8 @@ class NuoDBBasicTest(NuoBase):
                            "binary_col binary(20))")
 
             test_vals = (False, pynuodb.Binary("other binary"))
-            cursor.execute("insert into typetest (bool_col, binary_col) values ('%s', '%s')" % (str(test_vals[0]), str(test_vals[1])))
+            cursor.execute("insert into typetest (bool_col, binary_col) values ('%s', '%s')"
+                           % (str(test_vals[0]), str(test_vals[1])))
 
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()

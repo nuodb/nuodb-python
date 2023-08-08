@@ -1,11 +1,16 @@
-# (C) Copyright 2015-2023 Dassault Systemes SE.  All rights reserved.
+# (C) Copyright 2015-2023 Dassault Systemes SE.  All Rights Reserved.
 #
 # This software is licensed under a BSD 3-Clause License.
 # See the LICENSE file provided with this software.
 
-PYTHON ?= python
+PYTHON_VERSION ?= 3
+
+PYTHON ?= python$(PYTHON_VERSION)
+PIP ?= pip$(PYTHON_VERSION)
+
 VIRTUALENV ?= virtualenv
-PIP ?= pip3
+MYPY ?= mypy
+PYLINT ?= pylint
 
 MKDIR ?= mkdir -p
 RMDIR ?= rm -rf
@@ -13,14 +18,18 @@ RMDIR ?= rm -rf
 TMPDIR ?= ./.testtemp
 VIRTDIR ?= ./.virttemp
 
+PYTEST ?= pytest
 PYTEST_ARGS ?=
-
 PYTEST_OPTS ?= --junitxml=test_results/result.xml
 PYTEST_COV ?= --cov=pynuodb --cov-report html --cov-report term-missing
 
 SUDO ?= sudo -n
 NUODB_HOME ?= /opt/nuodb
 NUO_CONFIG ?= /etc/nuodb/nuoadmin.conf
+
+
+_PYTEST_CMD = TMPDIR='$(TMPDIR)' PATH="$(NUODB_HOME)/bin:$$PATH" \
+		$(PYTEST) $(PYTEST_OPTS) $(PYTEST_ARGS)
 
 all:
 	$(MAKE) install
@@ -29,11 +38,27 @@ all:
 install:
 	$(PIP) install '.[crypto]'
 
-test:
+check: mypy pylint fulltest
+
+fulltest: verify
 	$(PIP) install '.[crypto]'
 	$(PIP) install -r test_requirements.txt
-	TMPDIR='$(TMPDIR)' PATH="$(NUODB_HOME)/bin:$$PATH" \
-	    pytest $(PYTEST_COV) $(PYTEST_OPTS) $(PYTEST_ARGS)
+	$(_PYTEST_CMD)
+
+test: verify
+	$(_PYTEST_CMD)
+
+test-coverage: verify
+	$(_PYTEST_CMD) $(PYTEST_COV)
+
+verify:
+	$(NUODB_HOME)/bin/nuocmd show domain
+
+mypy:
+	$(MYPY) --ignore-missing-imports pynuodb
+
+pylint:
+	$(PYLINT) --rcfile=.pylint-rc pynuodb
 
 virtual-%:
 	$(RMDIR) '$(VIRTDIR)'
@@ -52,4 +77,4 @@ doc:
 	epydoc --html --name PyNuoDB pynuodb/
 	cp epydoc.css html/
 
-.PHONY: all install test deploy clean doc
+.PHONY: all install check fulltest test verify deploy clean doc

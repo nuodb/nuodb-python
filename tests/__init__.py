@@ -25,7 +25,6 @@ DATABASE_NAME = 'pynuodb_test'
 DBA_USER      = 'dba'
 DBA_PASSWORD  = 'dba_password'
 
-ap_conn = None
 ar_path = None
 sql_host = None
 db_created = False
@@ -61,27 +60,52 @@ def waitforsql(tmout):
             conn.close()
 
 
-def setUpPackage_pynuoadmin():
-    """This method uses the pynuoadmin management interface to set up the DB.
+def get_envval(evnm, default=None):
+    """Return a a non-empty environment variable value.
 
-    Unfortunately pynuoadmin is still Python2 only: until it supports Python3
-    we can't use this interface, portably, since pynuodb supports P3 already.
+    If the value is unset or empty, return default.
     """
+    if os.environ.get(evnm):
+        return os.environ[evnm]
+    return default
+
+
+__ap_conn = None
+def get_ap_conn():
+    global __ap_conn
+    if __ap_conn is None:
+        try:
+            from pynuoadmin import nuodb_mgmt
+        except ImportError:
+            logging.info("Cannot load pynuoadmin: using nuocmd")
+            return None
+
+        # Use the same method of locating the AP REST service as nuocmd.
+        # Treat empty env.vars. the same as non-existent ones.
+        key = get_envval('NUOCMD_CLIENT_KEY')
+        verify = get_envval('NUOCMD_VERIFY_SERVER')
+        api = get_envval('NUOCMD_API_SERVER', default='localhost:8888')
+        if not api.startswith('http://') and not api.startswith('https://'):
+            if not key:
+                api = 'http://' + api
+            else:
+                api = 'https://' + api
+
+        logging.info("Creating AP connection to %s (client_key=%s verify=%s)"
+                     % (api, str(key), str(verify)))
+        __ap_conn = nuodb_mgmt.AdminConnection(api, client_key=key,
+                                               verify=verify)
+
+    return __ap_conn
+
+
+def setUpPackage_pynuoadmin():
+    """This method uses the pynuoadmin management interface to set up the DB."""
     from pynuoadmin import nuodb_mgmt
 
     global db_created, db_started
-    global ap_conn
 
-    # Use the same method of locating the AP REST service as nuocmd
-    key = os.environ.get('NUOCMD_CLIENT_KEY')
-    api = os.environ.get('NUOCMD_API_SERVER', 'localhost:8888')
-    if not api.startswith('http://') and not api.startswith('https://'):
-        if not key:
-            api = 'http://' + api
-        else:
-            api = 'https://' + api
-
-    ap_conn = nuodb_mgmt.AdminConnection(api, key)
+    ap_conn = get_ap_conn()
 
     for db in ap_conn.get_databases():
         if db.name == DATABASE_NAME:
@@ -177,16 +201,21 @@ def nuocmd(args):
     return (proc.wait(), out.decode('UTF-8'))
 
 
-def waitforstate(state, tmout):
+def waitforstate(state, tmout, conn=None):
     logging.info("Waiting %ds for state %s" % (tmout, state))
     end = time.time() + tmout
     while True:
-        (ret, out) = nuocmd(['--show-json', 'get', 'database',
-                             '--db-name', DATABASE_NAME])
-        if ret != 0:
-            raise Exception("Database get failed: %s" % (out))
-        db = json.loads(out)
-        if db.get('state') == state:
+        if conn:
+            db = conn.get_database(DATABASE_NAME)
+            now = db.state
+        else:
+            (ret, out) = nuocmd(['--show-json', 'get', 'database',
+                                 '--db-name', DATABASE_NAME])
+            if ret != 0:
+                raise Exception("Database get failed: %s" % (out))
+            db = json.loads(out)
+            now = db.get('state')
+        if now == state:
             logging.info("DB is %s" % (state))
             return
         if time.time() > end:
@@ -195,10 +224,7 @@ def waitforstate(state, tmout):
 
 
 def setUpPackage_nuocmd():
-    """This method uses the nuocmd CLI interface to set up the DB.
-
-    This works regardless of which Python we are using to run tests.
-    """
+    """This method uses the nuocmd CLI interface to set up the DB."""
     global db_created, db_started
 
     (ret, out) = nuocmd(['--show-json', 'get', 'servers'])
@@ -290,13 +316,14 @@ def setUpPackage_nuocmd():
 
 
 def _cleanup():
-    global ap_conn, db_created, db_started
-    if ap_conn:
+    global db_created, db_started, __ap_conn
+    if __ap_conn:
         if db_started:
-            ap_conn.shutdown_database(DATABASE_NAME)
+            __ap_conn.shutdown_database(DATABASE_NAME)
+            waitforstate('NOT_RUNNING', 30, conn=__ap_conn)
             if db_created:
-                ap_conn.delete_database(DATABASE_NAME)
-        ap_conn = None
+                __ap_conn.delete_database(DATABASE_NAME)
+        __ap_conn = None
     else:
         if db_started:
             db_started = False
@@ -329,7 +356,6 @@ def setUpModule():
         return
     _package_setup = True
     try:
-        # Until pynuoadmin supports Python 3, use nuocmd
         setUpPackage_nuocmd()
     except Exception:
         _cleanup()

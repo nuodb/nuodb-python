@@ -9,8 +9,17 @@ commands:
       - run:
           name: On failure action
           command: |
-            cat /var/log/nuodb/nuoadmin.log*
-            grep ssl /opt/nuodb/etc/nuoadmin.conf
+            env | sort
+            echo ------
+            cat $HOME/.bashrc $HOME/.profile $HOME/.bash_profile || true
+            echo ------
+            cat $HOME/.nuocmdrc || true
+            echo ------
+            cat /var/log/nuodb/nuoadmin.log* || true
+            echo ------
+            cat /tmp/nuotest.log || true
+            echo ------
+            grep ssl /etc/nuodb/nuoadmin.conf || true
           when: <<parameters.when>>
 
       - when:
@@ -18,7 +27,6 @@ commands:
           steps:
             - store_artifacts:
                 path: /var/log/nuodb/nuoadmin.log
-      
 
 jobs:
   build_n_run:
@@ -26,6 +34,12 @@ jobs:
       - image: nuodb/nuodb-ce:latest
         user: root
     resource_class: small
+    environment:
+      TZ : America/New_York
+      NUO_SET_TLS : disable
+      NUOCMD_CLIENT_KEY : ""
+      NUOCMD_VERIFY_SERVER : ""
+      NUOCMD_PLUGINS : ""
     steps:
       - checkout
       - run:
@@ -41,20 +55,17 @@ jobs:
           name : Configure and run NuoDB Admin
           command: |
             sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
+            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls status
             sudo -u nuodb "/opt/nuodb/etc/nuoadmin" start
       - run:
           name: Run test
-          command: make test
+          command: make fulltest "PYTEST_ARGS=--log-file-level=10 --log-file=/tmp/nuotest.log"
       - store_artifacts:
           path: htmlcov
       - store_test_results:
           path: test_results
       - after_failure:
           when : "on_fail"
-
-    environment:
-      TZ : America/New_York
-      NUO_SET_TLS : disable
 
 workflows:
   build-project:

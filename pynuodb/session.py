@@ -1,4 +1,4 @@
-"""Establish and manage a session with an agent or engine.
+"""Establish and manage a SQL session with a NuoDB database.
 
 (C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
 
@@ -6,107 +6,124 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-__all__ = ["checkForError", "SessionException", "Session", "SessionMonitor", "BaseListener"]
+__all__ = ["checkForError", "SessionException", "Session"]
 
 # This module abstracts the common functionaliy needed to establish a session
 # with an agent or engine. It separates incoming and outgoing stream handling,
 # optionally with encryption, and correctly encodes and re-assembles messages
 # based on their legnth header.
-#
-# A Session can either be constructed and then called directly to send or
-# receieve messages, or can negotiate with a service using the utility
-# connect/request routines. For exchanges of more than single request and
-# response the SessionMonitor class is provided to notify the user when
-# messages arrive.
-#
-# Getting the local agent identity:
-#
-#   print 'Local agent identity: ' + Session('localhost').doRequest()
-#
-# Getting the local agent state:
-#
-#   s = Session('localhost', service='State')
-#   s.authorize('admin', 'bird')
-#   print s.doRequest()
-#
-# For both doRequest() and doConnect() the attributes parameter is a map from
-# attribute key name to value (its a map so that the same attribute key isn't
-# used more than once).  The children parameter is a (possibly empty) list of
-# ElementTree instances.
-#
-# For more examples of how to use this module, see the functions in the util
-# module which use this directly. For an example of how to communicate with
-# directly with an engine see the sql module.
 
-
-from .crypt import ClientPassword, RC4Cipher, NoCipher
-
+import socket
+import struct
+import sys
 from ipaddress import ip_address
+import xml.etree.ElementTree as ElementTree
+from xml.etree.ElementTree import Element  # pylint: disable=unused-import
 
 try:
     from urllib.parse import urlparse
 except ImportError:
-    from urlparse import urlparse
+    from urlparse import urlparse  # type: ignore
 
-import socket
-import struct
-import threading
-import sys
-import xml.etree.ElementTree as ElementTree
+try:
+    from typing import Dict, Iterable, Mapping, Optional, Tuple  # pylint: disable=unused-import
+except ImportError:
+    pass
+
+from .exception import Error, OperationalError, InterfaceError
+from .crypt import ClientPassword, NoCipher, RC4Cipher
+from .crypt import BaseCipher  # pylint: disable=unused-import
+
+isP2 = sys.version[0] == '2'
+
+NUODB_PORT = 48004
 
 
-# A simple but commonly-used routine that raises a "useful" exception if the
-# message is invalid XML, or is valid XML and has the root element "Error"
+class SessionException(OperationalError):
+    """Raised for problems encountered with the network session.
+
+    It's unfortunate that we invented this exception, but it may be widely
+    used now.  Make it a subclass of the OperationalError exception.
+    """
+
+    pass
+
+
 def checkForError(message):
+    # type: (str) -> None
+    """Check a result XML string for errors.
+
+    :param message: The message to be checked.
+    :raises ElementTree.ParseError: If the message is invalid XML.
+    :raises SessionException: If the message is an error result.
+    """
     root = ElementTree.fromstring(message)
     if root.tag == "Error":
-        raise SessionException(root.get("text"))
-
-
-class SessionException(Exception):
-    def __init__(self, value):
-        self.__value = value
-
-    def __str__(self):
-        return repr(self.__value)
+        raise SessionException(root.get("text", "Unknown Error"))
 
 
 def strToBool(s):
+    # type: (str) -> bool
+    """Convert a database boolean value to a Python boolean.
+
+    :param s: Value to convert
+    :returns: True if the value is true, False if it's false
+    :raises ValueError: If the value is not a valid boolean string.
+    """
     if s.lower() == 'true':
         return True
     elif s.lower() == 'false':
         return False
-    else:
-        raise ValueError('"%s" is not a valid boolean string' % s)
+    raise ValueError('"%s" is not a valid boolean string' % s)
 
 
 class Session(object):
+    """A NuoDB service session (either AP or Engine)."""
 
+    __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
+    __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
     __AUTH_REQ = "<Authorize TargetService=\"%s\" Type=\"SRP\"/>"
     __SRP_REQ = '<SRPRequest ClientKey="%s" Ciphers="%s" Username="%s"/>'
 
-    __SERVICE_REQ = "<Request Service=\"%s\"%s/>"
-    __SERVICE_CONN = "<Connect Service=\"%s\"%s/>"
+    __isTLSEncrypted = False
+    __cipherOut = None   # type: BaseCipher
+    __cipherIn = None    # type: BaseCipher
 
-    def __init__(self, host, port=None, service="Identity", timeout=None,
-                 connect_timeout=None, read_timeout=None, options=None):
+    __port = NUODB_PORT  # type: int
+    __sock = None        # type: Optional[socket.socket]
 
-        self.__address, prt, ver = self._parse_addr(host, options)
+    __xml_encoding = 'utf-8' if isP2 else 'unicode'
 
-        if port is None:
-            if prt is None:
-                self.__port = 48004
-            else:
-                self.__port = prt
-            port = self.__port
-        else:
+    @property
+    def _sock(self):
+        # type: () -> socket.socket
+        """Return the socket: raise if it's closed."""
+        sock = self.__sock
+        if sock is None:
+            raise SessionException("Session is closed")
+        return sock
+
+    def __init__(self, host,            # type: str
+                 port=None,             # type: Optional[int]
+                 service="SQL2",        # type: str
+                 timeout=None,          # type: Optional[float]
+                 connect_timeout=None,  # type: Optional[float]
+                 read_timeout=None,     # type: Optional[float]
+                 options=None           # type: Optional[Mapping[str, str]]
+                 ):
+        # type: (...) -> None
+        if options is None:
+            options = {}
+
+        self.__address, _port, ver = self._parse_addr(host, options.get('ipVersion'))
+        if port is not None:
             self.__port = port
+        elif _port is not None:
+            self.__port = _port
 
         af = socket.AF_INET
         if ver == 6:
             af = socket.AF_INET6
-
-        self.__isTLSEncrypted = False
 
         # for backwards-compatibility, set connect and read timeout to
         # `timeout` if either is not specified
@@ -115,24 +132,16 @@ class Session(object):
         if read_timeout is None:
             read_timeout = timeout
 
-        self.__cipherOut = None
-        self.__cipherIn = None
-
         self.__service = service
-
-        self.__pyversion = sys.version[0]
-
-        self.__sock = None
 
         self._open_socket(connect_timeout, self.__address, self.__port, af, read_timeout)
 
-        (_, tls_options) = self._split_options(options)
-
-        if tls_options:
+        if options.get('trustStore') is not None:
+            # We have to have a trustStore parameter to enable TLS
             try:
-                self.establish_secure_tls_connection(tls_options)
+                self.establish_secure_tls_connection(options)
             except socket.error:
-                if strToBool(tls_options.get('allowSRPFallback', "False")):
+                if strToBool(options.get('allowSRPFallback', "False")):
                     # fall back to SRP, do not attempt to TLS handshake
                     self.close()
                     self._open_socket(connect_timeout, self.__address,
@@ -141,81 +150,77 @@ class Session(object):
                     raise
 
     @staticmethod
-    def _extract_options(options):
-        expected = ['password', 'user', 'trustStore', 'verifyHostname',
-                    'allowSRPFallback', 'ciphers', 'ipVersion', 'direct']
-        remote_options = {}
-        extracted_options = {}
+    def session_options(options):
+        # type: (Optional[Mapping[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]
+        """Split into connection parameters and session options.
+
+        Connection parameters are passed to the SQL server to control the
+        connection.  Session options are not sent to the SQL server, and
+        instead control the local session.
+
+        :return: A tuple of (connection parameters, session options).
+        """
+        opts = ['password', 'user', 'ipVersion', 'direct', 'allowSRPFallback',
+                'trustStore', 'sslVersion', 'verifyHostname']
+        session = {}
+        parameters = {}
         if options:
-            for (k, v) in options.items():
-                if k in expected:
-                    extracted_options[k] = v
+            for key, val in options.items():
+                if key in opts:
+                    session[key] = val
                 else:
-                    remote_options[k] = v
-
-        return remote_options, extracted_options
-
-    @staticmethod
-    def _split_options(options):
-        expected = ['trustStore', 'verifyHostname', 'allowSRPFallback']
-        remote_options = {}
-        tls_options = {}
-        if options:
-            for (k, v) in options.items():
-                if k in expected:
-                    tls_options[k] = v
-                else:
-                    remote_options[k] = v
-
-        return remote_options, tls_options
+                    parameters[key] = val
+        return parameters, session
 
     @staticmethod
     def _to_ipaddr(addr):
-        if sys.version_info >= (3, 0):
-            ip = ip_address(str(addr))
+        # type: (str) -> Tuple[str, int]
+        if isP2:
+            ipaddr = ip_address(unicode(addr, 'utf_8'))  # type: ignore
         else:
-            ip = ip_address(unicode(addr, 'utf_8'))
-        return ip
+            ipaddr = ip_address(addr)
+        return (str(ipaddr), ipaddr.version)
 
-    def _parse_addr(self, addr, options):
+    def _parse_addr(self, addr, ipver):
+        # type: (str, Optional[str]) -> Tuple[str, Optional[int], int]
+        port = None
         try:
             # v4/v6 addr w/o port e.g. 192.168.1.1, 2001:3200:3200::10
-            ip = self._to_ipaddr(addr)
-            port = None
-            ver = ip.version
+            ip, ver = self._to_ipaddr(addr)
         except ValueError:
             # v4/v6 addr w/port e.g. 192.168.1.1:53, [2001::10]:53
             parsed = urlparse('//{}'.format(addr))
+            if parsed.hostname is None:
+                raise InterfaceError("Invalid Host/IP Address format: %s" % (addr))
             try:
-                ip = self._to_ipaddr(parsed.hostname)
+                ip, ver = self._to_ipaddr(parsed.hostname)
                 port = parsed.port
-                ver = ip.version
             except ValueError:
                 parts = addr.split(":")
                 if len(parts) == 1:
                     # hostname w/o port e.g. ad0
                     ip = addr
-                    port = None
                 elif len(parts) == 2:
                     # hostname with port e.g. ad0:53
                     ip = parts[0]
                     try:
                         port = int(parts[1])
                     except ValueError:
-                        raise SessionException("Invalid Host/IP Address Format %s" % addr)
+                        raise InterfaceError("Invalid Host/IP Address Format %s" % addr)
                 else:
                     # failed
-                    raise SessionException("Invalid Host/IP Address Format %s" % addr)
+                    raise InterfaceError("Invalid Host/IP Address Format %s" % addr)
 
                 # select v6/v4 for hostname based on user option
                 ver = 4
-                if options is not None and 'ipVersion' in options:
-                    if options['ipVersion'] == 'v6':
-                        ver = 6
+                if ipver == 'v6':
+                    ver = 6
 
-        return str(ip), port, ver
+        return ip, port, ver
 
     def _open_socket(self, connect_timeout, host, port, af, read_timeout):
+        # type: (Optional[float], str, int, int, Optional[float]) -> None
+        assert self.__sock is None, "Open called with already open socket"
         self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -226,105 +231,151 @@ class Session(object):
         self.__sock.connect((host, port))
         self.__sock.settimeout(read_timeout)
 
-    def establish_secure_tls_connection(self, tls_options):
+    def establish_secure_tls_connection(self, options):
+        # type: (Mapping[str, str]) -> None
+        """Establish a TLS connection to the service.
+
+        :raises: RuntimeError if the Python SSL module is not available.
+        """
         try:
             import ssl
-            sslcontext = ssl.SSLContext(tls_options.get('sslVersion', ssl.PROTOCOL_TLSv1_2))
-            sslcontext.options |= ssl.OP_NO_SSLv2
-            sslcontext.options |= ssl.OP_NO_SSLv3
-            sslcontext.verify_mode = ssl.CERT_REQUIRED
-            sslcontext.check_hostname = strToBool(tls_options.get('verifyHostname', "True"))
-
-            sslcontext.load_verify_locations(tls_options['trustStore'])
-
-            self.__sock = sslcontext.wrap_socket(self.__sock, server_hostname=self.__address)
-            self.__isTLSEncrypted = True
-
         except ImportError:
-            raise RuntimeError("SSL required but ssl module not available in this python installation")
+            raise RuntimeError("SSL requested but the ssl module not available")
+
+        sslcontext = ssl.SSLContext(int(options.get('sslVersion', ssl.PROTOCOL_TLSv1_2)))
+        sslcontext.options |= ssl.OP_NO_SSLv2
+        sslcontext.options |= ssl.OP_NO_SSLv3
+        sslcontext.verify_mode = ssl.CERT_REQUIRED
+        sslcontext.check_hostname = strToBool(options.get('verifyHostname', "True"))
+
+        sslcontext.load_verify_locations(options['trustStore'])
+
+        self.__sock = sslcontext.wrap_socket(self._sock, server_hostname=self.__address)
+        self.__isTLSEncrypted = True
 
     @property
     def tls_encrypted(self):
+        # type: () -> bool
+        """Return True if the session is encrypted with TLS."""
         return self.__isTLSEncrypted
 
     @property
     def address(self):
+        # type: () -> str
+        """Return the address of the service."""
         return self.__address
 
     @property
     def port(self):
+        # type: () -> int
+        """Return the port of the service."""
         return self.__port
 
-    # NOTE: This routine works only for agents ... see the sql module for a
-    # still-in-progress example of opening an authorized engine session
-    def authorize(self, account="domain", password=None, cipher='RC4'):
-        if not password:
-            raise SessionException("A password is required for authorization")
-
-        cp = ClientPassword()
-        key = cp.genClientKey()
-        self.send(Session.__AUTH_REQ % self.__service)
-        response = self.__sendAndReceive(Session.__SRP_REQ % (key, cipher, account))
-
-        root = ElementTree.fromstring(response)
-        if root.tag != "SRPResponse":
-            self.close()
-            raise SessionException("Request for authorization was denied")
-
-        salt = root.get("Salt")
-        serverKey = root.get("ServerKey")
-        sessionKey = cp.computeSessionKey(account, password, salt, serverKey)
-
-        cipher = root.get("Cipher")
-        if cipher == 'None':
-            self._setCiphers(NoCipher(), NoCipher())
-        else:
-            self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
-
-        verifyMessage = self.recv()
-        try:
-            root = ElementTree.fromstring(verifyMessage)
-        except Exception as e:
-            self.close()
-            raise SessionException("Failed to establish session with password: " + str(e))
-
-        if root.tag != "PasswordVerify":
-            self.close()
-            raise SessionException("Unexpected verification response: " + root.tag)
-
-        self.send(verifyMessage)
-
     def _setCiphers(self, cipherIn, cipherOut):
+        # type: (BaseCipher, BaseCipher) -> None
+        """Set the input and output cipher implementations."""
         self.__cipherIn = cipherIn
         self.__cipherOut = cipherOut
 
-    # Issues the request, closes the session and returns the response string,
-    # or raises an exeption if the session fails or the response is an error.
-    def doRequest(self, attributes=None, text=None, children=None):
-        requestStr = self.__constructServiceMessage(Session.__SERVICE_REQ, attributes, text, children)
+    def authorize(self, account, dbpassword, cipher='RC4'):
+        # type: (str, str, str) -> None
+        """Authorize this session.
+
+        You can only use this if you know the database password, and this is
+        only available from the AP.
+        """
+        req = Session.__AUTH_REQ % (self.__service)
+        self.send(req.encode())
+
+        cp = ClientPassword()
+        key = cp.genClientKey()
+        req = Session.__SRP_REQ % (key, cipher, account)
+        response = self.__sendAndReceive(req.encode())
 
         try:
-            response = self.__sendAndReceive(requestStr)
-            checkForError(response)
+            root = ElementTree.fromstring(response.decode())
+            if root.tag != "SRPResponse":
+                raise InterfaceError("Request for authorization was denied")
 
-            return response
-        finally:
+            salt = root.get("Salt")
+            if salt is None:
+                raise SessionException("Malformed authorization response (salt)")
+            serverKey = root.get("ServerKey")
+            if serverKey is None:
+                raise SessionException("Malformed authorization response (server key)")
+
+            sessionKey = cp.computeSessionKey(account, dbpassword, salt, serverKey)
+
+            serverCipher = root.get("Cipher")
+            if serverCipher == 'None':
+                self._setCiphers(NoCipher(), NoCipher())
+            else:
+                self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+
+            verifyMessage = self.recv()
+            if verifyMessage is None:
+                raise SessionException("Failed to establish session (no verification)")
+            try:
+                root = ElementTree.fromstring(verifyMessage.decode())
+            except Exception as e:
+                raise SessionException("Failed to establish session with password: " + str(e))
+
+            if root.tag != "PasswordVerify":
+                raise SessionException("Unexpected verification response: " + root.tag)
+        except Error:
             self.close()
+            raise
 
-    def doConnect(self, attributes=None, text=None, children=None):
-        connectStr = self.__constructServiceMessage(Session.__SERVICE_CONN, attributes, text, children)
+        self.send(verifyMessage)
+
+    def doConnect(self, attributes=None,  # type: Optional[Mapping[str, str]]
+                  text=None,              # type: Optional[str]
+                  children=None           # type: Optional[Iterable[Element]]
+                  ):
+        # type: (...) -> None
+        """Connect to the service."""
+        connectStr = self.__constructServiceMessage(
+            Session.__SERVICE_CONN, attributes, text, children)
 
         try:
-            self.send(connectStr)
+            self.send(connectStr.encode())
         except Exception:
             self.close()
             raise
 
-    def __constructServiceMessage(self, template, attributes, text, children):
+    def doRequest(self, attributes=None,  # type: Optional[Dict[str, str]]
+                  text=None,              # type: Optional[str]
+                  children=None           # type: Optional[Iterable[Element]]
+                  ):
+        # type: (...) -> str
+        """Ask the service to execute a request and return the response.
+
+        Issues the request, closes the session and returns the response
+        string, or raises an exeption if the session fails or the response is
+        an error.
+        """
+        requestStr = self.__constructServiceMessage(
+            Session.__SERVICE_REQ, attributes, text, children)
+
+        try:
+            response = self.__sendAndReceive(requestStr.encode()).decode()
+            checkForError(response)
+            return response
+        finally:
+            self.close()
+
+    def __constructServiceMessage(self,
+                                  template,  # type: str
+                                  attrs,     # type: Optional[Mapping[str, str]]
+                                  text,      # type: Optional[str]
+                                  children   # type: Optional[Iterable[Element]]
+                                  ):
+        # type: (...) -> str
+        """Create an XML service message and return it."""
         attributeString = ""
-        if attributes:
-            for (key, value) in attributes.items():
-                attributeString += " " + key + "=\"" + value + "\""
+        if attrs:
+            for (key, value) in attrs.items():
+                attributeString += ' %s="%s"' % (key, value)
 
         message = template % (self.__service, attributeString)
 
@@ -338,39 +389,36 @@ class Session(object):
                 for child in children:
                     root.append(child)
 
-            message = ElementTree.tostring(root)
+            message = ElementTree.tostring(root, encoding=self.__xml_encoding)
 
         return message
 
     def send(self, message):
-        """ Send an encoded message to the server over the socket """
-        if not self.__sock:
-            raise SessionException("Session is not open to send")
-
+        # type: (bytes) -> None
+        """Send an encoded message to the server over the socket."""
+        sock = self._sock
         if self.__cipherOut:
             message = self.__cipherOut.transform(message)
-
-        if self.__pyversion == '3':
-            message = bytes(message, 'latin-1')
 
         lenStr = struct.pack("!I", len(message))
 
         try:
-            self.__sock.send(lenStr + message)
+            # We should send this in two parts to avoid making a complete copy
+            # of the message when we send it.  But, I think the server may be
+            # unhappy if it receives the length then has to wait for the data.
+            sock.send(lenStr + message)
         except Exception:
             self.close()
             raise
 
-    def recv(self, doStrip=True, timeout=None):
-        """Pull the next message from the socket and decode/trim it if needed
+    def recv(self, timeout=None):
+        # type: (Optional[float]) -> Optional[bytes]
+        """Pull the next message from the socket.
 
         If timeout is None, wait forever (until read_timeout, if set).
         If timeout is a float, then set this timeout for this recv().
-        If the timeout is hit return None and do not close the connection.
+        On timeout, return None but do not close the connection.
         """
-        if not self.__sock:
-            raise SessionException("Session is not open to receive")
-
         try:
             # We only wait on timeout to read the header.  Once we read
             # a header we'll wait as long as it takes to read the data.
@@ -384,58 +432,56 @@ class Session(object):
             self.close()
             raise
 
-        if self.__cipherIn:
-            if doStrip:
-                msg = self.__cipherIn.transform(msg).lstrip()
-            else:
-                msg = self.__cipherIn.transform(msg)
+        if msg is None:
+            # This can't happen because we don't set a timeout above
+            raise RuntimeError("Session.recv read no data!")
 
-        if type(msg) is bytes and self.__pyversion == '3':
-            msg = msg.decode("latin-1")
+        if self.__cipherIn:
+            msg = self.__cipherIn.transform(msg)
+
         return msg
 
     def __readFully(self, msgLength, timeout=None):
-        """ Pull the entire next raw bytes message from the socket """
-        msg = b''
-        old_tmout = self.__sock.gettimeout()
+        # type: (int, Optional[float]) -> Optional[bytes]
+        """Pull the entire next raw bytes message from the socket."""
+        sock = self._sock
+        msg = bytearray()
+        old_tmout = sock.gettimeout()
         while msgLength > 0:
             if timeout is not None:
                 # It's a little wrong that this timeout applies to each recv()
                 # instead of to the entire operation; however we only use this
                 # when reading the header which will always be read in one
                 # pass anyway.
-                self.__sock.settimeout(timeout)
+                sock.settimeout(timeout)
             try:
-                received = self.__sock.recv(msgLength)
+                received = sock.recv(msgLength)
             except socket.timeout:
                 return None
             except IOError as e:
-                raise SessionException("Session was closed while receiving: network error %s: %s" %
-                                       (str(e.errno), e.strerror if e.strerror else str(e.args)))
+                raise SessionException(
+                    "Session closed while receiving: network error %s: %s" %
+                    (str(e.errno), e.strerror if e.strerror else str(e.args)))
             finally:
                 if timeout is not None:
-                    self.__sock.settimeout(old_tmout)
+                    sock.settimeout(old_tmout)
 
             if not received:
-                raise SessionException("Session was closed while receiving msgLength=[%d] "
-                                       "len(msg)=[%d] len(received)=[%d]" %
-                                       (msgLength, len(msg), len(received)))
-            if self.__pyversion == '3':
-                msg = b''.join([msg, received])
-                msgLength = msgLength - len(received.decode('latin-1'))
-            else:
-                msg = msg + received
-                msgLength = msgLength - len(received)
-        return msg
+                raise SessionException(
+                    "Session closed waiting for data: wanted length=%d,"
+                    " received length=%d"
+                    % (msgLength, len(msg)))
+            msg += received
+            msgLength -= len(received)
+
+        return bytes(msg)
 
     def close(self, force=False):
-        """ Close the current socket connection with the server """
-        # The SessionMonitor thread also calls close() which resets
-        # self.__sock to None, so cache the value here.
+        # type: (bool) -> None
+        """Close the current socket connection with the server."""
         sock = self.__sock
         if sock is None:
             return
-
         try:
             if force:
                 try:
@@ -448,63 +494,11 @@ class Session(object):
             self.__sock = None
 
     def __sendAndReceive(self, message):
+        # type: (bytes) -> bytes
+        """Send one message and return the response."""
         self.send(message)
-        return self.recv()
-
-
-class SessionMonitor(threading.Thread):
-
-    def __init__(self, session, listener=None):
-        threading.Thread.__init__(self)
-
-        self.__session = session
-        self.__listener = listener
-
-    def run(self):
-        while True:
-            try:
-                message = self.__session.recv()
-            except Exception:
-                # the session was closed out from under us
-                break
-
-            try:
-                root = ElementTree.fromstring(message)
-            except Exception:
-                if self.__listener:
-                    try:
-                        self.__listener.invalid_message(message)
-                    except Exception:
-                        pass
-            else:
-                if self.__listener:
-                    try:
-                        self.__listener.message_received(root)
-                    except Exception:
-                        pass
-
-        try:
-            self.close()
-        except Exception:
-            pass
-
-    def close(self):
-        if self.__listener:
-            try:
-                self.__listener.closed()
-            except Exception:
-                pass
-            self.__listener = None
-        self.__session.close(force=True)
-
-
-class BaseListener(object):
-
-    def message_received(self, root):
-        pass
-
-    def invalid_message(self, message):
-        pass
-
-    def closed(self):
-        pass
+        resp = self.recv()
+        if resp is None:
+            # This can't actually happen since we have no timeout on recv()
+            raise RuntimeError("Session.recv() returned None!")
+        return resp

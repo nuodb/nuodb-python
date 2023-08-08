@@ -10,7 +10,7 @@ import unittest
 import pynuodb
 
 from . import DATABASE_NAME, DBA_USER, DBA_PASSWORD
-from . import ap_conn, nuocmd, cvtjson, get_sqlhost
+from . import get_ap_conn, nuocmd, cvtjson, get_sqlhost
 
 
 class NuoBase(unittest.TestCase):
@@ -51,6 +51,7 @@ class NuoBase(unittest.TestCase):
         stat = ''
         sms = 0
         tes = 0
+        ap_conn = get_ap_conn()
         if ap_conn:
             db = ap_conn.get_database(DATABASE_NAME)
             self.assertEqual(db.state, 'RUNNING')

@@ -5,30 +5,33 @@ import pynuodb
 
 
 class NuoDBBasicTest(unittest.TestCase):
+    """Run basic tests of the crypt module."""
+
+    CVT = {1: bytearray([1]),
+           127: bytearray([127]),
+           254: bytearray([0, 254]),
+           255: bytearray([0, 255]),
+           -1: bytearray([255]),
+           -2: bytearray([254]),
+           -256: bytearray([255, 0]),
+           -258: bytearray([254, 254])}
+
     def test_toByteString(self):
-        self.assertEqual(pynuodb.crypt.toSignedByteString(1), '\x01')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(127), '\x7f')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(254), '\x00\xfe')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(255), '\x00\xff')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(-1), '\xff')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(-2), '\xfe')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(-256), '\xff\x00')
-        self.assertEqual(pynuodb.crypt.toSignedByteString(-258), '\xfe\xfe')
+        """Test toSignedByteString."""
+        for val, data in self.CVT.items():
+            self.assertEqual(pynuodb.crypt.toSignedByteString(val), data)
 
     def test_fromByteString(self):
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\x01'), 1)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\x00\xff'), 255)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\xff'), -1)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\xff\x01'), -255)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\xff\x00'), -256)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString('\xfe\xfe'), -258)
+        """Test fromSignedByteString."""
+        for val, data in self.CVT.items():
+            self.assertEqual(pynuodb.crypt.fromSignedByteString(data), val)
 
     def test_bothByteString(self):
-        self.assertEqual(pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(1)), 1)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(0)), 0)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(-1)), -1)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(256)), 256)
-        self.assertEqual(pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(-256)), -256)
+        """Test to and from signed bytes tring."""
+        for val in self.CVT.keys():
+            self.assertEqual(
+                pynuodb.crypt.fromSignedByteString(pynuodb.crypt.toSignedByteString(val)),
+                val)
 
 
 if __name__ == '__main__':

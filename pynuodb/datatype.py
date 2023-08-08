@@ -30,56 +30,76 @@ __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'TimestampToTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
            'DATETIME', 'ROWID', 'TypeObjectFromNuodb']
 
+import sys
+
+try:
+    from typing import Tuple, Union  # pylint: disable=unused-import
+except ImportError:
+    pass
+
 from datetime import datetime as Timestamp, date as Date, time as Time
 from datetime import timedelta as TimeDelta
 import decimal
 import time
 from .exception import DataError
 
+isP2 = sys.version[0] == '2'
 
-class Binary(object):
 
-    """Class for a Binary object.
+class Binary(bytes):
+    """A binary string.
 
-    Private Functions:
-    __init__ -- Constructor for the Binary class.
-    __str__ -- Stringifies the Binary object.
-    __eq__ -- Checks equality of two Binary objects.
+    If passed a string we assume it's encoded as LATIN-1, which ensures that
+    the characters 0-255 are considered single-character sequences.
     """
 
-    def __init__(self, string):
-        """Constructor for the Binary class."""
-        self.string = string
+    def __new__(cls, data):
+        # type: (Union[str, bytes, bytearray]) -> Binary
+        # I can't figure out how to get mypy to be OK with this.
+        if isinstance(data, bytearray):
+            return bytes.__new__(cls, data)  # type: ignore
+        # In Python2 there's no distinction between str and bytes :(
+        if isinstance(data, str) and not isP2:
+            return bytes.__new__(cls, data.encode('latin-1'))  # type: ignore
+        return bytes.__new__(cls, data)  # type: ignore
 
     def __str__(self):
-        """Stringifies the Binary object."""
-        return self.string
+        # type: () -> str
+        # This is pretty terrible but it's what the old version did.
+        # What does it really mean to run str(Binary)?  That should probably
+        # be illegal, but I'm sure lots of code does "%s" % (Binary(x)) or
+        # the equivalent.  In Python 3 we have to remove the 'b' prefix too.
+        # I'll leave this for consideration at some future time.
+        return repr(self)[1:-1] if isP2 else repr(self)[2:-1]
 
-    def __eq__(self, other):
-        """Checks equality of two Binary objects."""
-        if isinstance(other, Binary):
-            return self.string == other.string
-        else:
-            return False
+    @property
+    def string(self):
+        # type: () -> bytes
+        """The old implementation of Binary provided this."""
+        return self
 
 
 def DateFromTicks(ticks):
-    """Converts ticks to a Date object."""
+    # type: (int) -> Date
+    """Convert ticks to a Date object."""
     return Date(*time.localtime(ticks)[:3])
 
 
 def TimeFromTicks(ticks, micro=0):
-    """Converts ticks to a Time object."""
+    # type: (int, int) -> Time
+    """Convert ticks to a Time object."""
     return Time(*time.localtime(ticks)[3:6] + (micro,))
 
 
 def TimestampFromTicks(ticks, micro=0):
-    """Converts ticks to a Timestamp object."""
+    # type: (int, int) -> Timestamp
+    """Convert ticks to a Timestamp object."""
     return Timestamp(*time.localtime(ticks)[:6] + (micro,))
 
 
 def DateToTicks(value):
-    """Converts a Date object to ticks."""
+    # type: (Date) -> int
+    """Convert a Date object to ticks."""
     timeStruct = Date(value.year, value.month, value.day).timetuple()
     try:
         return int(time.mktime(timeStruct))
@@ -88,26 +108,35 @@ def DateToTicks(value):
 
 
 def TimeToTicks(value):
-    """Converts a Time object to ticks."""
-    timeStruct = TimeDelta(hours=value.hour, minutes=value.minute, seconds=value.second, microseconds=value.microsecond)
+    # type: (Time) -> Tuple[int, int]
+    """Convert a Time object to ticks."""
+    timeStruct = TimeDelta(hours=value.hour, minutes=value.minute,
+                           seconds=value.second,
+                           microseconds=value.microsecond)
     timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
-    return (int((timeDec + time.timezone) * 10**abs(timeDec.as_tuple()[2])), abs(timeDec.as_tuple()[2]))
+    return (int((timeDec + time.timezone) * 10**abs(timeDec.as_tuple()[2])),
+            abs(timeDec.as_tuple()[2]))
 
 
 def TimestampToTicks(value):
-    """Converts a Timestamp object to ticks."""
-    timeStruct = Timestamp(value.year, value.month, value.day, value.hour, value.minute, value.second).timetuple()
+    # type: (Timestamp) -> Tuple[int, int]
+    """Convert a Timestamp object to ticks."""
+    timeStruct = Timestamp(value.year, value.month, value.day, value.hour,
+                           value.minute, value.second).timetuple()
     try:
-        if value.microsecond:
-            micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
-            return (int((decimal.Decimal(int(time.mktime(timeStruct))) + micro) * decimal.Decimal(int(10**(len(str(micro)) - 2)))), len(str(micro)) - 2)
-        else:
+        if not value.microsecond:
             return (int(time.mktime(timeStruct)), 0)
+        micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
+        t1 = decimal.Decimal(int(time.mktime(timeStruct))) + micro
+        tlen = len(str(micro)) - 2
+        return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
     except Exception:
         raise DataError("Year out of range")
 
 
 class TypeObject(object):
+    """A SQL type object."""
+
     def __init__(self, *values):
         self.values = values
 
@@ -153,11 +182,10 @@ TYPEMAP = {"<null>": None,
 
 
 def TypeObjectFromNuodb(nuodb_type_name):
-    """Returns one of STRING, BINARY, NUMBER, DATETIME, ROWID based on the
-    supplied NuoDB column type name
-    """
+    # type: (str) -> TypeObject
+    """Return a TypeObject based on the supplied NuoDB column type name."""
     name = nuodb_type_name.strip()
-    try:
-        return TYPEMAP[name]
-    except KeyError:
-        raise DataError('received unknown column type from the database "%s"' % (name))
+    obj = TYPEMAP.get(name)
+    if obj is None:
+        raise DataError('received unknown column type "%s"' % (name))
+    return obj

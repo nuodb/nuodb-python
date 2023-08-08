@@ -1,10 +1,12 @@
-"""Contains the constants for sending the protocol to the server.
+"""Constants for the message protocol with the NuoDB database.
 
 (C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
+
+# pylint: disable=bad-whitespace
 
 # Data Types Encoding Rules
 NULL                              = 1
@@ -14,12 +16,15 @@ INTMINUS10                        = 10
 INTMINUS1                         = 19
 INT0                              = 20
 INT31                             = 51
+INTLEN0                           = 51
 INTLEN1                           = 52
 INTLEN8                           = 59
 SCALEDLEN0                        = 60
 SCALEDLEN8                        = 68
+UTF8COUNT0                        = 68
 UTF8COUNT1                        = 69
 UTF8COUNT4                        = 72
+OPAQUECOUNT0                      = 72
 OPAQUECOUNT1                      = 73
 OPAQUECOUNT4                      = 76
 DOUBLELEN0                        = 77
@@ -40,10 +45,13 @@ CLOBLEN0                          = 194
 CLOBLEN4                          = 198
 SCALEDCOUNT1                      = 199
 UUID                              = 200
+SCALEDDATELEN0                    = 200
 SCALEDDATELEN1                    = 201
 SCALEDDATELEN8                    = 208
+SCALEDTIMELEN0                    = 208
 SCALEDTIMELEN1                    = 209
 SCALEDTIMELEN8                    = 216
+SCALEDTIMESTAMPLEN0               = 216
 SCALEDTIMESTAMPLEN1               = 217
 SCALEDTIMESTAMPLEN8               = 224
 SCALEDCOUNT2                      = 225
@@ -245,73 +253,75 @@ NOT_SUPPORTED_ERRORS = {FEATURE_NOT_YET_IMPLEMENTED,
 
 
 stringifyError = {
-    SYNTAX_ERROR                      : 'SYNTAX_ERROR',
-    FEATURE_NOT_YET_IMPLEMENTED       : 'FEATURE_NOT_YET_IMPLEMENTED',
-    BUG_CHECK                         : 'BUG_CHECK',
-    COMPILE_ERROR                     : 'COMPILE_ERROR',
-    RUNTIME_ERROR                     : 'RUNTIME_ERROR',
-    OCS_ERROR                         : 'OCS_ERROR',
-    NETWORK_ERROR                     : 'NETWORK_ERROR',
-    CONVERSION_ERROR                  : 'CONVERSION_ERROR',
-    TRUNCATION_ERROR                  : 'TRUNCATION_ERROR',
-    CONNECTION_ERROR                  : 'CONNECTION_ERROR',
-    DDL_ERROR                         : 'DDL_ERROR',
-    APPLICATION_ERROR                 : 'APPLICATION_ERROR',
-    SECURITY_ERROR                    : 'SECURITY_ERROR',
-    DATABASE_CORRUPTION               : 'DATABASE_CORRUPTION',
-    VERSION_ERROR                     : 'VERSION_ERROR',
-    LICENSE_ERROR                     : 'LICENSE_ERROR',
-    INTERNAL_ERROR                    : 'INTERNAL_ERROR',
-    DEBUG_ERROR                       : 'DEBUG_ERROR',
-    LOST_BLOB                         : 'LOST_BLOB',
-    INCONSISTENT_BLOB                 : 'INCONSISTENT_BLOB',
-    DELETED_BLOB                      : 'DELETED_BLOB',
-    LOG_ERROR                         : 'LOG_ERROR',
-    DATABASE_DAMAGED                  : 'DATABASE_DAMAGED',
-    UPDATE_CONFLICT                   : 'UPDATE_CONFLICT',
-    NO_SUCH_TABLE                     : 'NO_SUCH_TABLE',
-    INDEX_OVERFLOW                    : 'INDEX_OVERFLOW',
-    UNIQUE_DUPLICATE                  : 'UNIQUE_DUPLICATE',
-    UNCOMMITTED_UPDATES               : 'UNCOMMITTED_UPDATES',
-    DEADLOCK                          : 'DEADLOCK',
-    OUT_OF_MEMORY_ERROR               : 'OUT_OF_MEMORY_ERROR',
-    OUT_OF_RECORD_MEMORY_ERROR        : 'OUT_OF_RECORD_MEMORY_ERROR',
-    LOCK_TIMEOUT                      : 'LOCK_TIMEOUT',
-    PLATFORM_ERROR                    : 'PLATFORM_ERROR',
-    NO_SCHEMA                         : 'NO_SCHEMA',
-    CONFIGURATION_ERROR               : 'CONFIGURATION_ERROR',
-    READ_ONLY_ERROR                   : 'READ_ONLY_ERROR',
-    NO_GENERATED_KEYS                 : 'NO_GENERATED_KEYS',
-    THROWN_EXCEPTION                  : 'THROWN_EXCEPTION',
-    INVALID_TRANSACTION_ISOLATION     : 'INVALID_TRANSACTION_ISOLATION',
-    UNSUPPORTED_TRANSACTION_ISOLATION : 'UNSUPPORTED_TRANSACTION_ISOLATION',
-    INVALID_UTF8                      : 'INVALID_UTF8',
-    CONSTRAINT_ERROR                  : 'CONSTRAINT_ERROR',
-    UPDATE_ERROR                      : 'UPDATE_ERROR',
-    I18N_ERROR                        : 'I18N_ERROR',
-    OPERATION_KILLED                  : 'OPERATION_KILLED',
-    INVALID_STATEMENT                 : 'INVALID_STATEMENT',
-    IS_SHUTDOWN                       : 'IS_SHUTDOWN',
-    IN_QUOTED_STRING                  : 'IN_QUOTED_STRING',
-    BATCH_UPDATE_ERROR                : 'BATCH_UPDATE_ERROR',
-    JAVA_ERROR                        : 'JAVA_ERROR',
-    INVALID_FIELD                     : 'INVALID_FIELD',
-    INVALID_INDEX_NULL                : 'INVALID_INDEX_NULL',
-    INVALID_OPERATION                 : 'INVALID_OPERATION',
-    INVALID_STATISTICS                : 'INVALID_STATISTICS',
-    INVALID_GENERATOR                 : 'INVALID_GENERATOR',
-    OPERATION_TIMEOUT                 : 'OPERATION_TIMEOUT',
-    NO_SUCH_INDEX                     : 'NO_SUCH_INDEX',
-    NO_SUCH_SEQUENCE                  : 'NO_SUCH_SEQUENCE',
-    XAER_PROTO                        : 'XAER_PROTO',
-    UNKNOWN_ERROR                     : 'UNKNOWN_ERROR',
-    TRANSACTIONAL_LOCK_ERROR          : 'TRANSACTIONAL_LOCK_ERROR',
-    TRANSACTION_UNKNOWN_STATE         : 'TRANSACTION_UNKNOWN_STATE',
-    LOCK_NOT_GRANTED                  : 'LOCK_NOT_GRANTED'
+    SYNTAX_ERROR: 'SYNTAX_ERROR',
+    FEATURE_NOT_YET_IMPLEMENTED: 'FEATURE_NOT_YET_IMPLEMENTED',
+    BUG_CHECK: 'BUG_CHECK',
+    COMPILE_ERROR: 'COMPILE_ERROR',
+    RUNTIME_ERROR: 'RUNTIME_ERROR',
+    OCS_ERROR: 'OCS_ERROR',
+    NETWORK_ERROR: 'NETWORK_ERROR',
+    CONVERSION_ERROR: 'CONVERSION_ERROR',
+    TRUNCATION_ERROR: 'TRUNCATION_ERROR',
+    CONNECTION_ERROR: 'CONNECTION_ERROR',
+    DDL_ERROR: 'DDL_ERROR',
+    APPLICATION_ERROR: 'APPLICATION_ERROR',
+    SECURITY_ERROR: 'SECURITY_ERROR',
+    DATABASE_CORRUPTION: 'DATABASE_CORRUPTION',
+    VERSION_ERROR: 'VERSION_ERROR',
+    LICENSE_ERROR: 'LICENSE_ERROR',
+    INTERNAL_ERROR: 'INTERNAL_ERROR',
+    DEBUG_ERROR: 'DEBUG_ERROR',
+    LOST_BLOB: 'LOST_BLOB',
+    INCONSISTENT_BLOB: 'INCONSISTENT_BLOB',
+    DELETED_BLOB: 'DELETED_BLOB',
+    LOG_ERROR: 'LOG_ERROR',
+    DATABASE_DAMAGED: 'DATABASE_DAMAGED',
+    UPDATE_CONFLICT: 'UPDATE_CONFLICT',
+    NO_SUCH_TABLE: 'NO_SUCH_TABLE',
+    INDEX_OVERFLOW: 'INDEX_OVERFLOW',
+    UNIQUE_DUPLICATE: 'UNIQUE_DUPLICATE',
+    UNCOMMITTED_UPDATES: 'UNCOMMITTED_UPDATES',
+    DEADLOCK: 'DEADLOCK',
+    OUT_OF_MEMORY_ERROR: 'OUT_OF_MEMORY_ERROR',
+    OUT_OF_RECORD_MEMORY_ERROR: 'OUT_OF_RECORD_MEMORY_ERROR',
+    LOCK_TIMEOUT: 'LOCK_TIMEOUT',
+    PLATFORM_ERROR: 'PLATFORM_ERROR',
+    NO_SCHEMA: 'NO_SCHEMA',
+    CONFIGURATION_ERROR: 'CONFIGURATION_ERROR',
+    READ_ONLY_ERROR: 'READ_ONLY_ERROR',
+    NO_GENERATED_KEYS: 'NO_GENERATED_KEYS',
+    THROWN_EXCEPTION: 'THROWN_EXCEPTION',
+    INVALID_TRANSACTION_ISOLATION: 'INVALID_TRANSACTION_ISOLATION',
+    UNSUPPORTED_TRANSACTION_ISOLATION: 'UNSUPPORTED_TRANSACTION_ISOLATION',
+    INVALID_UTF8: 'INVALID_UTF8',
+    CONSTRAINT_ERROR: 'CONSTRAINT_ERROR',
+    UPDATE_ERROR: 'UPDATE_ERROR',
+    I18N_ERROR: 'I18N_ERROR',
+    OPERATION_KILLED: 'OPERATION_KILLED',
+    INVALID_STATEMENT: 'INVALID_STATEMENT',
+    IS_SHUTDOWN: 'IS_SHUTDOWN',
+    IN_QUOTED_STRING: 'IN_QUOTED_STRING',
+    BATCH_UPDATE_ERROR: 'BATCH_UPDATE_ERROR',
+    JAVA_ERROR: 'JAVA_ERROR',
+    INVALID_FIELD: 'INVALID_FIELD',
+    INVALID_INDEX_NULL: 'INVALID_INDEX_NULL',
+    INVALID_OPERATION: 'INVALID_OPERATION',
+    INVALID_STATISTICS: 'INVALID_STATISTICS',
+    INVALID_GENERATOR: 'INVALID_GENERATOR',
+    OPERATION_TIMEOUT: 'OPERATION_TIMEOUT',
+    NO_SUCH_INDEX: 'NO_SUCH_INDEX',
+    NO_SUCH_SEQUENCE: 'NO_SUCH_SEQUENCE',
+    XAER_PROTO: 'XAER_PROTO',
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+    TRANSACTIONAL_LOCK_ERROR: 'TRANSACTIONAL_LOCK_ERROR',
+    TRANSACTION_UNKNOWN_STATE: 'TRANSACTION_UNKNOWN_STATE',
+    LOCK_NOT_GRANTED: 'LOCK_NOT_GRANTED'
 }
 
 
 def lookup_code(error_code):
+    # type: (int) -> str
+    """Return a string-ified version of an error code."""
     return stringifyError.get(error_code, '[UNKNOWN ERROR CODE]')
 
 

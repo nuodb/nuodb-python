@@ -8,8 +8,7 @@ from pynuodb.exception import DataError, ProgrammingError, BatchError, Operation
 
 class NuoDBCursorTest(NuoBase):
 
-    # In VEE the column names are not set in the metadata (DB-33176)
-    def DISABLED_test_cursor_description(self):
+    def test_cursor_description(self):
         con = self._connect()
         cursor = con.cursor()
 
@@ -42,7 +41,7 @@ class NuoDBCursorTest(NuoBase):
 
         try:
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
-            self.fail()
+            self.fail("Expected execute to fail for unsufficient parameters")
         except ProgrammingError as e:
             self.assertIsNotNone(e)
 
@@ -52,13 +51,13 @@ class NuoDBCursorTest(NuoBase):
 
         try:
             cursor.execute("SELECT 1 FROM DUAL", [1])
-            self.fail()
+            self.fail("Expected execute to fail for too many parameters")
         except ProgrammingError as e:
             self.assertIsNotNone(e)
 
         try:
             cursor.execute("SELECT ? FROM DUAL", [1, 2])
-            self.fail()
+            self.fail("Expected execute to fail for too many parameters")
         except ProgrammingError as e:
             self.assertIsNotNone(e)
 
@@ -68,7 +67,7 @@ class NuoDBCursorTest(NuoBase):
 
         try:
             cursor.execute("SELECT ? + 1 FROM DUAL", ['abc'])
-            self.fail()
+            self.fail("Expected execute to fail for wrong parameter type")
         except DataError as e:
             self.assertIsNotNone(e)
 
@@ -99,7 +98,7 @@ class NuoDBCursorTest(NuoBase):
         # 3rd tuple has too many params
         try:
             cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2, 3]])
-            self.fail()
+            self.fail("Expected executemany to fail for bad parameters")
         except ProgrammingError as e:
             self.assertIsNotNone(e)
 
@@ -113,7 +112,8 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute('CREATE UNIQUE INDEX "f1idx" ON "executemany_table" ("f1");')
         # 3rd tuple has uniqueness conflict
         try:
-            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
+            cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)",
+                               [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
             self.fail("executemany succeeded")
         except BatchError as e:
             self.assertEqual(e.results[0], 1)
@@ -130,8 +130,7 @@ class NuoDBCursorTest(NuoBase):
 
         cursor.execute("DROP TABLE executemany_table")
 
-    # VEE doesn't implement this as of NuoDB 4.2 (DB-33175)
-    def DISABLED_test_result_set_gets_closed(self):
+    def test_result_set_gets_closed(self):
         # Server will throw error after 1000 open result sets
         con = self._connect()
         for j in [False, True]:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Set up the NuoDB Python Driver package
+"""Set up the NuoDB Python Driver package.
 
 (C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
 
