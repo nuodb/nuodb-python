@@ -1,6 +1,6 @@
 """Contains the constants for sending the protocol to the server.
 
-(C) Copyright 2013-2020 NuoDB, Inc.  All Rights Reserved.
+(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
