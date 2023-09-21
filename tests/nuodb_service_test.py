@@ -21,18 +21,24 @@ class NuoDBServiceTest(NuoBase):
         procs = ap_conn.get_processes(db_name=DATABASE_NAME)
         dbpasswd = ap_conn._get_db_password(DATABASE_NAME)
 
-        session = pynuodb.session.Session(
-            procs[0].address, service='Query',
-            options={'verifyHostname': 'False'})
-        session.authorize('Cloud', dbpasswd)
+        def try_message(msg):
+            session = pynuodb.session.Session(
+                procs[0].address, service='Query',
+                options={'verifyHostname': 'False'})
+            session.authorize('Cloud', dbpasswd)
+            session.send(msg)
+            res = session.recv()
+            root = ET.fromstring(res)
+            self.assertEqual(root.tag, 'MemoryInfo')
+            info = root.findall('HeapInformation')
+            self.assertEqual(len(info), 1)
+            self.assertEqual(info[0].tag, 'HeapInformation')
 
-        session.send('<Request Service="Query" Type="Memory"/>'.encode('utf-8'))
-        res = session.recv()
-        root = ET.fromstring(res)
-        self.assertEqual(root.tag, 'MemoryInfo')
-        info = root.findall('HeapInformation')
-        self.assertEqual(len(info), 1)
-        self.assertEqual(info[0].tag, 'HeapInformation')
+        # Send with different types of buffers
+        msg = '<Request Service="Query" Type="Memory"/>'
+        try_message(msg)
+        try_message(msg.encode('utf-8'))
+        try_message(pynuodb.crypt.bytesToArray(msg.encode('utf-8')))
 
     def test_request_gc(self):
         """Test a request operation."""

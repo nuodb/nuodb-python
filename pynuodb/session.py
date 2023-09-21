@@ -26,7 +26,8 @@ except ImportError:
     from urlparse import urlparse  # type: ignore
 
 try:
-    from typing import Dict, Iterable, Mapping, Optional, Tuple  # pylint: disable=unused-import
+    from typing import Dict, Iterable, Mapping  # pylint: disable=unused-import
+    from typing import Optional, Tuple, Union   # pylint: disable=unused-import
 except ImportError:
     pass
 
@@ -394,19 +395,31 @@ class Session(object):
         return message
 
     def send(self, message):
-        # type: (bytes) -> None
-        """Send an encoded message to the server over the socket."""
-        sock = self._sock
-        if self.__cipherOut:
-            message = self.__cipherOut.transform(message)
+        # type: (Union[str, bytes, bytearray]) -> None
+        """Send an encoded message to the server over the socket.
 
-        lenStr = struct.pack("!I", len(message))
+        The message to be sent is either already-encoded bytes or bytearray,
+        or it's a UTF-8 str.
+        """
+        sock = self._sock
+
+        if isinstance(message, bytearray):
+            data = bytes(message)
+        elif isinstance(message, bytes) or isP2:
+            data = message  # type: ignore
+        elif isinstance(message, str):
+            data = message.encode('utf-8')
+
+        if self.__cipherOut:
+            data = self.__cipherOut.transform(data)
+
+        lenStr = struct.pack("!I", len(data))
 
         try:
             # We should send this in two parts to avoid making a complete copy
             # of the message when we send it.  But, I think the server may be
             # unhappy if it receives the length then has to wait for the data.
-            sock.send(lenStr + message)
+            sock.send(lenStr + data)
         except Exception:
             self.close()
             raise
