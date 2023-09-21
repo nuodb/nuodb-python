@@ -26,8 +26,8 @@ except ImportError:
     from urlparse import urlparse  # type: ignore
 
 try:
-    from typing import Dict, Iterable, Mapping  # pylint: disable=unused-import
-    from typing import Optional, Tuple, Union   # pylint: disable=unused-import
+    from typing import Dict, Generator, Iterable, Mapping  # pylint: disable=unused-import
+    from typing import Optional, Tuple, Union  # pylint: disable=unused-import
 except ImportError:
     pass
 
@@ -488,6 +488,31 @@ class Session(object):
             msgLength -= len(received)
 
         return bytes(msg)
+
+    def stream_recv(self, blocksz=4096, timeout=None):
+        # type: (int, Optional[float]) -> Generator[bytes, None, None]
+        """Read data from the socket in blocksz increments.
+
+        Will yield bytes buffers of blocksz for as long as the sender is
+        sending.  After this function completes the socket has been closed.
+        Note it's best if blocksz is a multiple of 32, to ensure that block
+        ciphers will work.  This code doesn't manage block sizes or padding.
+
+        If timeout is not None, raises a socket.timeout exception on timeout.
+        The socket is still closed.
+        """
+        sock = self._sock
+        try:
+            sock.settimeout(timeout)
+            while True:
+                msg = sock.recv(blocksz)
+                if not msg:
+                    break
+                if self.__cipherIn:
+                    msg = self.__cipherIn.transform(msg)
+                yield msg
+        finally:
+            self.close()
 
     def close(self, force=False):
         # type: (bool) -> None
