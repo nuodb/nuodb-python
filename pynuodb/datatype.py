@@ -178,7 +178,8 @@ TYPEMAP = {"<null>": None,
            "binarystring": BINARY,
            "binaryvaryingstring": BINARY,
            "boolean": NUMBER,
-           "binary": BINARY}
+           "binary": BINARY,
+           "timestamp without time zone" : DATETIME }
 
 
 def TypeObjectFromNuodb(nuodb_type_name):
