@@ -1,6 +1,6 @@
 """A module for housing the datatype classes.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -158,27 +158,29 @@ TYPEMAP = {"<null>": None,
            "string": STRING,
            "char": STRING,
            "varchar": STRING,
-           "text": STRING,
            "smallint": NUMBER,
            "integer": NUMBER,
            "bigint": NUMBER,
            "float": NUMBER,
            "double": NUMBER,
-           "decimal": NUMBER,
-           "double precision": NUMBER,
            "date": DATETIME,
            "timestamp": DATETIME,
-           "datetime": DATETIME,
            "time": DATETIME,
            "clob": BINARY,
            "blob": BINARY,
            "numeric": NUMBER,
            "number": NUMBER,
            "bytes": BINARY,
+           "binary": BINARY,
+           "binary varying": BINARY,
+           "boolean": NUMBER,
+           "timestamp without time zone": DATETIME,
+           "timestamp with time zone": DATETIME,
+           "time without time zone": DATETIME,
+           # Old types used by NuoDB <2.0.3
            "binarystring": BINARY,
            "binaryvaryingstring": BINARY,
-           "boolean": NUMBER,
-           "binary": BINARY}
+           }
 
 
 def TypeObjectFromNuodb(nuodb_type_name):
