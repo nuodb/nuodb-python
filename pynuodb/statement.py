@@ -6,6 +6,11 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
+try:
+    from typing import Any, List, Optional  # pylint: disable=unused-import
+except ImportError:
+    pass
+
 
 class Statement(object):
     """A SQL statement."""
@@ -31,6 +36,7 @@ class PreparedStatement(Statement):
         """
         super(PreparedStatement, self).__init__(handle)
         self.parameter_count = parameter_count
+        self.description = None  # type: Optional[List[List[Any]]]
 
 
 class ExecutionResult(object):

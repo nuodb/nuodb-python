@@ -316,7 +316,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         handle = self.getInt()
         param_count = self.getInt()
 
-        return PreparedStatement(handle, param_count)
+        statement = PreparedStatement(handle, param_count)
+
+        if self.__sessionVersion >= protocol.SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT:
+            if self.getBoolean():
+                statement.description = self._parse_result_set_description()
+
+        return statement
 
     def execute_prepared_statement(self, prepared_statement, parameters):
         # type: (PreparedStatement, Collection[Value]) -> ExecutionResult
@@ -422,14 +428,11 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             result_set.add_row(tuple(row))
 
-    def fetch_result_set_description(self, result_set):
-        # type: (ResultSet) -> List[List[Any]]
-        """Return the metadata for this result set."""
-        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
-        self._exchangeMessages()
-
+    def _parse_result_set_description(self):
+        # type: () -> List[List[Any]]
+        """Parse the result set metadata from the message."""
         description = [list()] * self.getInt()  # type: List[List[Any]]
-        for i in range(result_set.col_count):
+        for i in range(len(description)):  # pylint: disable=consider-using-enumerate
             self.getString()    # catalog_name
             self.getString()    # schema_name
             self.getString()    # table_name
@@ -449,6 +452,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
                               column_display_size, None, precision, scale, None]
 
         return description
+
+    def fetch_result_set_description(self, result_set):
+        # type: (ResultSet) -> List[List[Any]]
+        """Return the metadata for this result set."""
+        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
+        self._exchangeMessages()
+        return self._parse_result_set_description()
 
     # Methods to put values into the next message
 

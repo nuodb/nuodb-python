@@ -369,5 +369,5 @@ PREPARE_AND_EXECUTE_TOGETHER                    = 26
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
-CURRENT_PROTOCOL_VERSION   = BIGINT_ENCODE_VER3
+CURRENT_PROTOCOL_VERSION   = SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT
 AUTH_TEST_STR              = 'Success!'
