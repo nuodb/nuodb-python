@@ -9,10 +9,10 @@ See the LICENSE file provided with this software.
 __all__ = ["ClientPassword", "RC4Cipher", "NoCipher"]
 
 # This module provides the basic cryptographic routines (SRP and RC4) used to
-# establish authenticated, confidential sessions with agents and engines. Note
-# that no protocols are implemented here, just the ability to calculate and
-# use session keys. Most users should never need the routines here, since they
-# are encapsulated in other classes, but they are available.
+# establish authenticated, confidential sessions with engines. Note that no
+# protocols are implemented here, just the ability to calculate and use
+# session keys. Most users should never need the routines here, since they are
+# encapsulated in other classes, but they are available.
 #
 # For a client, the typical pattern is:
 #
@@ -42,9 +42,15 @@ try:
         warnings.simplefilter('ignore')
         from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
-    cryptographyImported = True
+        try:
+            # Newer cryptography versions stash ARC4 here
+            from cryptography.hazmat.decrepit.ciphers.algorithms import ARC4
+        except ImportError:
+            # In older cryptography it's still with the regular algorithms
+            ARC4 = algorithms.ARC4
+    arc4Imported = True
 except ImportError:
-    cryptographyImported = False
+    arc4Imported = False
 
 isP2 = sys.version[0] == '2'
 
@@ -392,7 +398,7 @@ class RC4CipherCryptography(BaseCipher):
         # There's a bug in the type statements for Cipher where it doesn't
         # set mode as Optional
         # https://github.com/pyca/cryptography/issues/9464
-        self.cipher = Cipher(algorithms.ARC4(key), mode=None,  # type: ignore
+        self.cipher = Cipher(ARC4(key), mode=None,  # type: ignore
                              backend=default_backend()).encryptor()
 
     def transform(self, data):
@@ -402,7 +408,7 @@ class RC4CipherCryptography(BaseCipher):
         return self.cipher.update(data)
 
 
-if cryptographyImported:
+if arc4Imported:
     RC4Cipher = RC4CipherCryptography
 else:
     RC4Cipher = RC4CipherNuoDB  # type: ignore
