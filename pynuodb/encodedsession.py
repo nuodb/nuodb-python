@@ -967,6 +967,36 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         raise DataError('Not a Scaled Count 2')
 
+    def getScaledCount3(self):
+        # type: () -> decimal.Decimal
+        """Read a scaled and signed decimal from the session.
+
+        :rtype: decimal.Decimal
+        """
+        code = self._getTypeCode()
+        if code is protocol.SCALEDCOUNT3:
+            sz = fromByteString(self._takeBytes(1))
+            if sz == 0:
+                scale = 0
+            else:
+                scale = fromByteString(self._takeBytes(sz))
+
+            sign = fromSignedByteString(self._takeBytes(1))
+            sign = 1 if sign < 0 else 0
+
+            sz = fromByteString(self._takeBytes(1))
+            if sz == 0:
+                length = 0
+            else:
+                length = fromByteString(self._takeBytes(sz))
+
+            data = fromByteString(self._takeBytes(length))
+            value = tuple(int(i) for i in str(abs(data)))
+            scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
+            return scaledcount
+
+        raise DataError('Not a Scaled Count 3')
+
     # pylint: disable=too-many-return-statements, too-many-branches
     def getValue(self):
         # type: () -> Any
@@ -995,6 +1025,9 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         if code == protocol.SCALEDCOUNT2:
             return self.getScaledCount2()
+
+        if code == protocol.SCALEDCOUNT3:
+            return self.getScaledCount3()
 
         if code >= protocol.SCALEDLEN0 and code <= protocol.SCALEDLEN8:
             return self.getScaledInt()
