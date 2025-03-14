@@ -348,6 +348,13 @@ STORED_PROC_ARRAY_ARGS                    = 19
 OPERATION_TIMEOUT_ERROR                   = 19
 SET_FETCH_SIZE                            = 19
 XA_TRANSACTIONS                           = 19
+BIGINT_ENCODE_VER3                        = 20 #TBD
+SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT = 21 #TBD
+DDL_NOT_AUTOCOMMITTED                     = 22 #TBD
+MULTI_CIPHER                              = 23 #TBD
+CURSOR_HOLDABILITY                        = 24 #TBD
+TIMESTAMP_WITHOUT_TZ                      = 25 #TBD
+PREPARE_AND_EXECUTE_TOGETHER              = 26 #TBD
 
 # The newest feature this driver supports.
 # The server will negotiate the lowest compatible version.

@@ -17,6 +17,7 @@ __all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 from os import getpid
 import time
 import xml.etree.ElementTree as ElementTree
+import tzlocal
 
 try:
     from typing import Mapping, Optional, Tuple  # pylint: disable=unused-import
@@ -132,10 +133,22 @@ class Connection(object):
                                         **kwargs)
         self.__session.doConnect(params)
 
-        params.update({'user': user,
-                       'timezone': time.strftime('%Z'),
-                       'clientProcessId': str(getpid())})
-
+        additional_params = {'user': user, 'clientProcessId': str(getpid()) }
+        timezone_name = None
+        for key in params:
+            if key.lower() == 'timezone':
+                timezone_name = params[key]
+                break
+        if not timezone_name:
+            # from doc: https://pypi.org/project/tzlocal/
+            # You can also use tzlocal to get the name of your local
+            # timezone, but only if your system is configured to make
+            # that possible. tzlocal looks for the timezone name in
+            # /etc/timezone, /var/db/zoneinfo, /etc/sysconfig/clock
+            # and /etc/conf.d/clock. If your /etc/localtime is a
+            # symlink it can also extract the name from that symlink.
+            additional_params['timezone'] = tzlocal.get_localzone_name()
+        params.update(additional_params)
         self.__session.open_database(database, password, params)
 
         # Set auto commit to false by default per PEP 249
