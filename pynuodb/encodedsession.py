@@ -15,7 +15,7 @@ import uuid
 import struct
 import decimal
 import sys
-import tzlocal,pytz
+from zoneinfo import ZoneInfo
 
 try:
     from typing import Any, Collection, Dict, Iterable, List  # pylint: disable=unused-import
@@ -132,7 +132,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
     @timezone_name.setter
     def timezone_name(self,tzname):
-        self.__timezone_info = pytz.timezone(tzname)
+        self.__timezone_info = ZoneInfo(tzname)
         self.__timezone_name = tzname
 
 
@@ -320,7 +320,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             tzChange = self.getBoolean()
             if tzChange:
                 tzName = self.getString()
-                print(f"New TimeZone: {tzName}")
+                self.timezone_name = tzName
         return ExecutionResult(statement, result, rowcount)
 
     def close_statement(self, statement):
@@ -364,7 +364,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             tzChange = self.getBoolean()
             if tzChange:
                 tzName = self.getString()
-                print(f"New TimeZone: {tzName}")
+                self.timezone_name = tzName
 
         return ExecutionResult(prepared_statement, result, rowcount)
 
@@ -942,8 +942,15 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if code >= protocol.SCALEDTIMELEN1 and code <= protocol.SCALEDTIMELEN8:
             scale = fromByteString(self._takeBytes(1))
             time = fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMELEN0))
-            divby = 10**scale
-            return datatype.TimeFromTicks(time//div,time%scale)
+            # ticks = decimal.Decimal(time) / decimal.Decimal(10**scale)
+            # return datatype.TimeFromTicks(round(int(ticks)),
+            #                               int((ticks % 1) * decimal.Decimal(1000000)))
+            shiftr = 10**scale
+            tick = time//shiftr
+            if scale:
+                micro = time%shiftr
+                micro *= 10**(6-scale)
+            return datatype.TimeFromTicks(tick,micro,self.timezone_info)
 
         raise DataError('Not a scaled time')
 
@@ -958,8 +965,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if code >= protocol.SCALEDTIMESTAMPLEN1 and code <= protocol.SCALEDTIMESTAMPLEN8:
             scale = fromByteString(self._takeBytes(1))
             stamp = fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
-            divby = 10**scale
-            return datatype.TimestampFromTicks(stamp//divby,stamp % divby)
+            shiftr = 10**scale
+            ticks = stamp//shiftr
+            if scale:
+                micro = stamp%shiftr
+                micro *= 10**(6-scale)
+            print(f"getScaledTimestamp: stamp {stamp} to {ticks}.{micro}")
+            return datatype.TimestampFromTicks(ticks,micro,self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
 

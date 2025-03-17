@@ -38,7 +38,7 @@ The algorithm's for ymd2day and day2ymd are based off of
 
 _FEB29_1BCE_JULIAN     = 1721116 - 2440587  # relative to JULIAN calendar
 _FEB29_1BCE_GREGORIAN  = _FEB29_1BCE_JULIAN + 2 
-_MAR01_1BCE            = _FEB29_1BCE_JULIAN + 1
+_MAR01_1BCE            = - (_FEB29_1BCE_JULIAN + 1)
 _GREGORIAN_DAY1        = 2299160 - 2440587
 
 

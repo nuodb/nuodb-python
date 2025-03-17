@@ -44,6 +44,9 @@ from datetime import datetime as Timestamp, date as Date, time as Time, timezone
 from datetime import timedelta as TimeDelta
 import decimal
 import time
+import tzlocal
+from zoneinfo import ZoneInfo
+
 
 Binary = bytes
 
@@ -55,11 +58,10 @@ def DateFromTicks(ticks: int) -> Date:
     # ticks is calculated from 1/1/1970 00:00:00 UTC
     day = ticks//TICKSDAY
     y,m,d = day2ymd(day)
-
     return Date(year=y,month=m,day=d)
 
 
-def TimeFromTicks(ticks : int, micro : int = 0, as_gmt : bool = False) -> Time:
+def TimeFromTicks(ticks : int, micro : int = 0, zoneinfo: ZoneInfo = None ) -> Time:
     """
     Convert input to a Time object.
     Input:
@@ -79,8 +81,10 @@ def TimeFromTicks(ticks : int, micro : int = 0, as_gmt : bool = False) -> Time:
 
     inticks = ticks
     ticks += TICKSDAY
-    if not as_gmt:
-        ticks -= time.timezone
+    if zoneinfo:
+        stdtime = Date.today().replace(month=1,day=1)
+        dt_dst  = Timestamp.combine(stdtime,Time(),tzinfo=zoneinfo)
+        ticks -= dt_dst.utcoffset() 
     ticks = ticks % TICKSDAY
 
     hour = ticks // 3600
@@ -91,7 +95,7 @@ def TimeFromTicks(ticks : int, micro : int = 0, as_gmt : bool = False) -> Time:
     return _time
 
 
-def TimestampFromTicks(ticks : int , micro : int = 0) -> Timestamp:
+def TimestampFromTicks(ticks : int , micro : int = 0, zoneinfo : ZoneInfo = None) -> Timestamp:
     """
     Convert seconds, microseconds to a Timestamp object.
 
@@ -105,10 +109,10 @@ def TimestampFromTicks(ticks : int , micro : int = 0) -> Timestamp:
     timeticks = ticks % TICKSDAY
     if ticks < 0 and micro:
         timeticks -= 1
-    time = TimeFromTicks(timeticks, micro % 1000000, as_gmt=True)
+    time = TimeFromTicks(timeticks, micro % 1000000)
 
     # combine date, time and convert to local timezone.
-    dt = Timestamp.combine(date,time,TimeZone.utc).astimezone()
+    dt = Timestamp.combine(date,time,TimeZone.utc).astimezone(zoneinfo)
     return dt
 
 
@@ -119,6 +123,18 @@ def DateToTicks(value : Date) -> int:
 
     day = ymd2day(value.year, value.month, value.day)
     return day * TICKSDAY
+
+
+def packtime(seconds: int, microseconds: int) -> (int, int):
+    ndiv=0
+    msecs  = microseconds
+    shiftr = 1000000
+    shiftl = 1
+    while (microseconds % shiftr):
+        shiftr //= 10
+        shiftl *= 10
+        ndiv +=1
+    return ( seconds*shiftl + microseconds//shiftr, ndiv )
 
 
 def TimeToTicks(value : Time) -> Tuple[int,int]:
@@ -143,24 +159,25 @@ def TimeToTicks(value : Time) -> Tuple[int,int]:
        (hour=0,minute=0,second=10,microsecond=100000) -> (180011, 1)
     """
 
-    # TBD:  need to convert time timezone to localtimezone.
-    # assuming at this moment that Time is in local time zone.
+    # Time can have an associated timezone or be naive.
 
-    secs =  time.timezone % TICKSDAY
-    secs += value.hour * 3600
-    secs += value.minute * 60
-    secs += value.second
+    # do we use:
+    #   local timezone standard time offset
+    #   connection tzinfo standard time offset
+    #   time tzinfo standard time offset
 
-    ndiv=0
-    msecs  = value.microsecond
-    shiftr = 1000000
-    shiftl = 1
-    while (value.microsecond % shiftr):
-        shiftr //= 10
-        shiftl *= 10
-        ndiv +=1
-    ticks = ( secs*shiftl + value.microsecond//shiftr, ndiv )
-    return ticks
+    # convert time to local timezone.
+    today = Date.today()
+    year = today.year
+
+    dt = Timestamp.combine(today, value)
+    dt = dt.astimezone(ZoneInfo(tzlocal.get_localzone_name()))
+    ntime = dt.time()
+
+    secs  = ntime.hour * 3600
+    secs += ntime.minute * 60
+    secs += ntime.second
+    return packtime(secs,ntime.microsecond)
 
 def TimestampToTicks(value : Timestamp) -> Tuple[int, int]:
     """
@@ -179,21 +196,11 @@ def TimestampToTicks(value : Timestamp) -> Tuple[int, int]:
     """
 
     dt = value.astimezone(TimeZone.utc)
-    secs = ymd2day(dt.year,dt.month,dt.day) * TICKSDAY
-    timesecs = dt.hour * 3600
+    timesecs  = ymd2day(dt.year,dt.month,dt.day) * TICKSDAY
+    timesecs += dt.hour * 3600
     timesecs += dt.minute * 60
     timesecs += dt.second
-    ndiv=0
-    msecs  = dt.microsecond
-    shiftr = 1000000
-    shiftl = 1
-    while (dt.microsecond % shiftr):
-        shiftr //= 10
-        shiftl *= 10
-        ndiv +=1
-    ticks = ( (secs+timesecs)*shiftl + dt.microsecond//shiftr, ndiv )
-    #print(f"TimestampToTicks in {value} as {dt} dateticks: {secs} timeticks: {timesecs} date: {DateFromTicks(secs)} ticks: {ticks} fromticks: {TimestampFromTicks(secs+timesecs,msecs)}")
-    return ticks
+    return packtime(timesecs,dt.microsecond)
 
 class TypeObject(object):
     """A SQL type object."""
