@@ -1,12 +1,15 @@
-#!/usr/bin/env python
+"""
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
-import unittest
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
 
 from . import dbapi20
-from .nuodb_base import NuoBase
+from . import nuodb_base
 
 
-class test_NuoDB(NuoBase, dbapi20.DatabaseAPI20Test):
+class TestNuoDBAPI20(nuodb_base.NuoBase, dbapi20.DatabaseAPI20Test):
     # Unsupported tests
     def test_nextset(self):
         pass
@@ -16,7 +19,3 @@ class test_NuoDB(NuoBase, dbapi20.DatabaseAPI20Test):
 
     def test_callproc(self):
         pass
-
-
-if __name__ == '__main__':
-    unittest.main()

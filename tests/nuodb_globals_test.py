@@ -1,17 +1,17 @@
-#!/usr/bin/env python
+"""
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
-import unittest
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
 
 import pynuodb
-from .nuodb_base import NuoBase
+
+from . import nuodb_base
 
 
-class NuoDBGlobalsTest(NuoBase):
+class TestNuoDBGlobals(nuodb_base.NuoBase):
     def test_module_globals(self):
-        self.assertEqual(pynuodb.apilevel, '2.0')
-        self.assertEqual(pynuodb.threadsafety, 1)
-        self.assertEqual(pynuodb.paramstyle, 'qmark')
-
-
-if __name__ == '__main__':
-    unittest.main()
+        assert pynuodb.apilevel == '2.0'
+        assert pynuodb.threadsafety == 1
+        assert pynuodb.paramstyle == 'qmark'

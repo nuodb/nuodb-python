@@ -1,12 +1,18 @@
-#!/usr/bin/env python
+"""
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
-import unittest
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
 
-from .nuodb_base import NuoBase
+import pytest
+
 from pynuodb.exception import DataError, ProgrammingError, BatchError, OperationalError
 
+from . import nuodb_base
 
-class NuoDBCursorTest(NuoBase):
+
+class TestNuoDBCursor(nuodb_base.NuoBase):
 
     def test_cursor_description(self):
         con = self._connect()
@@ -15,61 +21,49 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute("SELECT 'abc' AS XYZ, 123 AS `123` FROM DUAL")
         descriptions = cursor.description
         dstr = "Descriptions: %s" % (str(descriptions))
-        self.assertEqual(len(descriptions), 2, dstr)
+        assert len(descriptions) == 2, dstr
 
-        self.assertEqual(descriptions[0][0], 'XYZ', dstr)
-        self.assertEqual(descriptions[0][1], self.driver.STRING, dstr)
+        assert descriptions[0][0] == 'XYZ', dstr
+        assert descriptions[0][1] == self.driver.STRING, dstr
         # We don't get back a length for this type (it's 0)
-        # self.assertEqual(descriptions[0][2], 3, dstr)
+        # assert descriptions[0][2] == 3, dstr
 
-        self.assertEqual(descriptions[1][0], '123', dstr)
-        self.assertEqual(descriptions[1][1], self.driver.NUMBER, dstr)
+        assert descriptions[1][0] == '123', dstr
+        assert descriptions[1][1] == self.driver.NUMBER, dstr
         # I think this should be 6 but there is disagreement?
-        # self.assertEqual(descriptions[1][2], 5, dstr)
+        # assert descriptions[1][2] == 5, dstr
 
     def test_cursor_rowcount_and_last_query(self):
         con = self._connect()
         cursor = con.cursor()
         statement = "SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL"
         cursor.execute(statement)
-        self.assertEqual(cursor.rowcount, -1)
-        self.assertEqual(cursor.query, statement)
+        assert cursor.rowcount == -1
+        assert cursor.query == statement
 
     def test_insufficient_parameters(self):
         con = self._connect()
         cursor = con.cursor()
 
-        try:
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
-            self.fail("Expected execute to fail for unsufficient parameters")
-        except ProgrammingError as e:
-            self.assertIsNotNone(e)
 
     def test_toomany_parameters(self):
         con = self._connect()
         cursor = con.cursor()
 
-        try:
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT 1 FROM DUAL", [1])
-            self.fail("Expected execute to fail for too many parameters")
-        except ProgrammingError as e:
-            self.assertIsNotNone(e)
 
-        try:
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT ? FROM DUAL", [1, 2])
-            self.fail("Expected execute to fail for too many parameters")
-        except ProgrammingError as e:
-            self.assertIsNotNone(e)
 
     def test_incorrect_parameters(self):
         con = self._connect()
         cursor = con.cursor()
 
-        try:
+        with pytest.raises(DataError):
             cursor.execute("SELECT ? + 1 FROM DUAL", ['abc'])
-            self.fail("Expected execute to fail for wrong parameter type")
-        except DataError as e:
-            self.assertIsNotNone(e)
 
     def test_executemany(self):
         con = self._connect()
@@ -83,10 +77,10 @@ class NuoDBCursorTest(NuoBase):
 
         ret = cursor.fetchall()
 
-        self.assertEqual(ret[0][0], 1)
-        self.assertEqual(ret[0][1], 2)
-        self.assertEqual(ret[1][0], 3)
-        self.assertEqual(ret[1][1], 4)
+        assert ret[0][0] == 1
+        assert ret[0][1] == 2
+        assert ret[1][0] == 3
+        assert ret[1][1] == 4
 
         cursor.execute("DROP TABLE executemany_table")
 
@@ -96,11 +90,8 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute("DROP TABLE IF EXISTS executemany_table")
         cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)")
         # 3rd tuple has too many params
-        try:
+        with pytest.raises(ProgrammingError):
             cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)", [[1, 2], [3, 4], [1, 2, 3]])
-            self.fail("Expected executemany to fail for bad parameters")
-        except ProgrammingError as e:
-            self.assertIsNotNone(e)
 
         cursor.execute("DROP TABLE executemany_table")
 
@@ -111,22 +102,19 @@ class NuoDBCursorTest(NuoBase):
         cursor.execute("CREATE TABLE executemany_table (f1 INTEGER, f2 INTEGER)")
         cursor.execute('CREATE UNIQUE INDEX "f1idx" ON "executemany_table" ("f1");')
         # 3rd tuple has uniqueness conflict
-        try:
+        with pytest.raises(BatchError) as ex:
             cursor.executemany("INSERT INTO executemany_table VALUES (?, ?)",
                                [[1, 2], [3, 4], [1, 2], [5, 6], [5, 6]])
-            self.fail("executemany succeeded")
-        except BatchError as e:
-            self.assertEqual(e.results[0], 1)
-            self.assertEqual(e.results[1], 1)
-            self.assertEqual(e.results[2], -3)
-            self.assertEqual(e.results[3], 1)
-            self.assertEqual(e.results[4], -3)
-        except Exception as ex:
-            self.fail("executemany failed with %s" % (str(ex)))
+
+        assert ex.value.results[0] == 1
+        assert ex.value.results[1] == 1
+        assert ex.value.results[2] == -3
+        assert ex.value.results[3] == 1
+        assert ex.value.results[4] == -3
 
         # test that they all made it save the bogus one
         cursor.execute("select * from executemany_table;")
-        self.assertEqual(len(cursor.fetchall()), 3)
+        assert len(cursor.fetchall()) == 3
 
         cursor.execute("DROP TABLE executemany_table")
 
@@ -142,7 +130,7 @@ class NuoDBCursorTest(NuoBase):
                     cursor.close()
                 else:
                     if i >= 1000:
-                        with self.assertRaises(OperationalError):
+                        with pytest.raises(OperationalError):
                             cursor = con.cursor()
                             cursor.execute('select 1 from dual;')
                             con.commit()
@@ -150,7 +138,3 @@ class NuoDBCursorTest(NuoBase):
                         cursor = con.cursor()
                         cursor.execute('select 1 from dual;')
                         con.commit()
-
-
-if __name__ == '__main__':
-    unittest.main()

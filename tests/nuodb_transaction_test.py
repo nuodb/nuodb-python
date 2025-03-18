@@ -1,11 +1,14 @@
-#!/usr/bin/env python
+"""
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
-import unittest
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
 
-from .nuodb_base import NuoBase
+from . import nuodb_base
 
 
-class NuoDBTransactionTest(NuoBase):
+class TestNuoDBTransaction(nuodb_base.NuoBase):
     def test_connection_isolation(self):
         con1 = self._connect()
         con2 = self._connect()
@@ -16,11 +19,11 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         cursor2.execute("SELECT 3 FROM DUAL UNION ALL SELECT 4 FROM DUAL")
 
-        self.assertEqual(cursor1.fetchone()[0], 1)
-        self.assertEqual(cursor2.fetchone()[0], 3)
+        assert cursor1.fetchone()[0] == 1
+        assert cursor2.fetchone()[0] == 3
 
-        self.assertEqual(cursor1.fetchone()[0], 2)
-        self.assertEqual(cursor2.fetchone()[0], 4)
+        assert cursor1.fetchone()[0] == 2
+        assert cursor2.fetchone()[0] == 4
 
     def test_cursor_isolation(self):
         con = self._connect()
@@ -31,11 +34,11 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("SELECT 1 FROM DUAL UNION ALL SELECT 2 FROM DUAL")
         cursor2.execute("SELECT 3 FROM DUAL UNION ALL SELECT 4 FROM DUAL")
 
-        self.assertEqual(cursor1.fetchone()[0], 1)
-        self.assertEqual(cursor2.fetchone()[0], 3)
+        assert cursor1.fetchone()[0] == 1
+        assert cursor2.fetchone()[0] == 3
 
-        self.assertEqual(cursor1.fetchone()[0], 2)
-        self.assertEqual(cursor2.fetchone()[0], 4)
+        assert cursor1.fetchone()[0] == 2
+        assert cursor2.fetchone()[0] == 4
 
     def test_rollback(self):
         con = self._connect()
@@ -50,7 +53,7 @@ class NuoDBTransactionTest(NuoBase):
         con.rollback()
 
         cursor.execute("SELECT COUNT(*) FROM rollback_table")
-        self.assertEqual(cursor.fetchone()[0], 0)
+        assert cursor.fetchone()[0] == 0
 
         cursor.execute("DROP TABLE rollback_table")
 
@@ -69,13 +72,13 @@ class NuoDBTransactionTest(NuoBase):
         cursor1.execute("INSERT INTO commit_table VALUES (1)")
 
         cursor2.execute("SELECT COUNT(*) FROM commit_table")
-        self.assertEqual(cursor2.fetchone()[0], 0)
+        assert cursor2.fetchone()[0] == 0
 
         con1.commit()
         con2.commit()
 
         cursor2.execute("SELECT COUNT(*) FROM commit_table")
-        self.assertEqual(cursor2.fetchone()[0], 1)
+        assert cursor2.fetchone()[0] == 1
 
         cursor1.execute("DROP TABLE commit_table")
 
@@ -94,7 +97,7 @@ class NuoDBTransactionTest(NuoBase):
         con2 = self._connect()
         cursor2 = con2.cursor()
         cursor2.execute("SELECT COUNT(*) FROM rollback_disconnect")
-        self.assertEqual(cursor2.fetchone()[0], 0)
+        assert cursor2.fetchone()[0] == 0
 
         cursor2.execute("DROP TABLE rollback_disconnect")
 
@@ -102,13 +105,13 @@ class NuoDBTransactionTest(NuoBase):
         con1 = self._connect()
         con2 = self._connect()
 
-        self.assertEqual(con1.auto_commit, False)
+        assert not con1.auto_commit
 
         con1.auto_commit = True
-        self.assertEqual(con1.auto_commit, True)
+        assert con1.auto_commit
 
         con2.auto_commit = True
-        self.assertEqual(con2.auto_commit, True)
+        assert con2.auto_commit
 
         cursor1 = con1.cursor()
         cursor1.execute("DROP TABLE IF EXISTS autocommit_set")
@@ -118,22 +121,18 @@ class NuoDBTransactionTest(NuoBase):
 
         cursor2 = con2.cursor()
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEqual(cursor2.fetchone()[0], 1)
+        assert cursor2.fetchone()[0] == 1
         cursor2.execute("TRUNCATE TABLE autocommit_set")
 
         con1.auto_commit = False
-        self.assertEqual(con1.auto_commit, False)
+        assert not con1.auto_commit
 
         cursor1.execute("INSERT INTO autocommit_set VALUES (1)")
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEqual(cursor2.fetchone()[0], 0)
+        assert cursor2.fetchone()[0] == 0
 
         con1.commit()
         cursor2.execute("SELECT COUNT(*) FROM autocommit_set")
-        self.assertEqual(cursor2.fetchone()[0], 1)
+        assert cursor2.fetchone()[0] ==  1
 
         cursor1.execute("DROP TABLE autocommit_set")
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,19 +1,16 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-import unittest
 import decimal
 
-from .nuodb_base import NuoBase
+from . import nuodb_base
 
 
-class NuoDBStatementManagementTest(NuoBase):
+class TestNuoDBStatementManagement(nuodb_base.NuoBase):
     def test_stable_statement(self):
         con = self._connect()
         cursor = con.cursor()
@@ -33,10 +30,10 @@ class NuoDBStatementManagementTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], 0)
+                assert row[i] == 0
 
             current_handle = extract_statement_handle(cursor)
-            self.assertEqual(init_handle, current_handle)
+            assert init_handle == current_handle
 
         finally:
             try:
@@ -51,9 +48,9 @@ class NuoDBStatementManagementTest(NuoBase):
             cursor2 = con.cursor()
             cursor3 = con.cursor()
 
-            self.assertNotEqual(extract_statement_handle(cursor1), extract_statement_handle(cursor2))
-            self.assertNotEqual(extract_statement_handle(cursor2), extract_statement_handle(cursor3))
-            self.assertNotEqual(extract_statement_handle(cursor1), extract_statement_handle(cursor3))
+            assert extract_statement_handle(cursor1) != extract_statement_handle(cursor2)
+            assert extract_statement_handle(cursor2) != extract_statement_handle(cursor3)
+            assert extract_statement_handle(cursor1) != extract_statement_handle(cursor3)
 
         finally:
             con.close()
@@ -78,11 +75,11 @@ class NuoDBStatementManagementTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
             ps_cache = extract_prepared_statement_dict(cursor)
-            self.assertEqual(1, len(ps_cache))
-            self.assertIn(query, ps_cache)
+            assert len(ps_cache) == 1
+            assert query in ps_cache
 
         finally:
             try:
@@ -111,11 +108,11 @@ class NuoDBStatementManagementTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
             ps_cache = extract_prepared_statement_dict(cursor)
-            self.assertEqual(1, len(ps_cache))
-            self.assertIn(query, ps_cache)
+            assert len(ps_cache) == 1
+            assert query in ps_cache
 
         finally:
             try:
@@ -145,15 +142,15 @@ class NuoDBStatementManagementTest(NuoBase):
                 row = cursor.fetchone()
 
                 for i in range(1, len(row)):
-                    self.assertEqual(row[i], test_vals[i - 1])
+                    assert row[i] == test_vals[i - 1]
 
                 ps_cache = extract_prepared_statement_dict(cursor)
-                self.assertEqual(1, len(ps_cache))
-                self.assertIn(query, ps_cache)
+                assert len(ps_cache) == 1
+                assert query in ps_cache
                 if handle is None:
                     handle = ps_cache[query].handle
                 else:
-                    self.assertEqual(handle, ps_cache[query].handle)
+                    assert handle == ps_cache[query].handle
 
         finally:
             try:
@@ -187,9 +184,9 @@ class NuoDBStatementManagementTest(NuoBase):
                     cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)
-            self.assertEqual(len(queries), len(ps_cache))
+            assert len(queries) == len(ps_cache)
             for query in queries:
-                self.assertIn(query, ps_cache)
+                assert query in ps_cache
 
         finally:
             try:
@@ -223,9 +220,9 @@ class NuoDBStatementManagementTest(NuoBase):
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)
-            self.assertEqual(cache_size, len(ps_cache))
+            assert cache_size == len(ps_cache)
             for query in queries[len(queries) - cache_size:]:
-                self.assertIn(query, ps_cache)
+                assert query in ps_cache
 
         finally:
             try:
@@ -262,12 +259,12 @@ class NuoDBStatementManagementTest(NuoBase):
                 cursor.execute(queries[i], test_vals[0:len(queries) - i])
 
             ps_cache = extract_prepared_statement_dict(cursor)
-            self.assertEqual(cache_size, len(ps_cache))
+            assert cache_size == len(ps_cache)
             for query in [queries[1], queries[2], queries[3], queries[5]]:
-                self.assertIn(query, ps_cache)
+                assert query in ps_cache
 
             for query in [queries[0], queries[4]]:
-                self.assertNotIn(query, ps_cache)
+                assert query not in ps_cache
 
         finally:
             try:
@@ -282,7 +279,3 @@ def extract_statement_handle(cursor):
 
 def extract_prepared_statement_dict(cursor):
     return cursor._statement_cache._ps_cache
-
-
-if __name__ == '__main__':
-    unittest.main()

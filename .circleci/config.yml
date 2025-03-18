@@ -26,7 +26,7 @@ commands:
           condition: <<parameters.when>>
           steps:
             - store_artifacts:
-                path: /var/log/nuodb/nuoadmin.log
+                path: artifacts
 
 jobs:
   build_n_run:
