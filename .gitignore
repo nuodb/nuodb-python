@@ -35,8 +35,9 @@ pip-log.txt
 .tox
 .testtemp
 nosetests.xml
-htmlcov/
-test_results/
+.mypy_cache/
+artifacts/
+results/
 
 # Translations
 *.mo

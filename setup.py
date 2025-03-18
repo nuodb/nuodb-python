@@ -25,7 +25,10 @@ import re
 from setuptools import setup
 
 with open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py')) as v:
-    VERSION = re.compile(r"^ *__version__ *= *'(.*?)'", re.M).search(v.read()).group(1)
+    m = re.search(r"^ *__version__ *= *'(.*?)'", v.read(), re.M)
+    if m is None:
+        raise RuntimeError("Cannot detect version in pynuodb/__init__.py")
+    VERSION = m.group(1)
 
 readme = os.path.join(os.path.dirname(__file__), 'README.rst')
 

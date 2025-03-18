@@ -13,6 +13,8 @@ import tempfile
 import time
 import socket
 import logging
+import base64
+import shutil
 
 try:
     from typing import Any, Generator, List  # pylint: disable=unused-import
@@ -35,6 +37,8 @@ DB_OPTIONS = []  # type: List[str]
 DATABASE_NAME = 'pynuodb_test'
 DBA_USER      = 'dba'
 DBA_PASSWORD  = 'dba_password'
+
+_CHARS = string.ascii_lowercase + string.digits
 
 # Unfortunately purging the DB also purges the archive so we have to remember
 # this externally from the archive fixture.
@@ -89,24 +93,50 @@ def ap():
     cfg = cvtjson(out)[0]
     localaddr = '%s:%s' % (cfg['properties']['altAddr'], cfg['properties']['agentPort'])
 
-    _log.info("Checking licensing")
-    (ret, out) = nuocmd(['--show-json', 'get', 'effective-license'])
-    if ret != 0:
-        __fatal("Cannot retrieve NuoDB domain license: %s" % (out))
-    lic = cvtjson(out)[0]
     # We'll assume that any license at all is enough to run the minimum
     # database needed by the tests.
-    if not lic or 'decodedLicense' not in lic or 'type' not in lic['decodedLicense']:
-        __fatal("Invalid license: %s" % (out))
-    if lic['decodedLicense']['type'] == 'UNLICENSED':
-        __fatal("NuoDB domain is UNLICENSED")
+    def check_license():
+        # type: () -> Optional[str]
+        (ret, out) = nuocmd(['--show-json', 'get', 'effective-license'])
+        if ret != 0:
+            return "Cannot retrieve NuoDB domain license: %s" % (out)
+        lic = cvtjson(out)[0]
+        if not lic or 'decodedLicense' not in lic or 'type' not in lic['decodedLicense']:
+            return "Invalid license: %s" % (out)
+        if lic['decodedLicense']['type'] == 'UNLICENSED':
+            return "NuoDB domain is UNLICENSED"
+
+        return None
+
+    _log.info("Checking licensing")
+    err = check_license()
+
+    # If we need a license and one exists in the environment, install it
+    if err and os.environ.get('NUODB_LIMITED_LICENSE_CONTENT'):
+        licfile = 'nuodb%s.lic' % (''.join(random.choice(_CHARS) for x in range(10)))
+        licpath = os.path.join(tempfile.gettempdir(), licfile)
+        _log.info("Adding a license provided by the environment")
+        with open(licpath, 'wb') as f:
+            f.write(base64.b64decode(os.environ['NUODB_LIMITED_LICENSE_CONTENT']))
+        (ret, out) = nuocmd(['set', 'license', '--license-file', licpath])
+        try:
+            os.remove(licpath)
+        except Exception:
+            pass
+        if ret != 0:
+            __fatal("Failed to set a license: %s" % (out))
+
+        err = check_license()
+
+    if err:
+        __fatal(err)
 
     yield localap, localaddr
 
 
 @pytest.fixture(scope="session")
-def archive(ap):
-    # type: (AP_FIXTURE) -> Generator[ARCHIVE_FIXTURE, None, None]
+def archive(request, ap):
+    # type: (pytest.FixtureRequest, AP_FIXTURE) -> Generator[ARCHIVE_FIXTURE, None, None]
     """Find or create an archive.
 
     :return path, id
@@ -126,8 +156,7 @@ def archive(ap):
             _log.info("Using existing archive %s: %s" % (ar_id, ar_path))
 
     if not ar_id:
-        ardir = DATABASE_NAME + '-' + ''.join(random.choice(string.ascii_uppercase + string.digits)
-                                              for x in range(20))
+        ardir = DATABASE_NAME + '-' + ''.join(random.choice(_CHARS) for x in range(20))
         ar_path = os.path.join(tempfile.gettempdir(), ardir)
         _log.info("Creating archive %s" % (ar_path))
         (ret, out) = nuocmd(['--show-json', 'create', 'archive',
@@ -145,6 +174,10 @@ def archive(ap):
     if __archive_created:
         (ret, out) = nuocmd(['delete', 'archive', '--archive-id', str(ar_id)])
         assert ret == 0, "Failed to delete archive %s: %s" % (ar_id, out)
+
+    # If nothing failed then delete the archive, else leave it for forensics
+    if request.session.testsfailed == 0:
+        shutil.rmtree(ar_path, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
