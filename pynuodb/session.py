@@ -40,7 +40,7 @@ isP2 = sys.version[0] == '2'
 NUODB_PORT = 48004
 
 
-class SessionException(OperationalError):
+class SessionException(OperationalError):  # pylint: disable=too-many-ancestors
     """Raised for problems encountered with the network session.
 
     It's unfortunate that we invented this exception, but it may be widely
