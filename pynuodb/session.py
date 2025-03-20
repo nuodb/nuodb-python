@@ -419,7 +419,10 @@ class Session(object):
             # We should send this in two parts to avoid making a complete copy
             # of the message when we send it.  But, I think the server may be
             # unhappy if it receives the length then has to wait for the data.
-            sock.send(lenStr + data)
+            buffer = lenStr + data
+            while len(buffer) > 0:
+                sent = sock.send(buffer)
+                buffer = buffer[sent:]
         except Exception:
             self.close()
             raise
