@@ -4,14 +4,15 @@
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
+
+
+This module abstracts the common functionaliy needed to establish a session
+with an engine.  It separates incoming and outgoing stream handling, with
+optional encryption, and correctly encodes and re-assembles messages based on
+their legnth.
 """
 
 __all__ = ["checkForError", "SessionException", "Session"]
-
-# This module abstracts the common functionaliy needed to establish a session
-# with an agent or engine. It separates incoming and outgoing stream handling,
-# optionally with encryption, and correctly encodes and re-assembles messages
-# based on their legnth header.
 
 import socket
 import struct
@@ -270,6 +271,15 @@ class Session(object):
         """Return the port of the service."""
         return self.__port
 
+    @property
+    def cipher_name(self):
+        # type: () -> str
+        """Return the name of the cipher for the current session.
+
+        If using TLS this returns '<unset>' (see the tls_encrypted property).
+        """
+        return self.__cipherOut.name if self.__cipherOut else '<unset>'
+
     def _setCiphers(self, cipherIn, cipherOut):
         # type: (crypt.BaseCipher, crypt.BaseCipher) -> None
         """Set the input and output cipher implementations."""
@@ -463,7 +473,7 @@ class Session(object):
 
     def __readFully(self, msgLength, timeout=None):
         # type: (int, Optional[float]) -> Optional[bytes]
-        """Pull the entire next raw bytes message from the socket."""
+        """Pull the next complete message from the socket."""
         sock = self._sock
         msg = bytearray()
         old_tmout = sock.gettimeout()

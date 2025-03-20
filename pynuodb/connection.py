@@ -14,15 +14,17 @@ connect -- Creates a connection object.
 
 __all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 
-from os import getpid
+import os
+import copy
 import time
 import xml.etree.ElementTree as ElementTree
 
 try:
-    from typing import Mapping, Optional, Tuple  # pylint: disable=unused-import
+    from typing import Any, Dict, Mapping, Optional, Tuple  # pylint: disable=unused-import
 except ImportError:
     pass
 
+from . import __version__
 from .exception import Error, InterfaceError
 from .session import SessionException
 
@@ -91,6 +93,8 @@ class Connection(object):
     _trans_id = None          # type: Optional[int]
     __session = None          # type: encodedsession.EncodedSession
 
+    __config = None           # type: Dict[str, Any]
+
     def __init__(self, database=None,  # type: Optional[str]
                  host=None,            # type: Optional[str]
                  user=None,            # type: Optional[str]
@@ -115,6 +119,11 @@ class Connection(object):
         if password is None:
             raise InterfaceError("No password provided.")
 
+        self.__config = {'driver_version': __version__,
+                         'db_name': database,
+                         'user': user,
+                         'options': copy.deepcopy(options)}
+
         # Split the options into connection parameters and session options
         params, opts = session.Session.session_options(options)
 
@@ -125,9 +134,15 @@ class Connection(object):
 
         port = None
         direct = opts.get('direct', 'false')
-        if direct.lower() != 'true':
+        if direct.lower() == 'true':
+            self.__config['ap_host'] = None
+            # In direct mode the port is part of the host string already
+            self.__config['engine_host'] = host
+        else:
+            self.__config['ap_host'] = host
             # Pass all the connection parameters to the AP just in case.
             (host, port) = self._getTE(host, params, opts)
+            self.__config['engine_host'] = '%s:%d' % (host, port)
 
         # Connect to the NuoDB TE.  It needs all the options.
         self.__session = encodedsession.EncodedSession(
@@ -136,9 +151,22 @@ class Connection(object):
 
         params.update({'user': user,
                        'timezone': time.strftime('%Z'),
-                       'clientProcessId': str(getpid())})
+                       'clientProcessId': str(os.getpid())})
 
         self.__session.open_database(database, password, params)
+
+        self.__config['client_protocol_id'] = self.__session.protocol_id
+        self.__config['connection_id'] = self.__session.connection_id
+        self.__config['db_uuid'] = self.__session.db_uuid
+        self.__config['db_protocol_id'] = self.__session.db_protocol_id
+        self.__config['engine_id'] = self.__session.engine_id
+
+        if self.__session.tls_encrypted:
+            self.__config['tls_enabled'] = True
+            self.__config['cipher'] = None
+        else:
+            self.__config['tls_enabled'] = False
+            self.__config['cipher'] = self.__session.cipher_name
 
         # Set auto commit to false by default per PEP 249
         if 'autocommit' in kwargs:
@@ -221,6 +249,33 @@ class Connection(object):
         :param value: 1 to enable autocommit, 0 to disable.
         """
         self.setautocommit(value != 0)
+
+    def connection_config(self):
+        # type: () -> Dict[str, Any]
+        """Returns a copy of the connection configuration.
+
+        Configuration:
+          ap_host        :str:  Address of the AP host or None for direct
+          cipher         :str:  Name of the cipher if using SRP, else None
+          connected      :bool: True if the connection is active
+          connection_id  :int:  ID of the connection
+          db_name        :str:  name of the connected database
+          db_protocol_id :int:  Server protocol ID of the connected database
+          db_uuid        :uuid: UUID for the connected database
+          driver_version :str:  Version of this driver
+          engine_host    :str:  Address of the TE we're connected to
+          engine_id      :int:  ID for the TE we're connected to
+          options        :dict: Dictionary of connection options
+          protocol_id    :int:  Negotiated client protocol ID
+          tls_enabled    :bool: True if we're connected using TLS
+          user           :str:  name of the connected user
+
+        :returns: Copy of the connection config names and values.
+                  Modifying these values has no effect on the connection.
+        """
+        config = copy.deepcopy(self.__config)
+        config['connected'] = not self.__session.closed
+        return config
 
     def setautocommit(self, value):
         # type: (bool) -> None

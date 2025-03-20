@@ -83,6 +83,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
                       will result in disabling encryption after the handshake.
     """
 
+    # This is managed by the connection
     closed = False
 
     __output = None  # type: bytearray
@@ -91,19 +92,47 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     __input = None   # type: bytearray
     __inpos = 0      # type: int
     __encryption = True
-
-    __connectionDatabaseUUID = None  # type: Optional[uuid.UUID]
     __sessionVersion = 0
-    __connectionID = 0
+    __connectedNodeID = -1
+
+    __connectionDatabaseUUID = None    # type: Optional[uuid.UUID]
+    __connectionID = -1
     __effectivePlatformVersion = 0
-    __connectedNodeID = 0
-    __maxNodes = 128
+    __maxNodes = -1
 
     __lastTxnId = 0
     __lastNodeId = 0
     __lastCommitSeq = 0
 
-    __cipher = None  # Optional[str]
+    @property
+    def db_uuid(self):
+        # type: () -> Optional[uuid.UUID]
+        """Return the database's UUID"""
+        return self.__connectionDatabaseUUID
+
+    @property
+    def db_protocol_id(self):
+        # type: () -> int
+        """Return the database protocol version."""
+        return self.__effectivePlatformVersion
+
+    @property
+    def protocol_id(self):
+        # type: () -> int
+        """Return the client protocol version."""
+        return self.__sessionVersion
+
+    @property
+    def connection_id(self):
+        # type: () -> int
+        """Return the database connection ID"""
+        return self.__connectionID
+
+    @property
+    def engine_id(self):
+        # type: () -> int
+        """Return the ID for the TE, or -1 if unknown."""
+        return self.__connectedNodeID
 
     def __init__(self, host, service='SQL2', options=None, **kwargs):
         # type: (str, str, Optional[Mapping[str, str]], Any) -> None
@@ -188,11 +217,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
                 self._setCiphers(crypt.NoCipher(), crypt.NoCipher())
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
-
-    def get_version(self):
-        # type: () -> int
-        """Return the client protocol version."""
-        return self.__sessionVersion
 
     def get_auth_types(self):
         # type: () -> int
