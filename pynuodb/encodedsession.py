@@ -16,6 +16,7 @@ import struct
 import decimal
 import sys
 from zoneinfo import ZoneInfo
+import tzlocal
 
 try:
     from typing import Any, Collection, Dict, Iterable, List  # pylint: disable=unused-import
@@ -132,8 +133,14 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
     @timezone_name.setter
     def timezone_name(self,tzname):
-        self.__timezone_info = ZoneInfo(tzname)
-        self.__timezone_name = tzname
+        try:
+            self.__timezone_info = ZoneInfo(tzname)
+            self.__timezone_name = tzname
+        except Exception as e:
+            print(e)
+            self.__timezone_info = tzlocal.get_localzone()
+            self.__timezone_name = tzlocal.get_localzone_name()
+            
 
 
     def open_database(self, db_name, password, parameters):
@@ -145,11 +152,6 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         :param password: The user's password.
         :param parameters: Connection parameters.
         """
-
-        for key in parameters:
-            if key.lower() == 'timezone':
-                self.timezone_name = parameters[key]
-                break
 
         params = parameters.copy()
         if 'clientInfo' not in params:
@@ -195,6 +197,10 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         if cp:
             self._srp_handshake(params['user'], password, serverKey, salt, cp)
+
+        self._set_timezone()
+
+
 
     def _srp_handshake(self, username, password, serverKey, salt, cp):
         # type: (str, str, str, str, ClientPassword) -> None
@@ -273,6 +279,31 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         # type: (bool) -> None
         """Enable or disable encryption."""
         self.__encryption = value
+
+    def _set_timezone(self):
+        """
+        Query TE for TimeZone name. This is done because timezone abbreviations
+        are allowed in TE but, not handled by ZoneInfo.  If TE gets a TimeZone=EST
+        connection property,  it will set TimeZone system connection property to America/
+        
+        # type: () -> None
+        """
+        # Create a statement handle
+        self._putMessageId(protocol.CREATE)
+        self._exchangeMessages()
+        handle = self.getInt()
+
+        self._setup_statement(handle, protocol.EXECUTEQUERY)
+        self.putString("select value from system.connectionproperties where property='TimeZone'")
+        self._exchangeMessages()
+
+        # returns: rsHandle, count, colname, result, fieldValue, r2
+        res = [self.getInt(), self.getInt(), self.getString(),
+               self.getInt(), self.getString(), self.getInt()]
+        self.timezone_name=res[-2]
+        self._putMessageId(protocol.CLOSESTATEMENT).putInt(handle)
+
+
 
     def test_connection(self):
         # type: () -> None
@@ -695,7 +726,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         :type value: datetype.Time
         """
         return self._putScaled(protocol.SCALEDTIMELEN0,
-                               *datatype.TimeToTicks(value))
+                               *datatype.TimeToTicks(value,self.timezone_info))
 
     def putScaledTimestamp(self, value):
         # type: (datatype.Timestamp) -> EncodedSession
@@ -704,7 +735,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         :type value: datetime.datetime
         """
         return self._putScaled(protocol.SCALEDTIMESTAMPLEN0,
-                               *datatype.TimestampToTicks(value))
+                               *datatype.TimestampToTicks(value,self.timezone_info))
 
     def putScaledDate(self, value):
         # type: (datatype.Date) -> EncodedSession
@@ -970,7 +1001,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             if scale:
                 micro = stamp%shiftr
                 micro *= 10**(6-scale)
-            print(f"getScaledTimestamp: stamp {stamp} to {ticks}.{micro}")
+            #print(f"getScaledTimestamp: stamp {stamp} to {ticks}.{micro}")
             return datatype.TimestampFromTicks(ticks,micro,self.timezone_info)
 
         raise DataError('Not a scaled timestamp')

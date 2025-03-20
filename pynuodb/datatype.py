@@ -21,15 +21,14 @@ TypeObject Variables:
 STRING -- TypeObject(str)
 BINARY -- TypeObject(str)
 NUMBER -- TypeObject(int, decimal.Decimal)
-DATE -- TypeObject(datetime.date)
-DATETIME -- TypeObject(datetime.datetime, datetime.time)
+DATETIME -- TypeObject(datetime.datetime, datetime.date, datetime.time)
 ROWID -- TypeObject()
 """
 
 __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'TimestampFromTicks', 'DateToTicks', 'TimeToTicks',
            'TimestampToTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-           'DATETIME', 'DATE', 'ROWID', 'TypeObjectFromNuodb']
+           'DATETIME', 'ROWID', 'TypeObjectFromNuodb']
 
 import sys
 
@@ -38,169 +37,200 @@ try:
 except ImportError:
     pass
 
-from .exception import DataError
-from .calendar  import ymd2day, day2ymd
 from datetime import datetime as Timestamp, date as Date, time as Time, timezone as TimeZone
 from datetime import timedelta as TimeDelta
 import decimal
 import time
 import tzlocal
-from zoneinfo import ZoneInfo
+from .exception import DataError
+from .calendar  import ymd2day, day2ymd
 
+isP2 = sys.version[0] == '2'
 
-Binary = bytes
+localZoneInfo = tzlocal.get_localzone()
+
+class Binary(bytes):
+    """A binary string.
+
+    If passed a string we assume it's encoded as LATIN-1, which ensures that
+    the characters 0-255 are considered single-character sequences.
+    """
+
+    def __new__(cls, data):
+        # type: (Union[str, bytes, bytearray]) -> Binary
+        # I can't figure out how to get mypy to be OK with this.
+        if isinstance(data, bytearray):
+            return bytes.__new__(cls, data)  # type: ignore
+        # In Python2 there's no distinction between str and bytes :(
+        if isinstance(data, str) and not isP2:
+            return bytes.__new__(cls, data.encode('latin-1'))  # type: ignore
+        return bytes.__new__(cls, data)  # type: ignore
+
+    def __str__(self):
+        # type: () -> str
+        # This is pretty terrible but it's what the old version did.
+        # What does it really mean to run str(Binary)?  That should probably
+        # be illegal, but I'm sure lots of code does "%s" % (Binary(x)) or
+        # the equivalent.  In Python 3 we have to remove the 'b' prefix too.
+        # I'll leave this for consideration at some future time.
+        return repr(self)[1:-1] if isP2 else repr(self)[2:-1]
+
+    @property
+    def string(self):
+        # type: () -> bytes
+        """The old implementation of Binary provided this."""
+        return self
 
 TICKSDAY=86400
-
-def DateFromTicks(ticks: int) -> Date:
-    """ convert seconds from epoch to Date """
-
-    # ticks is calculated from 1/1/1970 00:00:00 UTC
-    day = ticks//TICKSDAY
-    y,m,d = day2ymd(day)
+def DateFromTicks(ticks):
+    # type: (int) -> Date
+    """Convert ticks to a Date object."""
+    #return Date(*time.localtime(ticks)[:3])
+    y,m,d = day2ymd(ticks//TICKSDAY)
     return Date(year=y,month=m,day=d)
 
 
-def TimeFromTicks(ticks : int, micro : int = 0, zoneinfo: ZoneInfo = None ) -> Time:
-    """
-    Convert input to a Time object.
-    Input:
-       ticks  - number of seconds
-       micro  - number of micoseconds
-       as_gmt - whether to apply timezone offset
-              - True - don't apply timezone offset.
-              - False - apply standard time offset of the local timezone
-                        to the time.
-    """
+def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
+    # type: (int, int) -> Time
+    """Convert ticks to a Time object."""
+    #return Time(*time.localtime(ticks)[3:6] + (micro,))
 
-    # ticks with timezone can be less than 0 and greater than TICKSDAY
-    # add a day and mod.
+    if ticks >= TICKSDAY or ticks <= -TICKSDAY:
+        dt = TimestampFromTicks(ticks,micro,zoneinfo)
+        _time = dt.time()
+    else:
+        if ticks < 0 and micro:
+            ticks -= 1
+        timeticks = ticks % TICKSDAY
+        hour  = timeticks // 3600
+        sec   = timeticks % 3600
+        min   = (sec // 60 )
+        sec  %= 60
+        micro %= 1000000
 
-    # time.timezone is used since Time object does not have
-    # a date , nuodb uses time.timezone and not time.alttime for TIME.
-
-    inticks = ticks
-    ticks += TICKSDAY
-    if zoneinfo:
-        stdtime = Date.today().replace(month=1,day=1)
-        dt_dst  = Timestamp.combine(stdtime,Time(),tzinfo=zoneinfo)
-        ticks -= dt_dst.utcoffset() 
-    ticks = ticks % TICKSDAY
-
-    hour = ticks // 3600
-    secs = ticks % 3600
-    min  = (secs // 60 )
-    sec  = secs % 60
-    _time = Time(hour=hour,minute=min,second=sec,microsecond=micro)
+        # convert time to standard time offset from utc for given timezone. Use
+        # today's date for offset calculation.
+        
+        today  = Timestamp.now().date()
+        time   = Time(hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
+        tstamp = Timestamp.combined(today,time).astimezone(zoneinfo)
+        dst_offset = tstamp.dst()
+        if dst_offset:
+            tstamp -= dst_offset
+        _time    = tstamp.time()
     return _time
 
 
-def TimestampFromTicks(ticks : int , micro : int = 0, zoneinfo : ZoneInfo = None) -> Timestamp:
-    """
-    Convert seconds, microseconds to a Timestamp object.
 
-    ticks - number of seconds since epoch
-    micro - microseconds of fractional second since epoch
+def TimestampFromTicks(ticks, micro=0,zoneinfo=localZoneInfo):
+    # type: (int, int) -> Timestamp
+    """Convert ticks to a Timestamp object."""
+    #return Timestamp(*time.localtime(ticks)[:6] + (micro,))
+    day = ticks//TICKSDAY
+    y,m,d = day2ymd(day)
 
-    """
-
-    # DateFromTicks is gmt.
-    date = DateFromTicks(ticks)
     timeticks = ticks % TICKSDAY
-    if ticks < 0 and micro:
-        timeticks -= 1
-    time = TimeFromTicks(timeticks, micro % 1000000)
+    hour = timeticks // 3600
+    sec  = timeticks % 3600
+    min  =  sec // 60
+    sec  %=  60
 
-    # combine date, time and convert to local timezone.
-    dt = Timestamp.combine(date,time,TimeZone.utc).astimezone(zoneinfo)
+    dt = Timestamp(year=y,month=m,day=d,hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
+    dt = dt.astimezone(zoneinfo)
+    #print(f"TimestampFromTicks: {ticks} {micro} - {dt}")
     return dt
 
 
-def DateToTicks(value : Date) -> int:
-    """
-    Convert Date (year,month,day) to number of seconds since epoch.
-    """
-
+def DateToTicks(value):
+    # type: (Date) -> int
+    """Convert a Date object to ticks."""
+    # timeStruct = Date(value.year, value.month, value.day).timetuple()
+    # try:
+    #     return int(time.mktime(timeStruct))
+    # except Exception:
+    #     raise DataError("Year out of range")
     day = ymd2day(value.year, value.month, value.day)
     return day * TICKSDAY
 
-
 def packtime(seconds: int, microseconds: int) -> (int, int):
-    ndiv=0
-    msecs  = microseconds
-    shiftr = 1000000
-    shiftl = 1
-    while (microseconds % shiftr):
-        shiftr //= 10
-        shiftl *= 10
-        ndiv +=1
-    return ( seconds*shiftl + microseconds//shiftr, ndiv )
+    if microseconds:
+        ndiv=0
+        msecs  = microseconds
+        shiftr = 1000000
+        shiftl = 1
+        while (microseconds % shiftr):
+            shiftr //= 10
+            shiftl *= 10
+            ndiv +=1
+        return ( seconds*shiftl + microseconds//shiftr, ndiv )
+    else:
+        return (seconds, 0)
 
 
-def TimeToTicks(value : Time) -> Tuple[int,int]:
-    """
-    Convert Time to packed integer.
+# def packtime(seconds, microseconds):
+#     if microseconds:
+#         micro = decimal.Decimal(microseconds) / decimal.Decimal(1000000)
+#         t1 = decimal.Decimal(str(seconds)) + micro
+#         tlen = len(str(micro)) - 2
+#         return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
+#     else:
+#         return (seconds, 0)
 
-    This assumes that the inputted time is naive.  that is without timezone.
+def TimeToTicks(value,zoneinfo = localZoneInfo):
+    # type: (Time) -> Tuple[int, int]
+    """Convert a Time object to ticks."""
 
-    Input:
-       value    - datetime.time - time object with microsecond precision to pack
+    # convert time to time relative to connection timezone
+    # using today as date.
 
-    Output:
-       (int , npos ) - npos defines number of positions (10**npos) that seconds was
-                       switched to pack microseconds.
+    tstamp = Timestamp.combine(Date.today(),value)
+    if tstamp.tzinfo is None:
+        tstamp = tstamp.replace(tzinfo=zoneinfo)
+    else:
+        tstamp = tstamp.astimezone(zoneinfo)
 
-    Example:
-      With local timezone (UTC):
-       (hour=0,minute=0,second=10,microsecond=1) -> (10000001, 6)
-       (hour=0,minute=0,second=10,microsecond=100000) -> (11, 1)
-      With local timezone (America/New_York): (add offset (05:00))
-       (hour=0,minute=0,second=10,microsecond=1) -> (180010000001, 6)
-       (hour=0,minute=0,second=10,microsecond=100000) -> (180011, 1)
-    """
+    dst_offset = zoneinfo.dst(tstamp)
+    utc_offset = zoneinfo.utcoffset(tstamp)
+    std_offset = dst_offset - utc_offset
+    
+    timeStruct = TimeDelta(hours=tstamp.hour, minutes=tstamp.minute,
+                           seconds=tstamp.second,
+                           microseconds=tstamp.microsecond)
+    timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
 
-    # Time can have an associated timezone or be naive.
+    return (int((timeDec + std_offset) * 10**abs(timeDec.as_tuple()[2])),
+            abs(timeDec.as_tuple()[2]))
 
-    # do we use:
-    #   local timezone standard time offset
-    #   connection tzinfo standard time offset
-    #   time tzinfo standard time offset
 
-    # convert time to local timezone.
-    today = Date.today()
-    year = today.year
+def TimestampToTicks(value,zoneinfo  = localZoneInfo):
+    # type: (Timestamp) -> Tuple[int, int]
+    """Convert a Timestamp object to ticks."""
+    # timeStruct = Timestamp(value.year, value.month, value.day, value.hour,
+    #                        value.minute, value.second).timetuple()
+    # try:
+    #     if not value.microsecond:
+    #         return (int(time.mktime(timeStruct)), 0)
+    #     micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
+    #     t1 = decimal.Decimal(int(time.mktime(timeStruct))) + micro
+    #     tlen = len(str(micro)) - 2
+    #     return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
+    # except Exception:
+    #     raise DataError("Year out of range")
 
-    dt = Timestamp.combine(today, value)
-    dt = dt.astimezone(ZoneInfo(tzlocal.get_localzone_name()))
-    ntime = dt.time()
-
-    secs  = ntime.hour * 3600
-    secs += ntime.minute * 60
-    secs += ntime.second
-    return packtime(secs,ntime.microsecond)
-
-def TimestampToTicks(value : Timestamp) -> Tuple[int, int]:
-    """
-    Convert datetime.datetime to packed integer.
-
-    The datetime.datetime is first converted to utc time and then packed.
-
-    Input:
-       value    - datetime.datetime - datetime object with microsecond precision to pack
-
-    Output:
-       (int , npos ) - npos defines number of positions (10**npos) that seconds was
-                       switched to pack microseconds.
-
-    Example:
-    """
-
+    # if naive timezone then leave date/time but change tzinfo to
+    # be connection's timezone.
+    
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=zoneinfo)
     dt = value.astimezone(TimeZone.utc)
     timesecs  = ymd2day(dt.year,dt.month,dt.day) * TICKSDAY
     timesecs += dt.hour * 3600
     timesecs += dt.minute * 60
     timesecs += dt.second
-    return packtime(timesecs,dt.microsecond)
+    packedtime = packtime(timesecs,dt.microsecond)
+    #print(f'TimestampToTicks: {value} {timesecs} {dt.microsecond} =  {packedtime}')
+    return packedtime
+
 
 class TypeObject(object):
     """A SQL type object."""
@@ -219,9 +249,7 @@ class TypeObject(object):
 STRING = TypeObject(str)
 BINARY = TypeObject(str)
 NUMBER = TypeObject(int, decimal.Decimal)
-DATETIME = TypeObject(Timestamp)
-DATE = TypeObject(Date)
-TIME = TypeObject(Time)
+DATETIME = TypeObject(Timestamp, Date, Time)
 ROWID = TypeObject()
 
 TYPEMAP = {"<null>": None,
@@ -261,4 +289,3 @@ def TypeObjectFromNuodb(nuodb_type_name):
     if obj is None:
         raise DataError('received unknown column type "%s"' % (name))
     return obj
-
