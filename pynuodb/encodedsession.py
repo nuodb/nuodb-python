@@ -375,7 +375,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         handle = self.getInt()
         param_count = self.getInt()
 
-        return PreparedStatement(handle, param_count)
+        statement = PreparedStatement(handle, param_count)
+
+        if self.__sessionVersion >= protocol.SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT:
+            if self.getBoolean():
+                statement.description = self._parse_result_set_description()
+
+        return statement
 
     def execute_prepared_statement(self, prepared_statement, parameters):
         # type: (PreparedStatement, Collection[Value]) -> ExecutionResult
@@ -497,14 +503,11 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             result_set.add_row(tuple(row))
 
-    def fetch_result_set_description(self, result_set):
-        # type: (ResultSet) -> List[List[Any]]
-        """Return the metadata for this result set."""
-        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
-        self._exchangeMessages()
-
+    def _parse_result_set_description(self):
+        # type: () -> List[List[Any]]
+        """Parse the result set metadata from the message."""
         description = [list()] * self.getInt()  # type: List[List[Any]]
-        for i in range(result_set.col_count):
+        for i in range(len(description)):  # pylint: disable=consider-using-enumerate
             self.getString()    # catalog_name
             self.getString()    # schema_name
             self.getString()    # table_name
@@ -524,6 +527,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
                               column_display_size, None, precision, scale, None]
 
         return description
+
+    def fetch_result_set_description(self, result_set):
+        # type: (ResultSet) -> List[List[Any]]
+        """Return the metadata for this result set."""
+        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
+        self._exchangeMessages()
+        return self._parse_result_set_description()
 
     # Methods to put values into the next message
 
@@ -1052,6 +1062,36 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         raise DataError('Not a Scaled Count 2')
 
+    def getScaledCount3(self):
+        # type: () -> decimal.Decimal
+        """Read a scaled and signed decimal from the session.
+
+        :rtype: decimal.Decimal
+        """
+        code = self._getTypeCode()
+        if code is protocol.SCALEDCOUNT3:
+            sz = fromByteString(self._takeBytes(1))
+            if sz == 0:
+                scale = 0
+            else:
+                scale = fromByteString(self._takeBytes(sz))
+
+            sign = fromSignedByteString(self._takeBytes(1))
+            sign = 1 if sign < 0 else 0
+
+            sz = fromByteString(self._takeBytes(1))
+            if sz == 0:
+                length = 0
+            else:
+                length = fromByteString(self._takeBytes(sz))
+
+            data = fromByteString(self._takeBytes(length))
+            value = tuple(int(i) for i in str(abs(data)))
+            scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
+            return scaledcount
+
+        raise DataError('Not a Scaled Count 3')
+
     # pylint: disable=too-many-return-statements, too-many-branches
     def getValue(self):
         # type: () -> Any
@@ -1080,6 +1120,9 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         if code == protocol.SCALEDCOUNT2:
             return self.getScaledCount2()
+
+        if code == protocol.SCALEDCOUNT3:
+            return self.getScaledCount3()
 
         if code >= protocol.SCALEDLEN0 and code <= protocol.SCALEDLEN8:
             return self.getScaledInt()
