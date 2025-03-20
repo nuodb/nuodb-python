@@ -22,7 +22,7 @@ not.
 The epoch of the Gregorian calendar, (1 January 1) was Monday, 1
 January 3 in the Julian calendar or Julian Day Number 1721426.
 
-The algorithm's for ymd2day and day2ymd are based off of 
+The algorithm's for ymd2day and day2ymd are based off of.
 - https://github.com/SETI/rms-julian/blob/main/julian/calendar.py
 """
 
@@ -42,7 +42,7 @@ _MAR01_1BCE            = - (_FEB29_1BCE_JULIAN + 1)
 _GREGORIAN_DAY1        = 2299160 - 2440587
 
 
-def ymd2day(year: int, month: int, day: int,validate: int =False) -> int:
+def ymd2day(year: int, month: int, day: int,validate: bool =False) -> int:
 
     """
     Converts given year , month, day to number of days since unix EPOCH.
@@ -73,13 +73,11 @@ def ymd2day(year: int, month: int, day: int,validate: int =False) -> int:
         # Julian Calendar, leap year ever 4 years
         daynum = (365*yy + yy//4) + (mm * 306 + 5)//10 + d + _FEB29_1BCE_JULIAN
     else:
-        print("Invalid date %04d-%02d-%02d not in Gregorian or Julian Calendar" % (year,month,day))
-        return None
+        raise ValueError(f"Invalid date {year:04}-{month:02}-{day:02} not in Gregorian or Julian Calendar"))
 
     if validate:
         if day2ymd(daynum) != (year,month,day):
-            print("Invalid date %04d-%02d-%02d" % (year,month,day))
-            return None
+            raise ValueError(f"Invalid date {year:04}-{month:02}-{day:02}")
     return daynum
 
 def day2ymd(daynum: int) -> (int,int,int):
@@ -105,8 +103,9 @@ def day2ymd(daynum: int) -> (int,int,int):
     
     """
 
+    # before 1/1/1 or after 9999/12/25
     if daynum < -719164 or daynum > 2932896:
-        return None
+        raise ValueError(f"Invalid daynum {daynum} before 0001-01-01 or after 9999-12-31")
 
     # In Julian Calender 0001-01-03 is (JD 1721426).
     g = daynum + _MAR01_1BCE

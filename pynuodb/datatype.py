@@ -166,7 +166,6 @@ def packtime(seconds: int, microseconds: int) -> (int, int):
     else:
         return (seconds, 0)
 
-
 # def packtime(seconds, microseconds):
 #     if microseconds:
 #         micro = decimal.Decimal(microseconds) / decimal.Decimal(1000000)
@@ -218,8 +217,7 @@ def TimestampToTicks(value,zoneinfo  = localZoneInfo):
     #     raise DataError("Year out of range")
 
     # if naive timezone then leave date/time but change tzinfo to
-    # be connection's timezone.
-    
+    # be connection's timezone.    
     if value.tzinfo is None:
         value = value.replace(tzinfo=zoneinfo)
     dt = value.astimezone(TimeZone.utc)
