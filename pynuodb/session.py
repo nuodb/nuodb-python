@@ -409,17 +409,25 @@ class Session(object):
             data = message  # type: ignore
         elif isinstance(message, str):
             data = message.encode('utf-8')
+        else:
+            raise SessionException("Invalid message type: %s" % (type(message)))
 
         if self.__cipherOut:
             data = self.__cipherOut.transform(data)
 
-        lenStr = struct.pack("!I", len(data))
+        lenbuf = struct.pack("!I", len(data))
+        # It should be possible to send the length followed by the data so we
+        # don't have to reallocate this entire buffer, but it is unreliable.
+        buf = lenbuf + data
+        view = memoryview(buf)
+        start = 0
+        left = len(buf)
 
         try:
-            # We should send this in two parts to avoid making a complete copy
-            # of the message when we send it.  But, I think the server may be
-            # unhappy if it receives the length then has to wait for the data.
-            sock.send(lenStr + data)
+            while left > 0:
+                sent = sock.send(view[start:left])
+                start += sent
+                left -= sent
         except Exception:
             self.close()
             raise
