@@ -309,7 +309,7 @@ class ClientPassword(RemotePassword):
 class BaseCipher(object):
     """Base class for ciphers."""
 
-    __ciphername = "invalid"
+    name = 'invalid'
 
     def transform(self, data):
         # type: (bytes) -> bytes
@@ -320,6 +320,8 @@ class BaseCipher(object):
 class NoCipher(BaseCipher):
     """No cipher."""
 
+    name = 'None'
+
     def transform(self, data):
         # type: (bytes) -> bytes
         """Return the input data unchanged."""
@@ -328,6 +330,8 @@ class NoCipher(BaseCipher):
 
 class RC4CipherNuoDB(BaseCipher):
     """An RC4 cipher object using a native Python algorithm."""
+
+    name = 'RC4-local'
 
     def __init__(self, key):
         # type: (bytes) -> None
@@ -388,6 +392,8 @@ class RC4CipherNuoDB(BaseCipher):
 
 class RC4CipherCryptography(BaseCipher):
     """An RC4 cipher object using cryptography."""
+
+    name = 'RC4'
 
     def __init__(self, key):
         # type: (bytes) -> None

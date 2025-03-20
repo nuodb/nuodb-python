@@ -87,6 +87,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
                       will result in disabling encryption after the handshake.
     """
 
+    # This is managed by the connection
     closed = False
 
     __output = None  # type: bytearray
