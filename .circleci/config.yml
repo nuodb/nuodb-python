@@ -2,6 +2,7 @@ version: 2.1
 
 commands:
   after_failure:
+    description: "Steps to be run after build or test failure"
     parameters:
       when:
         type: string
@@ -9,29 +10,26 @@ commands:
       - run:
           name: On failure action
           command: |
-            env | sort
-            echo ------
-            cat $HOME/.bashrc $HOME/.profile $HOME/.bash_profile || true
-            echo ------
-            cat $HOME/.nuocmdrc || true
-            echo ------
-            cat /var/log/nuodb/nuoadmin.log* || true
-            echo ------
-            cat /tmp/nuotest.log || true
-            echo ------
-            grep ssl /etc/nuodb/nuoadmin.conf || true
+            env | sort > artifacts/env.out
+            cp -a $HOME/.bashrc artifacts || true
+            cp -a $HOME/.profile artifacts || true
+            cp -a $HOME/.bash_profile artifacts ||
+            cp -a $HOME/.nuocmdrc artifacts || true
+            cp -a /etc/nuodb/nuoadmin.conf artifacts || true
+            cp -a /var/log/nuodb/nuoadmin.log* artifacts || true
           when: <<parameters.when>>
 
       - when:
           condition: <<parameters.when>>
           steps:
             - store_artifacts:
-                path: /var/log/nuodb/nuoadmin.log
+                path: artifacts
 
 jobs:
   build_n_run:
+    description: "Build the nuodb-python module and run the test suite"
     docker:
-      - image: nuodb/nuodb:5.1.2
+      - image: nuodb/nuodb:latest
         user: root
     resource_class: small
     environment:
@@ -43,31 +41,35 @@ jobs:
     steps:
       - checkout
       - run:
-          command: dnf install make -y
-          name: Install make
+          name: Make test directories
+          command: mkdir -p artifacts results
       - run:
-          name : Install python dependencies
+          name: Install make
+          command: dnf install make -y
+      - run:
+          name: Install Python dependencies
           command: make install
       - run:
-          name : Create test result folder
-          command: mkdir test_results
-      - run:
-          name : Configure and run NuoDB Admin
+          name: Start NuoDB Admin
           command: |
-            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls $NUO_SET_TLS
-            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" tls status
-            sudo -u nuodb "/opt/nuodb/etc/nuoadmin" start
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin tls $NUO_SET_TLS
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin tls status
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin start
+            sudo -u nuodb /opt/nuodb/bin/nuocmd --show-json get effective-license
       - run:
           name: Run test
-          command: make fulltest "PYTEST_ARGS=--log-file-level=10 --log-file=/tmp/nuotest.log"
+          command: make fulltest
       - store_artifacts:
-          path: htmlcov
+          path: artifacts
       - store_test_results:
-          path: test_results
+          path: results
       - after_failure:
           when : "on_fail"
 
 workflows:
   build-project:
     jobs:
-      - build_n_run
+      - build_n_run:
+          name: "Build and run regression tests"
+          context:
+            - common-config

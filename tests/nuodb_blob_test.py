@@ -1,16 +1,20 @@
-#!/usr/bin/env python
+"""
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
-import unittest
+This software is licensed under a BSD 3-Clause License.
+See the LICENSE file provided with this software.
+"""
+
 import struct
 
 import pynuodb
 import sys
-from .nuodb_base import NuoBase
+from . import nuodb_base
 
 systemVersion = sys.version[0]
 
 
-class NuoDBBlobTest(NuoBase):
+class TestNuoDBBlob(nuodb_base.NuoBase):
     def test_blob_prepared(self):
         con = self._connect()
         cursor = con.cursor()
@@ -24,9 +28,5 @@ class NuoDBBlobTest(NuoBase):
         if systemVersion == '3':
             currentRow = bytes(currentRow, 'latin-1')
         array2 = struct.unpack('hhl', currentRow)
-        self.assertEqual(len(array2), 3)
-        self.assertEqual(array2[2], 3)
-
-
-if __name__ == '__main__':
-    unittest.main()
+        assert len(array2) == 3
+        assert array2[2] == 3

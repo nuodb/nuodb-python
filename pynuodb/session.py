@@ -1,6 +1,6 @@
 """Establish and manage a SQL session with a NuoDB database.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -40,7 +40,7 @@ isP2 = sys.version[0] == '2'
 NUODB_PORT = 48004
 
 
-class SessionException(OperationalError):
+class SessionException(OperationalError):  # pylint: disable=too-many-ancestors
     """Raised for problems encountered with the network session.
 
     It's unfortunate that we invented this exception, but it may be widely
@@ -176,7 +176,7 @@ class Session(object):
     @staticmethod
     def _to_ipaddr(addr):
         # type: (str) -> Tuple[str, int]
-        if isP2:
+        if isP2 and not isinstance(addr, unicode):  # type: ignore
             ipaddr = ip_address(unicode(addr, 'utf_8'))  # type: ignore
         else:
             ipaddr = ip_address(addr)

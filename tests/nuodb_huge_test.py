@@ -1,17 +1,14 @@
-#!/usr/bin/env python
 """
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-import unittest
-
-from .nuodb_base import NuoBase
+from . import nuodb_base
 
 
-class NuoDBHugeTest(NuoBase):
+class TestNuoDBHuge(nuodb_base.NuoBase):
     def test_wide_select(self):
 
         con = self._connect()
@@ -31,10 +28,10 @@ class NuoDBHugeTest(NuoBase):
         cursor.execute(select_string)
         row = cursor.fetchone()
 
-        self.assertEqual(len(row), total_columns)
+        assert len(row) == total_columns
 
         for col in range(total_columns):
-            self.assertEqual(row[col], alphabet + str(col + 1))
+            assert row[col] == alphabet + str(col + 1)
 
     def test_wide_string(self):
 
@@ -52,9 +49,9 @@ class NuoDBHugeTest(NuoBase):
 
         cursor.execute(select_string, [alphabet_multi, alphabet_multi])
         row = cursor.fetchone()
-        self.assertEqual(len(row[0]), total_width * len(alphabet))
-        self.assertEqual(len(row[1]), total_width * len(alphabet))
-        self.assertEqual(row[2], True)
+        assert len(row[0]) == total_width * len(alphabet)
+        assert len(row[1]) == total_width * len(alphabet)
+        assert row[2]
 
     def test_long_select(self):
 
@@ -82,11 +79,7 @@ class NuoDBHugeTest(NuoBase):
                 break
             total_rows = total_rows + len(rows)
 
-        self.assertEqual(total_rows, 1000000)
+        assert total_rows == 1000000
 
         cursor.execute("DROP TABLE ten")
         cursor.execute("DROP TABLE huge_select")
-
-
-if __name__ == '__main__':
-    unittest.main()

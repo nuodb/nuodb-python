@@ -1,25 +1,25 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-import unittest
 import decimal
 import time
 import os
 import sys
+import pytest
 
 import pynuodb
-from .nuodb_base import NuoBase
-from .mock_tzs import Local
 from pynuodb.exception import DataError
 
+from . import nuodb_base
+from .mock_tzs import Local
 
-class NuoDBBasicTest(NuoBase):
+
+class TestNuoDBBasic(nuodb_base.NuoBase):
     def connectManyTimesUsingOptions(self, options):
         connected_node_ids = set()
         for _ in range(10):
@@ -47,7 +47,7 @@ class NuoDBBasicTest(NuoBase):
                 transaction_node_ids.add(row[0])
         finally:
             con.close()
-        self.assertGreaterEqual(len(transaction_node_ids), 2, "Test requires 2+ TEs")
+        assert len(transaction_node_ids) >= 2, "Test requires 2+ TEs"
 
     def test_noop(self):
         con = self._connect()
@@ -55,8 +55,8 @@ class NuoDBBasicTest(NuoBase):
             cursor = con.cursor()
             cursor.execute("select 1 from dual")
             row = cursor.fetchone()
-            self.assertEqual(len(row), 1)
-            self.assertEqual(row[0], 1)
+            assert len(row) == 1
+            assert row[0] == 1
         finally:
             con.close()
 
@@ -78,7 +78,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], 0)
+                assert row[i] == 0
 
         finally:
             try:
@@ -103,7 +103,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -127,7 +127,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -151,7 +151,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -168,7 +168,7 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("INSERT INTO t (x) VALUES (?)", (value,))
             cursor.execute("SELECT * FROM t")
             row = cursor.fetchone()
-            self.assertEqual(row[0], value)
+            assert row[0] == value
         finally:
             try:
                 cursor.execute("DROP TABLE t IF EXISTS")
@@ -277,7 +277,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -293,32 +293,32 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, smallint_col smallint, integer_col integer, bigint_col bigint, "
                            "numeric_col numeric(10, 2), decimal_col decimal(10, 2), double_col double)")
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (10**99,)
                 cursor.execute("insert into typetest (smallint_col) values (?)",
                                test_vals)
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (10**99,)
                 cursor.execute("insert into typetest (integer_col) values (?)",
                                test_vals)
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (10**99,)
                 cursor.execute("insert into typetest (bigint_col,) values (?)",
                                test_vals)
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (-(10**99),)
                 cursor.execute("insert into typetest (smallint_col) values (?)",
                                test_vals)
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (-(10**99),)
                 cursor.execute("insert into typetest (integer_col) values (?)",
                                test_vals)
 
-            with self.assertRaises(pynuodb.DatabaseError):
+            with pytest.raises(pynuodb.DatabaseError):
                 test_vals = (-(10**99),)
                 cursor.execute("insert into typetest (bigint_col,) values (?)",
                                test_vals)
@@ -342,7 +342,7 @@ class NuoDBBasicTest(NuoBase):
                            test_vals)
             cursor.execute("select decimal_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
-            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
+            assert row[0] == decimal.Decimal(test_vals[0])
 
         finally:
             try:
@@ -363,7 +363,7 @@ class NuoDBBasicTest(NuoBase):
                            test_vals)
             cursor.execute("select decimal_col from typetest order by id desc limit 1")
             row = cursor.fetchone()
-            self.assertEqual(row[0], decimal.Decimal(test_vals[0]))
+            assert row[0] == decimal.Decimal(test_vals[0])
 
         finally:
             try:
@@ -386,7 +386,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], '')
+                assert row[i] == ''
 
         finally:
             try:
@@ -410,7 +410,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -438,7 +438,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
 
         finally:
             try:
@@ -458,8 +458,8 @@ class NuoDBBasicTest(NuoBase):
 
             # Make sure our clientProcessId and clientInfo remain the same in
             # the SYSTEM.CONNECTIONS table
-            self.assertEqual(str(os.getpid()), result[0])  # clientProcessId
-            self.assertEqual(clientInfo, result[1])  # clientInfo
+            assert result[0] == str(os.getpid())
+            assert result[1] == clientInfo
         finally:
             con.close()
 
@@ -488,7 +488,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
         finally:
             try:
                 cursor.execute("drop table typetest if exists")
@@ -520,38 +520,38 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            self.assertIsInstance(row[1], pynuodb.Date)
-            self.assertIsInstance(row[2], pynuodb.Time)
-            self.assertIsInstance(row[3], pynuodb.Timestamp)
-            self.assertIsInstance(row[4], pynuodb.Timestamp)
+            assert isinstance(row[1], pynuodb.Date)
+            assert isinstance(row[2], pynuodb.Time)
+            assert isinstance(row[3], pynuodb.Timestamp)
+            assert isinstance(row[4], pynuodb.Timestamp)
 
-            self.assertEqual(test_vals[2] - test_vals[3], row[3] - row[4])
+            assert test_vals[2] - test_vals[3] == row[3] - row[4]
 
-            self.assertEqual(row[1].year, test_vals[0].year)
-            self.assertEqual(row[1].month, test_vals[0].month)
-            self.assertEqual(row[1].day, test_vals[0].day)
+            assert row[1].year == test_vals[0].year
+            assert row[1].month == test_vals[0].month
+            assert row[1].day == test_vals[0].day
 
-            self.assertEqual(row[2].hour, test_vals[1].hour)
-            self.assertEqual(row[2].minute, test_vals[1].minute)
-            self.assertEqual(row[2].second, test_vals[1].second)
-            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)
+            assert row[2].hour == test_vals[1].hour
+            assert row[2].minute == test_vals[1].minute
+            assert row[2].second == test_vals[1].second
+            assert row[2].microsecond == test_vals[1].microsecond
 
-            self.assertEqual(row[3].year, test_vals[2].year)
-            self.assertEqual(row[3].month, test_vals[2].month)
-            self.assertEqual(row[3].day, test_vals[2].day)
+            assert row[3].year == test_vals[2].year
+            assert row[3].month == test_vals[2].month
+            assert row[3].day == test_vals[2].day
 
-            self.assertEqual(row[3].hour, test_vals[2].hour)
-            self.assertEqual(row[3].minute, test_vals[2].minute)
-            self.assertEqual(row[3].second, test_vals[2].second)
-            self.assertEqual(row[3].microsecond, test_vals[2].microsecond)
+            assert row[3].hour == test_vals[2].hour
+            assert row[3].minute == test_vals[2].minute
+            assert row[3].second == test_vals[2].second
+            assert row[3].microsecond == test_vals[2].microsecond
 
-            self.assertEqual(row[4].year, test_vals[3].year)
-            self.assertEqual(row[4].month, test_vals[3].month)
-            self.assertEqual(row[4].day, test_vals[3].day)
-            self.assertEqual(row[4].hour, test_vals[3].hour)
-            self.assertEqual(row[4].minute, test_vals[3].minute)
-            self.assertEqual(row[4].second, test_vals[3].second)
-            self.assertEqual(row[4].microsecond, test_vals[3].microsecond)
+            assert row[4].year == test_vals[3].year
+            assert row[4].month == test_vals[3].month
+            assert row[4].day == test_vals[3].day
+            assert row[4].hour == test_vals[3].hour
+            assert row[4].minute == test_vals[3].minute
+            assert row[4].second == test_vals[3].second
+            assert row[4].microsecond == test_vals[3].microsecond
 
         finally:
             try:
@@ -575,26 +575,26 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            self.assertIsInstance(row[1], pynuodb.Date)
-            self.assertIsInstance(row[2], pynuodb.Time)
-            self.assertIsInstance(row[3], pynuodb.Timestamp)
+            assert isinstance(row[1], pynuodb.Date)
+            assert isinstance(row[2], pynuodb.Time)
+            assert isinstance(row[3], pynuodb.Timestamp)
 
-            self.assertEqual(row[1].year, test_vals[0].year)
-            self.assertEqual(row[1].month, test_vals[0].month)
-            self.assertEqual(row[1].day, test_vals[0].day)
+            assert row[1].year == test_vals[0].year
+            assert row[1].month == test_vals[0].month
+            assert row[1].day == test_vals[0].day
 
-            self.assertEqual(row[2].hour, test_vals[1].hour)
-            self.assertEqual(row[2].minute, test_vals[1].minute)
-            self.assertEqual(row[2].second, test_vals[1].second)
-            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)
+            assert row[2].hour == test_vals[1].hour
+            assert row[2].minute == test_vals[1].minute
+            assert row[2].second == test_vals[1].second
+            assert row[2].microsecond == test_vals[1].microsecond
 
-            self.assertEqual(row[3].year, test_vals[2].year)
-            self.assertEqual(row[3].month, test_vals[2].month)
-            self.assertEqual(row[3].day, test_vals[2].day)
-            self.assertEqual(row[3].hour, test_vals[2].hour)
-            self.assertEqual(row[3].minute, test_vals[2].minute)
-            self.assertEqual(row[3].second, test_vals[2].second)
-            self.assertEqual(row[3].microsecond, test_vals[2].microsecond)
+            assert row[3].year == test_vals[2].year
+            assert row[3].month == test_vals[2].month
+            assert row[3].day == test_vals[2].day
+            assert row[3].hour == test_vals[2].hour
+            assert row[3].minute == test_vals[2].minute
+            assert row[3].second == test_vals[2].second
+            assert row[3].microsecond == test_vals[2].microsecond
 
         finally:
             try:
@@ -618,7 +618,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
         finally:
             try:
                 cursor.execute("drop table typetest if exists")
@@ -640,7 +640,7 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, len(row)):
-                self.assertEqual(row[i], test_vals[i - 1])
+                assert row[i] == test_vals[i - 1]
         finally:
             try:
                 cursor.execute("drop table typetest if exists")
@@ -665,8 +665,8 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            self.assertIsInstance(row[1], pynuodb.Binary)
-            self.assertEqual(row[1], pynuodb.Binary(data))
+            assert isinstance(row[1], pynuodb.Binary)
+            assert row[1] == pynuodb.Binary(data)
 
         finally:
             try:
@@ -674,8 +674,10 @@ class NuoDBBasicTest(NuoBase):
             finally:
                 con.close()
 
-    @unittest.skipIf(sys.platform.startswith("win"), "time.tzset() does not work on windows")
+    @pytest.mark.skipif(sys.platform.startswith("win"),
+                        reason="time.tzset() does not work on windows")
     def test_timezones(self):
+        oldtz = os.environ.get('TZ')
         try:
             os.environ['TZ'] = 'EST+05EDT,M4.1.0,M10.5.0'
             time.tzset()
@@ -696,13 +698,13 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest")
             row = cursor.fetchone()
 
-            self.assertEqual(vals[0].year, row[1].year)
-            self.assertEqual(vals[0].month, row[1].month)
-            self.assertEqual(vals[0].day, row[1].day + 1)
-            self.assertEqual(vals[0].hour, (row[1].hour + 3) % 24)
-            self.assertEqual(vals[0].minute, row[1].minute)
-            self.assertEqual(vals[0].second, row[1].second)
-            self.assertEqual(vals[0].microsecond, row[1].microsecond)
+            assert vals[0].year == row[1].year
+            assert vals[0].month == row[1].month
+            assert vals[0].day == row[1].day + 1
+            assert vals[0].hour == (row[1].hour + 3) % 24
+            assert vals[0].minute == row[1].minute
+            assert vals[0].second == row[1].second
+            assert vals[0].microsecond == row[1].microsecond
             con.close()
 
             os.environ['TZ'] = 'CET-01CST,M4.1.0,M10.5.0'
@@ -712,20 +714,24 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest")
             row = cursor.fetchone()
 
-            self.assertEqual(vals[0].year, row[1].year)
-            self.assertEqual(vals[0].month, row[1].month)
-            self.assertEqual(vals[0].day, row[1].day)
-            self.assertEqual(vals[0].hour, (row[1].hour - 6) % 24)
-            self.assertEqual(vals[0].minute, row[1].minute)
-            self.assertEqual(vals[0].second, row[1].second)
-            self.assertEqual(vals[0].microsecond, row[1].microsecond)
+            assert vals[0].year == row[1].year
+            assert vals[0].month == row[1].month
+            assert vals[0].day == row[1].day
+            assert vals[0].hour == (row[1].hour - 6) % 24
+            assert vals[0].minute == row[1].minute
+            assert vals[0].second == row[1].second
+            assert vals[0].microsecond == row[1].microsecond
 
             cursor.execute("drop table typetest if exists")
             con.close()
 
         finally:
             try:
-                os.environ.pop('TZ')
+                if oldtz is None:
+                    os.environ.pop('TZ')
+                else:
+                    os.environ['TZ'] = oldtz
+                time.tzset()
             except Exception:
                 pass
 
@@ -744,21 +750,21 @@ class NuoDBBasicTest(NuoBase):
             cursor.execute("select * from typetest order by id desc limit 1")
             row = cursor.fetchone()
 
-            self.assertIsInstance(row[1], pynuodb.Time)
-            self.assertIsInstance(row[2], pynuodb.Timestamp)
+            assert isinstance(row[1], pynuodb.Time)
+            assert isinstance(row[2], pynuodb.Timestamp)
 
-            self.assertEqual(row[1].hour, test_vals[0].hour)
-            self.assertEqual(row[1].minute, test_vals[0].minute)
-            self.assertEqual(row[1].second, test_vals[0].second)
-            self.assertEqual(row[1].microsecond, test_vals[0].microsecond)
+            assert row[1].hour == test_vals[0].hour
+            assert row[1].minute == test_vals[0].minute
+            assert row[1].second == test_vals[0].second
+            assert row[1].microsecond == test_vals[0].microsecond
 
-            self.assertEqual(row[2].year, test_vals[1].year)
-            self.assertEqual(row[2].month, test_vals[1].month)
-            self.assertEqual(row[2].day, test_vals[1].day)
-            self.assertEqual(row[2].hour, test_vals[1].hour)
-            self.assertEqual(row[2].minute, test_vals[1].minute)
-            self.assertEqual(row[2].second, test_vals[1].second)
-            self.assertEqual(row[2].microsecond, test_vals[1].microsecond)
+            assert row[2].year == test_vals[1].year
+            assert row[2].month == test_vals[1].month
+            assert row[2].day == test_vals[1].day
+            assert row[2].hour == test_vals[1].hour
+            assert row[2].minute == test_vals[1].minute
+            assert row[2].second == test_vals[1].second
+            assert row[2].microsecond == test_vals[1].microsecond
 
         finally:
             try:
@@ -801,58 +807,34 @@ class NuoDBBasicTest(NuoBase):
             row = cursor.fetchone()
 
             for i in range(1, 3):
-                self.assertEqual(row[i], vals[i - 1])
+                assert row[i] == vals[i - 1]
 
-            self.assertIsInstance(row[3], pynuodb.Timestamp)
-            self.assertIsInstance(row[4], pynuodb.Time)
-            self.assertIsInstance(row[5], pynuodb.Date)
+            assert isinstance(row[3], pynuodb.Timestamp)
+            assert isinstance(row[4], pynuodb.Time)
+            assert isinstance(row[5], pynuodb.Date)
 
-            self.assertEqual(row[3].year, vals[2].year)
-            self.assertEqual(row[3].month, vals[2].month)
-            self.assertEqual(row[3].day, vals[2].day)
-            self.assertEqual(row[3].hour, vals[2].hour)
-            self.assertEqual(row[3].minute, vals[2].minute)
-            self.assertEqual(row[3].second, vals[2].second)
-            self.assertEqual(row[3].microsecond, vals[2].microsecond)
+            assert row[3].year == vals[2].year
+            assert row[3].month == vals[2].month
+            assert row[3].day == vals[2].day
+            assert row[3].hour == vals[2].hour
+            assert row[3].minute == vals[2].minute
+            assert row[3].second == vals[2].second
+            assert row[3].microsecond == vals[2].microsecond
 
-            self.assertEqual(row[4].hour, vals[3].hour)
-            self.assertEqual(row[4].minute, vals[3].minute)
-            self.assertEqual(row[4].second, vals[3].second)
-            self.assertEqual(row[4].microsecond, vals[3].microsecond)
+            assert row[4].hour == vals[3].hour
+            assert row[4].minute == vals[3].minute
+            assert row[4].second == vals[3].second
+            assert row[4].microsecond == vals[3].microsecond
 
-            self.assertEqual(row[5].year, vals[4].year)
-            self.assertEqual(row[5].month, vals[4].month)
-            self.assertEqual(row[5].day, vals[4].day)
+            assert row[5].year == vals[4].year
+            assert row[5].month == vals[4].month
+            assert row[5].day == vals[4].day
 
             for i in range(6, len(row)):
-                self.assertEqual(row[i], vals[i - 1])
+                assert row[i] == vals[i - 1]
 
         finally:
             try:
                 cursor.execute("drop table typetest if exists")
             finally:
                 con.close()
-
-    def test_param_date_error(self):
-        con = self._connect()
-        cursor = con.cursor()
-        cursor.execute("drop table typetest if exists")
-        try:
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, date_col date)")
-
-            test_vals = (pynuodb.Date(1800, 1, 1),)
-            try:
-                cursor.execute("insert into typetest (date_col) values (?)", test_vals)
-            except pynuodb.DataError:
-                pass
-            except Exception:
-                self.fail()
-        finally:
-            try:
-                cursor.execute("drop table typetest if exists")
-            finally:
-                con.close()
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,6 +1,6 @@
 """Constants for the message protocol with the NuoDB database.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -12,6 +12,8 @@ See the LICENSE file provided with this software.
 NULL                              = 1
 TRUE                              = 2
 FALSE                             = 3
+BLOBID                            = 8
+CLOBID                            = 9
 INTMINUS10                        = 10
 INTMINUS1                         = 19
 INT0                              = 20
@@ -55,6 +57,14 @@ SCALEDTIMESTAMPLEN0               = 216
 SCALEDTIMESTAMPLEN1               = 217
 SCALEDTIMESTAMPLEN8               = 224
 SCALEDCOUNT2                      = 225
+LOBSTREAM0                        = 226
+LOBSTREAM1                        = 227
+LOBSTREAM4                        = 230
+ARRAYLEN1                         = 231
+ARRAYLEN8                         = 238
+SCALEDCOUNT3                      = 239
+DEBUGBARRIER                      = 240
+SCALEDTIMESTAMPNOTZ               = 241
 
 # Protocol Messages
 FAILURE                           = 0
@@ -329,35 +339,35 @@ def lookup_code(error_code):
 # NuoDB Client-Server Features
 #
 
-NORMALIZED_DATES                          = 10
-ARBITRARY_DECIMAL                         = 11
-PREPARE_CALL                              = 12
-SET_QUERY_TIMEOUT                         = 12
-MORE_JDBC                                 = 13
-STRING_CHANGE                             = 14
-SEND_CONNID_TO_CLIENT                     = 15
-USE_ACTUAL_DECLARED_TYPE                  = 15
-GET_TABLE_PRIVILEGES                      = 16
-GET_CROSS_REFERENCE                       = 16
-SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT = 16
-LAST_COMMIT_INFO                          = 17
-JDBC_METADATA_UPDATES                     = 18
-LOB_STREAMING                             = 18
-SERVER_TIMING                             = 19
-STORED_PROC_ARRAY_ARGS                    = 19
-OPERATION_TIMEOUT_ERROR                   = 19
-SET_FETCH_SIZE                            = 19
-XA_TRANSACTIONS                           = 19
-BIGINT_ENCODE_VER3                        = 20 #TBD
-SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT = 21 #TBD
-DDL_NOT_AUTOCOMMITTED                     = 22 #TBD
-MULTI_CIPHER                              = 23 #TBD
-CURSOR_HOLDABILITY                        = 24 #TBD
-TIMESTAMP_WITHOUT_TZ                      = 25 #TBD
-PREPARE_AND_EXECUTE_TOGETHER              = 26 #TBD
+NORMALIZED_DATES                                = 10
+ARBITRARY_DECIMAL                               = 11
+PREPARE_CALL                                    = 12
+SET_QUERY_TIMEOUT                               = 12
+MORE_JDBC                                       = 13
+STRING_CHANGE                                   = 14
+SEND_CONNID_TO_CLIENT                           = 15
+USE_ACTUAL_DECLARED_TYPE                        = 15
+GET_TABLE_PRIVILEGES                            = 16
+GET_CROSS_REFERENCE                             = 16
+SEND_EFFECTIVE_PLATFORM_VERSION_TO_CLIENT       = 16
+LAST_COMMIT_INFO                                = 17
+JDBC_METADATA_UPDATES                           = 18
+LOB_STREAMING                                   = 18
+SERVER_TIMING                                   = 19
+STORED_PROC_ARRAY_ARGS                          = 19
+OPERATION_TIMEOUT_ERROR                         = 19
+SET_FETCH_SIZE                                  = 19
+XA_TRANSACTIONS                                 = 19
+BIGINT_ENCODE_VER3                              = 20
+SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT = 21
+DDL_NOT_AUTOCOMMITTED                           = 22
+MULTI_CIPHER                                    = 23
+CURSOR_HOLDABILITY                              = 24
+TIMESTAMP_WITHOUT_TZ                            = 25
+PREPARE_AND_EXECUTE_TOGETHER                    = 26
 
 # The newest feature this driver supports.
-# The server will negotiate the lowest compatible version.
+# The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
 CURRENT_PROTOCOL_VERSION   = XA_TRANSACTIONS
 AUTH_TEST_STR              = 'Success!'

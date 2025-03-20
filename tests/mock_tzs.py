@@ -10,11 +10,11 @@ import pytz
 import pynuodb
 
 if os.path.exists('/etc/timezone'):
-    with open('/etc/timezone') as file_:
-        Local = pytz.timezone(file_.read().strip())
+    with open('/etc/timezone') as tzf:
+        Local = pytz.timezone(tzf.read().strip())
 else:
-    with open('/etc/localtime', 'rb') as file_:
-        Local = pytz.build_tzinfo('localtime', file_)
+    with open('/etc/localtime', 'rb') as tlf:
+        Local = pytz.build_tzinfo('localtime', tlf)  # type: ignore
 
 UTC = pytz.timezone('UTC')
 
