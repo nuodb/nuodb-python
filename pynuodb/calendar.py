@@ -30,15 +30,19 @@ The algorithm's for ymd2day and day2ymd are based off of.
 
 # from: https://aa.usno.navy.mil/data/JulianDate
 # Julian Dates
-# Sunday	1 B.C. February 29	00:00:00.0	1721116.500000
-# Monday	1 B.C. March 1	00:00:00.0	        1721117.500000
-# Thursday	A.D. 1970 January 1	00:00:00.0	2440587.500000 (day 0 for our calculations)
-# Thursday	A.D. 1582 October 4	00:00:00.0	2299159.500000 (last day of julian calendar)
-# Friday	A.D. 1582 October 15	00:00:00.0	2299160.500000 (first day of gregorian calendar)
+# Sunday        1 B.C. February 29      00:00:00.0      1721116.500000
+# Monday        1 B.C. March 1          00:00:00.0      1721117.500000
+# Thursday      A.D. 1970 January 1     00:00:00.0      2440587.500000 (day 0 for our calculations)
+# Thursday      A.D. 1582 October 4     00:00:00.0      2299159.500000 (last day of julian calendar)
+# Friday        A.D. 1582 October 15    00:00:00.0      2299160.500000 (first day of gregorian calendar)
 
-_FEB29_1BCE_JULIAN     = 1721116 - 2440587  # relative to JULIAN calendar
-_FEB29_1BCE_GREGORIAN  = _FEB29_1BCE_JULIAN + 2 
-_MAR01_1BCE            = - (_FEB29_1BCE_JULIAN + 1)
+# used to calculate daynum (relative to 1970-01-01) for dates before and including 1582 Oct 4
+_FEB29_1BCE_JULIAN     = 1721116 - 2440587
+# used to calculate daynum (relative to 1970-01-01) for dates after and including 1582 Oct 15
+_FEB29_1BCE_GREGORIAN  = _FEB29_1BCE_JULIAN + 2
+# used to shift daynum to calculate (y,m,d) relative to 1/1/1 using julian calendar
+_MAR01_1BCE_JULIAN     = - (_FEB29_1BCE_JULIAN + 1)
+# daynum when gregorian calendar went into effect relative to 1/1/1970
 _GREGORIAN_DAY1        = 2299160 - 2440587
 
 
@@ -46,17 +50,17 @@ def ymd2day(year: int, month: int, day: int,validate: bool =False) -> int:
 
     """
     Converts given year , month, day to number of days since unix EPOCH.
-      year  - assumed to be between 0001-9999
+      year  - between 0001-9999
       month - 1 - 12
       day   - 1 - 31 (depending upon month and year)
     The calculation will be based upon:
       - Georgian Calendar for dates from and including 10/15/1582.
       - Julian Calendar for dates before and including 10/4/1582.
-    Dates between the Julian Calendar and Georgian Calendar don't exist and None
-    will be returned.
+    Dates between the Julian Calendar and Georgian Calendar don't exist and
+    ValueError will be raised.
     
-    If validate = true then None is returned if year,month,day is not a valid
-    date.
+    If validate = true then ValueError is raised if year,month,day is not a valid
+    date and within year range.
     """
     
     mm = (month+9)%12
@@ -108,14 +112,14 @@ def day2ymd(daynum: int) -> (int,int,int):
         raise ValueError(f"Invalid daynum {daynum} before 0001-01-01 or after 9999-12-31")
 
     # In Julian Calender 0001-01-03 is (JD 1721426).
-    g = daynum + _MAR01_1BCE
     if daynum < _GREGORIAN_DAY1:
+        g = daynum + _MAR01_1BCE_JULIAN
         y = (100 * g + 75) // 36525
         doy = g - (365*y + y//4)
     else:
         # In Georgian Calender 0001-01-01 is (JD 1721426).
-        g -= 2
-        y = (10000*g + 14780)//3652425
+        g = daynum + _MAR01_1BCE_JULIAN - 2
+        y = (10000*g + 14780)//3652425 # 365.2425 avg. number days in year.
         doy = g - (365*y + y//4 - y//100 + y//400)
         if doy < 0:
             y -= 1
