@@ -77,7 +77,7 @@ def ymd2day(year: int, month: int, day: int,validate: bool =False) -> int:
         # Julian Calendar, leap year ever 4 years
         daynum = (365*yy + yy//4) + (mm * 306 + 5)//10 + d + _FEB29_1BCE_JULIAN
     else:
-        raise ValueError(f"Invalid date {year:04}-{month:02}-{day:02} not in Gregorian or Julian Calendar"))
+        raise ValueError(f"Invalid date {year:04}-{month:02}-{day:02} not in Gregorian or Julian Calendar")
 
     if validate:
         if day2ymd(daynum) != (year,month,day):

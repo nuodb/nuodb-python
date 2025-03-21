@@ -2,21 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from datetime import tzinfo
-from datetime import datetime
+from datetime import datetime, timezone
 import os
-
-import pytz
+import zoneinfo
+import tzlocal
 
 import pynuodb
 
-if os.path.exists('/etc/timezone'):
-    with open('/etc/timezone') as tzf:
-        Local = pytz.timezone(tzf.read().strip())
-else:
-    with open('/etc/localtime', 'rb') as tlf:
-        Local = pytz.build_tzinfo('localtime', tlf)  # type: ignore
-
-UTC = pytz.timezone('UTC')
+Local = tzlocal.get_localzone()
+        
+UTC = timezone.utc
 
 
 class _MyOffset(tzinfo):
@@ -27,7 +22,7 @@ class _MyOffset(tzinfo):
     This class can be used to do exactly the same thing to the test val.
     '''
     def utcoffset(self, dt):
-        return Local.localize(datetime.now()).utcoffset()
+        return datetime.now().utcoffset()
 
 
 MyOffset = _MyOffset()

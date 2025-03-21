@@ -95,6 +95,7 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
     """Convert ticks to a Time object."""
     #return Time(*time.localtime(ticks)[3:6] + (micro,))
 
+    print(f"TimeFromTicks: {ticks} {micro}")
     if ticks >= TICKSDAY or ticks <= -TICKSDAY:
         dt = TimestampFromTicks(ticks,micro,zoneinfo)
         _time = dt.time()
@@ -113,7 +114,7 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
         
         today  = Timestamp.now().date()
         time   = Time(hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
-        tstamp = Timestamp.combined(today,time).astimezone(zoneinfo)
+        tstamp = Timestamp.combine(today,time).astimezone(zoneinfo)
         dst_offset = tstamp.dst()
         if dst_offset:
             tstamp -= dst_offset

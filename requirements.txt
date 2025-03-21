@@ -1,2 +1,2 @@
-tzlocal
+tzlocal>=3.0
 
