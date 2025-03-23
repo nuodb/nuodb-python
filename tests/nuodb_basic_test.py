@@ -463,14 +463,6 @@ class TestNuoDBBasic(nuodb_base.NuoBase):
         finally:
             con.close()
 
-    def test_connection(self):
-        # Verify the testConnection() method
-        con = self._connect()
-        try:
-            con.testConnection()
-        finally:
-            con.close()
-
     def test_utf8_string_types(self):
         con = self._connect()
         cursor = con.cursor()

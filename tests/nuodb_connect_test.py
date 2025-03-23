@@ -13,6 +13,7 @@ from pynuodb.exception import ProgrammingError
 from pynuodb.session import SessionException
 
 from . import nuodb_base
+import pynuodb.crypt
 
 
 class TestNuoDBConnect(nuodb_base.NuoBase):
@@ -52,3 +53,32 @@ class TestNuoDBConnect(nuodb_base.NuoBase):
                             self.connect_args['host'],
                             self.connect_args['user'],
                             "nosuchpassword")
+
+    @pytest.mark.skipif(not pynuodb.crypt.AESImported, reason="No AES available")
+    def test_aes256cipher(self):
+        conn = self._connect(options={'ciphers': 'AES-256-CTR'})
+        try:
+            config = conn.connection_config()
+            assert config['cipher'] == 'AES-256'
+            conn.testConnection()
+        finally:
+            conn.close()
+
+    @pytest.mark.skipif(not pynuodb.crypt.AESImported, reason="No AES available")
+    def test_aes128cipher(self):
+        conn = self._connect(options={'ciphers': 'AES-128-CTR'})
+        try:
+            config = conn.connection_config()
+            assert config['cipher'] == 'AES-128'
+            conn.testConnection()
+        finally:
+            conn.close()
+
+    def test_rc4cipher(self):
+        conn = self._connect(options={'ciphers': 'RC4'})
+        try:
+            config = conn.connection_config()
+            assert config['cipher'].startswith('RC4')
+            conn.testConnection()
+        finally:
+            conn.close()

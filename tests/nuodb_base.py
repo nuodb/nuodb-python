@@ -51,6 +51,13 @@ class NuoBase(object):
     def _connect(self, options=None):
         connect_args = copy.deepcopy(self.connect_args)
         if options:
+            if 'options' not in connect_args:
+                connect_args['options'] = {}
             for k, v in options.items():
-                connect_args['options'][k] = v
+                if v is not None:
+                    connect_args['options'][k] = v
+                elif k in connect_args['options']:
+                    del connect_args['options'][k]
+            if not connect_args['options']:
+                del connect_args['options']
         return pynuodb.connect(**connect_args)
