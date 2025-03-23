@@ -52,7 +52,7 @@ def __fatal(msg):
 def waitforstate(dbname, state, tmout):
     # type: (str, str, float) -> None
     """Wait TMOUT seconds for database DBNAME to reach STATE."""
-    _log.info("Waiting for db %s to reach state %s" % (dbname, state))
+    _log.info("Waiting for db %s to reach state %s", dbname, state)
     end = time.time() + tmout
     while True:
         (ret, out) = nuocmd(['--show-json', 'get', 'database', '--db-name', dbname])
@@ -60,7 +60,7 @@ def waitforstate(dbname, state, tmout):
 
         now = cvtjson(out)[0].get('state')
         if now == state:
-            _log.info("DB %s is %s" % (dbname, state))
+            _log.info("DB %s is %s", dbname, state)
             return
 
         if time.time() > end:
@@ -153,12 +153,12 @@ def archive(request, ap):
         if len(ars):
             ar_id = ars[0]['id']
             ar_path = ars[0]['path']
-            _log.info("Using existing archive %s: %s" % (ar_id, ar_path))
+            _log.info("Using existing archive %s: %s", ar_id, ar_path)
 
     if not ar_id:
         ardir = DATABASE_NAME + '-' + ''.join(random.choice(_CHARS) for x in range(20))
         ar_path = os.path.join(tempfile.gettempdir(), ardir)
-        _log.info("Creating archive %s" % (ar_path))
+        _log.info("Creating archive %s", ar_path)
         (ret, out) = nuocmd(['--show-json', 'create', 'archive',
                              '--db-name', DATABASE_NAME,
                              '--server-id', localap,
@@ -183,14 +183,14 @@ def archive(request, ap):
 @pytest.fixture(scope="session")
 def get_db(archive):
     # type: (ARCHIVE_FIXTURE) -> Generator[DB_FIXTURE, None, None]
-    _log.info("Retrieving database %s" % (DATABASE_NAME))
+    _log.info("Retrieving database %s", DATABASE_NAME)
     (ret, out) = nuocmd(['--show-json', 'get', 'database',
                          '--db-name', DATABASE_NAME])
     created = True
     if ret == 0:
         db = cvtjson(out)
         if db and db[0].get('state') != 'TOMBSTONE':
-            _log.info("Using existing database %s" % (DATABASE_NAME))
+            _log.info("Using existing database %s", DATABASE_NAME)
             (ret, out) = nuocmd(['update', 'database-options',
                                  '--db-name', DATABASE_NAME,
                                  '--default-options'] + DB_OPTIONS)
@@ -202,7 +202,7 @@ def get_db(archive):
             created = False
 
     if created:
-        _log.info("Creating database %s" % (DATABASE_NAME))
+        _log.info("Creating database %s", DATABASE_NAME)
         (ret, out) = nuocmd(['create', 'database', '--db-name', DATABASE_NAME,
                              '--no-autostart',
                              '--dba-user', DBA_USER,
@@ -214,7 +214,7 @@ def get_db(archive):
     yield DATABASE_NAME, DBA_USER, DBA_PASSWORD
 
     if created:
-        _log.info("Deleting database %s" % (DATABASE_NAME))
+        _log.info("Deleting database %s", DATABASE_NAME)
         (ret, out) = nuocmd(['delete', 'database', '--purge', '--db-name', DATABASE_NAME])
         assert ret == 0, "Failed to delete %s: %s" % (DATABASE_NAME, out)
         global __archive_created
@@ -236,11 +236,13 @@ def db(get_db):
         __fatal("Database %s has exited: %s" % (dbname, out))
     if state == 'RUNNING':
         was_running = True
+        _log.info("Database %s is already running", dbname)
     else:
         (ret, out) = nuocmd(['start', 'database', '--db-name', dbname])
         if ret != 0:
             __fatal("Failed to start database: %s" % (out))
         waitforstate(dbname, 'RUNNING', 30)
+        _log.info("Started database %s", dbname)
 
     yield get_db[0], get_db[1], get_db[2]
 
@@ -265,6 +267,7 @@ def te(ap, db):
     for proc in cvtjson(out):
         if proc['state'] == 'RUNNING' and proc['options']['engine-type'] == 'TE':
             start_id = proc['startId']
+            _log.info("Using existing TE with sid:%s", start_id)
             break
     else:
         (ret, out) = nuocmd(['--show-json', 'start', 'process', '--db-name', dbname,
@@ -273,6 +276,7 @@ def te(ap, db):
             __fatal("Failed to start TE: %s" % (out))
         start_id = cvtjson(out)[0]['startId']
         started = True
+        _log.info("Created a TE with sid:%s", start_id)
 
     yield start_id
 
@@ -287,8 +291,8 @@ def database(ap, db, te):
     import pynuodb
     end = time.time() + 30
     conn = None
-    _log.info("Creating a SQL connection to %s as user %s with schema 'test'"
-              % (db[0], db[1]))
+    _log.info("Creating a SQL connection to %s as user %s with schema 'test'",
+              db[0], db[1])
 
     connect_args = {'database': db[0],
                     'host': ap[1],
@@ -309,6 +313,6 @@ def database(ap, db, te):
         if conn:
             conn.close()
 
-    _log.info("Database %s has been started and is available" % (db[0]))
+    _log.info("Database %s is available", db[0])
 
     return connect_args

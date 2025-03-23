@@ -48,8 +48,8 @@ def ap_conn():
         else:
             api = 'https://' + api
 
-    _log.info("Creating AP connection to %s (client_key=%s verify=%s)"
-              % (api, str(key), str(verify)))
+    _log.info("Creating AP connection to %s (client_key=%s verify=%s)",
+              api, str(key), str(verify))
     return nuodb_mgmt.AdminConnection(api, client_key=key, verify=verify)
 
 
