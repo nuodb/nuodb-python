@@ -78,7 +78,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
                 call the supporting function.
     exchangeMessages -- Exchange the pending message for an optional response
                         from the server.
-    setCiphers -- Re-sets the incoming and outgoing ciphers for the session.
     set_encryption -- Takes a value of type boolean. Setting encryption to False
                       will result in disabling encryption after the handshake.
     """
@@ -144,7 +143,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         super(EncodedSession, self).__init__(host, service=service,
                                              options=options, **kwargs)
 
-    def open_database(self, db_name, password, parameters):
+    def open_database(self, db_name, password, parameters):  # pylint: disable=too-many-branches
         # type: (str, str, Dict[str, str]) -> None
         """Perform a handshake as a SQL client with a NuoDB TE.
 
@@ -156,30 +155,48 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         params = parameters.copy()
         if 'clientInfo' not in params:
             params['clientInfo'] = 'pynuodb'
+        # With TLS send the password; otherwise send supported ciphers for SRP
+        if self.tls_encrypted:
+            params['password'] = password
+        elif 'ciphers' not in params:
+            params['ciphers'] = crypt.get_ciphers()
 
         self._putMessageId(protocol.OPENDATABASE)
         self.putInt(protocol.CURRENT_PROTOCOL_VERSION)
         self.putString(db_name)
 
-        self.putInt(len(params) + (1 if self.tls_encrypted else 0))
+        self.putInt(len(params))
         for (k, v) in params.items():
             self.putString(k).putString(v)
 
-        # Add the password if the session is already encrypted, else add the
-        # client key for the SRP handshake.
-        if self.tls_encrypted:
-            cp = None
-            self.putString('password').putString(password)
-        else:
+        # Ignored for backward-compat
+        self.putInt(0)
+
+        # If we're not using TLS, add the client key for the SRP handshake.
+        if not self.tls_encrypted:
             cp = crypt.ClientPassword()
-            self.putNull().putString(cp.genClientKey())
+            self.putString(cp.genClientKey())
 
         self._exchangeMessages()
-
         protocolVersion = self.getInt()
-        if cp:
+
+        cipher = None
+        incomingIV = None
+        outgoingIV = None
+
+        if not self.tls_encrypted:
             serverKey = self.getString()
             salt = self.getString()
+
+            # Determine our chosen cipher
+            if protocolVersion < protocol.MULTI_CIPHER:
+                cipher = 'RC4'
+            else:
+                cipher = self.getString()
+                # We're the client so use the server's outgoing IV as our
+                # incoming and vice versa.
+                incomingIV = self.getOpaque()
+                outgoingIV = self.getOpaque()
 
         self.__connectionDatabaseUUID = self.getUUID()
 
@@ -195,28 +212,20 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         self.__sessionVersion = protocolVersion
 
-        if cp:
-            self._srp_handshake(params['user'], password, serverKey, salt, cp)
+        if not self.tls_encrypted:
+            # Pacify mypy
+            assert cipher
+            try:
+                self._setup_auth(params['user'].upper(), password, cipher,
+                                 serverKey, salt, cp, incomingIV, outgoingIV)
 
-    def _srp_handshake(self, username, password, serverKey, salt, cp):
-        # type: (str, str, str, str, crypt.ClientPassword) -> None
-        """Authenticate the SRP session."""
-        try:
-            sessionKey = cp.computeSessionKey(username.upper(), password,
-                                              salt, serverKey)
-            # We always encrypt the authentication message
-            self.setCiphers(crypt.RC4Cipher(sessionKey),
-                            crypt.RC4Cipher(sessionKey))
-            self._putMessageId(protocol.AUTHENTICATION)
-            self.putString(protocol.AUTH_TEST_STR)
+                # Complete the authentication protocol
+                self._putMessageId(protocol.AUTHENTICATION)
+                self.putString(protocol.AUTH_TEST_STR)
+                self._exchangeMessages()
 
-            self._exchangeMessages()
-
-            # If we want an un-encrypted session, disable the cipher now
-            if not self.__encryption:
-                self._setCiphers(crypt.NoCipher(), crypt.NoCipher())
-        except SessionException as e:
-            raise ProgrammingError('Failed to authenticate: ' + str(e))
+            except SessionException as e:
+                raise ProgrammingError('Failed to authenticate: ' + str(e))
 
     def get_auth_types(self):
         # type: () -> int
@@ -1106,15 +1115,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             error = self.getInt()
             if error != 0:
                 db_error_handler(error, self.getString())
-
-    def setCiphers(self, cipherIn, cipherOut):
-        # type: (crypt.BaseCipher, crypt.BaseCipher) -> None
-        """Set the incoming and outgoing ciphers for the session.
-
-        :type cipherIn: RC4Cipher , NoCipher
-        :type cipherOut: RC4Cipher , NoCipher
-        """
-        session.Session._setCiphers(self, cipherIn, cipherOut)
 
     # Protected utility routines
 

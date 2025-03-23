@@ -32,6 +32,7 @@ except ImportError:
     pass
 
 from .exception import Error, OperationalError, InterfaceError
+
 from . import crypt
 
 isP2 = sys.version[0] == '2'
@@ -77,6 +78,12 @@ def strToBool(s):
     raise ValueError('"%s" is not a valid boolean string' % s)
 
 
+def xmlToString(root):
+    # type: (ET.Element) -> str
+    """Convert an XML Element to a str."""
+    return ET.tostring(root, encoding='utf-8' if isP2 else 'unicode')
+
+
 class Session(object):
     """A NuoDB service session (either AP or Engine)."""
 
@@ -91,8 +98,6 @@ class Session(object):
 
     __port = NUODB_PORT  # type: int
     __sock = None        # type: Optional[socket.socket]
-
-    __xml_encoding = 'utf-8' if isP2 else 'unicode'
 
     @property
     def _sock(self):
@@ -280,31 +285,33 @@ class Session(object):
         """
         return self.__cipherOut.name if self.__cipherOut else '<unset>'
 
-    def _setCiphers(self, cipherIn, cipherOut):
-        # type: (crypt.BaseCipher, crypt.BaseCipher) -> None
-        """Set the input and output cipher implementations."""
-        self.__cipherIn = cipherIn
-        self.__cipherOut = cipherOut
-
-    def authorize(self, account, dbpassword, cipher='RC4'):
-        # type: (str, str, str) -> None
+    def authorize(self, account, dbpassword, ciphers=None, cipher=None):
+        # type: (str, str, Optional[str], Optional[str]) -> None
         """Authorize this session.
 
         You can only use this if you know the database password, and this is
         only available from the AP.
+        :param account: Username
+        :param dbpassword: Database connection password
+        :param ciphers: Comma-separated list of acceptable ciphers
+        :param cipher: Backward-compat only: do not use
         """
         req = Session.__AUTH_REQ % (self.__service)
         self.send(req.encode())
 
+        if ciphers is None:
+            ciphers = crypt.get_ciphers() if cipher is None else cipher
+
         cp = crypt.ClientPassword()
         key = cp.genClientKey()
-        req = Session.__SRP_REQ % (key, cipher, account)
+        req = Session.__SRP_REQ % (key, ciphers, account)
         response = self.__sendAndReceive(req.encode())
 
         try:
             root = ET.fromstring(response.decode())
             if root.tag != "SRPResponse":
-                raise InterfaceError("Request for authorization was denied")
+                raise InterfaceError("Request for authorization was denied: %s"
+                                     % (xmlToString(root)))
 
             salt = root.get("Salt")
             if salt is None:
@@ -313,14 +320,15 @@ class Session(object):
             if serverKey is None:
                 raise SessionException("Malformed authorization response (server key)")
 
-            sessionKey = cp.computeSessionKey(account, dbpassword, salt, serverKey)
+            chosenCipher = root.get("Cipher", "RC4")
 
-            serverCipher = root.get("Cipher")
-            if serverCipher == 'None':
-                self._setCiphers(crypt.NoCipher(), crypt.NoCipher())
-            else:
-                self._setCiphers(crypt.RC4Cipher(sessionKey),
-                                 crypt.RC4Cipher(sessionKey))
+            # We're the client, so the server's incoming IV is our outgoing
+            # and vice versa.
+            incomingIV = crypt.hexstrToBytes(root.get("OutgoingIV"))
+            outgoingIV = crypt.hexstrToBytes(root.get("IncomingIV"))
+
+            self._setup_auth(account, dbpassword, chosenCipher, serverKey,
+                             salt, cp, incomingIV, outgoingIV)
 
             verifyMessage = self.recv()
             if verifyMessage is None:
@@ -337,6 +345,39 @@ class Session(object):
             raise
 
         self.send(verifyMessage)
+
+    def _setup_auth(self, username,  # type: str
+                    password,        # type: str
+                    cipher,          # type: str
+                    serverKey,       # type: str
+                    salt,            # type: str
+                    cp,              # type: crypt.ClientPassword
+                    incomingIV,      # type: Optional[bytes]
+                    outgoingIV       # type: Optional[bytes]
+                    ):
+        # type: (...) -> None
+        sessionKey = cp.computeSessionKey(username, password, salt, serverKey)
+
+        if cipher == 'AES-256-CTR':
+            # Pacify mypy
+            assert incomingIV
+            assert outgoingIV
+            self.__cipherIn = crypt.AES256Cipher(False, sessionKey, incomingIV)
+            self.__cipherOut = crypt.AES256Cipher(True, sessionKey, outgoingIV)
+        elif cipher == 'AES-128-CTR':
+            # Pacify mypy
+            assert incomingIV
+            assert outgoingIV
+            self.__cipherIn = crypt.AES128Cipher(False, sessionKey, incomingIV)
+            self.__cipherOut = crypt.AES128Cipher(True, sessionKey, outgoingIV)
+        elif cipher == 'RC4':
+            self.__cipherIn = crypt.RC4Cipher(False, sessionKey)
+            self.__cipherOut = crypt.RC4Cipher(True, sessionKey)
+        elif cipher == 'None':
+            self.__cipherIn = crypt.NoCipher()
+            self.__cipherOut = crypt.NoCipher()
+        else:
+            raise InterfaceError("Server requests unknown cipher %s" % (cipher))
 
     def doConnect(self, attributes=None,  # type: Optional[Mapping[str, str]]
                   text=None,              # type: Optional[str]
@@ -399,7 +440,7 @@ class Session(object):
                 for child in children:
                     root.append(child)
 
-            message = ET.tostring(root, encoding=self.__xml_encoding)
+            message = xmlToString(root)
 
         return message
 

@@ -20,8 +20,8 @@ See the LICENSE file provided with this software.
 #   [ send 'clientPub' and get 'salt' and 'serverPub' from the server]
 #
 #   sessionKey = cp.computeSessionKey('user', 'password', salt, serverKey)
-#   cipherIn = RC4Cipher(sessionKey)
-#   cipherOut = RC4Cipher(sessionKey)
+#   cipherIn = RC4Cipher(False, sessionKey)
+#   cipherOut = RC4Cipher(True, sessionKey)
 
 # Encodings: We want to convert to/from a full 8-bit character value.  We
 # can't use utf-8 here since it reserves some of the 255 values to introduce
@@ -35,11 +35,17 @@ import binascii
 import sys
 
 try:
+    from typing import Optional  # pylint: disable=unused-import
+except ImportError:
+    pass
+
+try:
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        AESImported = True
         try:
             # Newer cryptography versions stash ARC4 here
             from cryptography.hazmat.decrepit.ciphers.algorithms import ARC4
@@ -49,8 +55,15 @@ try:
     arc4Imported = True
 except ImportError:
     arc4Imported = False
+    AESImported = False
 
 isP2 = sys.version[0] == '2'
+
+
+def get_ciphers():
+    # type: () -> str
+    """Return the list of ciphers supported by this client."""
+    return ("AES-256-CTR,AES-128-CTR," if AESImported else '') + "RC4"
 
 
 # We use a bytearray for our sending buffer because we need to construct it.
@@ -79,6 +92,11 @@ if isP2:
         we get back a unicode string not a string..
         """
         return str(data)
+
+    def hexstrToBytes(hexstr):
+        # type: (Optional[str]) -> Optional[bytes]
+        """Convert a hex string to bytes."""
+        return binascii.unhexlify(hexstr) if hexstr is not None else None
 else:
     def bytesToArray(data):
         # type: (bytes) -> bytearray
@@ -95,6 +113,11 @@ else:
         On Python 3 we must decode: assume UTF-8 always.
         """
         return data.decode('utf-8')
+
+    def hexstrToBytes(hexstr):
+        # type: (Optional[str]) -> Optional[bytes]
+        """Convert a hex string to bytes."""
+        return bytes.fromhex(hexstr) if hexstr is not None else None  # pylint: disable=no-member
 
 
 def toHex(bigInt):
@@ -296,18 +319,28 @@ class ClientPassword(RemotePassword):
         aux = (self.__privateKey + ux) % prime
 
         sessionSecret = pow(diff, aux, prime)
-        secretBytes = toByteString(sessionSecret)
-
-        md = hashlib.sha1()
-        md.update(secretBytes)
-
-        return md.digest()
+        return toByteString(sessionSecret)
 
 
 class BaseCipher(object):
     """Base class for ciphers."""
 
     name = 'invalid'
+    keysize = 0
+
+    def _convert_key(self, full):
+        # type: (bytes) -> bytes
+        """Convert a full key to the size needed for a given cipher."""
+        if self.keysize == hashlib.sha256().digest_size:
+            md = hashlib.sha256()
+        elif self.keysize == hashlib.sha1().digest_size:
+            md = hashlib.sha1()
+        elif self.keysize == hashlib.md5().digest_size:
+            md = hashlib.md5()
+        else:
+            raise Exception("Invalid key size: %d" % (self.keysize))
+        md.update(full)
+        return md.digest()
 
     def transform(self, data):
         # type: (bytes) -> bytes
@@ -322,22 +355,60 @@ class NoCipher(BaseCipher):
 
     def transform(self, data):
         # type: (bytes) -> bytes
-        """Return the input data unchanged."""
+        """:returns: the input data unchanged."""
         return data
+
+
+class AESBaseCipher(BaseCipher):
+    """An AES cipher object using cryptography."""
+
+    def __init__(self, encrypt, key, nonce):
+        # type: (bool, bytes, bytes) -> None
+        """Create an AES cipher using the given key and nonce.
+
+        :param encrypt: True if encrypting, False if decrypting
+        :param key: The key to initialize from.
+        :param nonce: The nonce for the cipher or None to create it
+        """
+        algo = algorithms.AES(self._convert_key(key))
+        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=default_backend())
+        self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
+
+    def transform(self, data):
+        # type: (bytes) -> bytes
+        """:returns: data transformed by the cipher."""
+        return self.cipher.update(data)
+
+
+class AES256Cipher(AESBaseCipher):
+    """An AES-256 cipher object using cryptography."""
+
+    name = 'AES-256'
+    keysize = int(256 / 8)
+
+
+class AES128Cipher(AESBaseCipher):
+    """An AES-128 cipher object using cryptography."""
+
+    name = 'AES-128'
+    keysize = int(128 / 8)
 
 
 class RC4CipherNuoDB(BaseCipher):
     """An RC4 cipher object using a native Python algorithm."""
 
     name = 'RC4-local'
+    keysize = int(160 / 8)
 
-    def __init__(self, key):
-        # type: (bytes) -> None
+    def __init__(self, _, key):
+        # type: (bool, bytes) -> None
         """Create an RC4 cipher using the given key.
 
         This uses a native Python implementation which is sloooooow.
         It will be used if you don't have cryptography installed.
+        Encryption and decryption use the same algorithm.
 
+        :param encrypt: True if encrypting, False if decrypting
         :param key: The cipher key.
         """
         super(RC4CipherNuoDB, self).__init__()
@@ -348,7 +419,7 @@ class RC4CipherNuoDB(BaseCipher):
 
         state = self.__state
 
-        data = bytesToArray(key)
+        data = bytesToArray(self._convert_key(key))
         sz = len(data)
         j = 0
         for i in range(256):
@@ -369,7 +440,7 @@ class RC4CipherNuoDB(BaseCipher):
             the desired range of [0,255]
 
         For utf-8 strings (characters consisting of more than 1 byte) the
-        values are broken into 1 byte sections and shifted The RC4 stream
+        values are broken into 1 byte sections and shifted.  The RC4 stream
         cipher processes 1 byte at a time, as does ord when converting
         character values to integers.
 
@@ -392,23 +463,27 @@ class RC4CipherCryptography(BaseCipher):
     """An RC4 cipher object using cryptography."""
 
     name = 'RC4'
+    keysize = int(160 / 8)
 
-    def __init__(self, key):
-        # type: (bytes) -> None
+    def __init__(self, encrypt, key):
+        # type: (bool, bytes) -> None
         """Create an RC4 cipher using the given key.
 
+        :param encrypt: True if encrypting, False if decrypting
         :param key: The key to initialize from.
         """
-        # There's a bug in the type statements for Cipher where it doesn't
-        # set mode as Optional
+        algo = ARC4(self._convert_key(key))
+
+        # There's a bug in older versions of mypy where they don't infer the
+        # optionality of mode correctly.
         # https://github.com/pyca/cryptography/issues/9464
-        self.cipher = Cipher(ARC4(key), mode=None,  # type: ignore
-                             backend=default_backend()).encryptor()
+        cipher = Cipher(algo, mode=None,  # type: ignore
+                        backend=default_backend())
+        self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
         # type: (bytes) -> bytes
-        """Transform the data using the cipher."""
-        # Cipher expects bytes
+        """:returns: data transformed by the cipher."""
         return self.cipher.update(data)
 
 
