@@ -1,6 +1,6 @@
 """A module for housing the EncodedSession class.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -17,31 +17,27 @@ import decimal
 import sys
 
 try:
-    from typing import Any, Collection, Dict, Iterable, List  # pylint: disable=unused-import
-    from typing import Mapping, Optional, Tuple  # pylint: disable=unused-import
-    from .result_set import Row, Value           # pylint: disable=unused-import
+    from typing import Any, Collection, Dict, List  # pylint: disable=unused-import
+    from typing import Mapping, Optional  # pylint: disable=unused-import
 except ImportError:
     pass
 
-from .crypt import bytesToArray, arrayToStr, toByteString, fromByteString
-from .crypt import toSignedByteString, fromSignedByteString
-from .crypt import NoCipher, RC4Cipher
-from .session import Session, SessionException
-from . import protocol
-from . import datatype
 from .exception import DataError, EndOfStream, ProgrammingError
 from .exception import db_error_handler, BatchError
-from .datatype import TypeObjectFromNuodb
-from .statement import Statement, PreparedStatement, ExecutionResult
-from .result_set import ResultSet
+from .session import SessionException
 
-from .crypt import BaseCipher, ClientPassword  # pylint: disable=unused-import
+from . import crypt
+from . import protocol
+from . import datatype
+from . import session
+from . import statement
+from . import result_set
 
 isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
 
 
-class EncodedSession(Session):  # pylint: disable=too-many-public-methods
+class EncodedSession(session.Session):  # pylint: disable=too-many-public-methods
     """Class for representing an encoded session with the database.
 
     Public Functions:
@@ -146,7 +142,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             cp = None
             self.putString('password').putString(password)
         else:
-            cp = ClientPassword()
+            cp = crypt.ClientPassword()
             self.putNull().putString(cp.genClientKey())
 
         self._exchangeMessages()
@@ -174,13 +170,14 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             self._srp_handshake(params['user'], password, serverKey, salt, cp)
 
     def _srp_handshake(self, username, password, serverKey, salt, cp):
-        # type: (str, str, str, str, ClientPassword) -> None
+        # type: (str, str, str, str, crypt.ClientPassword) -> None
         """Authenticate the SRP session."""
         try:
             sessionKey = cp.computeSessionKey(username.upper(), password,
                                               salt, serverKey)
             # We always encrypt the authentication message
-            self.setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+            self.setCiphers(crypt.RC4Cipher(sessionKey),
+                            crypt.RC4Cipher(sessionKey))
             self._putMessageId(protocol.AUTHENTICATION)
             self.putString(protocol.AUTH_TEST_STR)
 
@@ -188,7 +185,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             # If we want an un-encrypted session, disable the cipher now
             if not self.__encryption:
-                self._setCiphers(NoCipher(), NoCipher())
+                self._setCiphers(crypt.NoCipher(), crypt.NoCipher())
         except SessionException as e:
             raise ProgrammingError('Failed to authenticate: ' + str(e))
 
@@ -273,42 +270,42 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
     # Mostly for cursors
     def create_statement(self):
-        # type: () -> Statement
+        # type: () -> statement.Statement
         """Create a statement and return a Statement object."""
         self._putMessageId(protocol.CREATE)
         self._exchangeMessages()
-        return Statement(self.getInt())
+        return statement.Statement(self.getInt())
 
-    def execute_statement(self, statement, query):
-        # type: (Statement, str) -> ExecutionResult
+    def execute_statement(self, stmt, query):
+        # type: (statement.Statement, str) -> statement.ExecutionResult
         """Execute a query using the given statement.
 
-        :param statement: Statement to use for the query.
+        :param stmt: Statement to use for the query.
         :param query: Operation to be executed.
         :returns: The result of the operation execution.
         """
-        self._setup_statement(statement.handle, protocol.EXECUTE).putString(query)
+        self._setup_statement(stmt.handle, protocol.EXECUTE).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
         rowcount = self.getInt()
 
-        return ExecutionResult(statement, result, rowcount)
+        return statement.ExecutionResult(stmt, result, rowcount)
 
-    def close_statement(self, statement):
-        # type: (Statement) -> None
+    def close_statement(self, stmt):
+        # type: (statement.Statement) -> None
         """Close the statement."""
-        self._putMessageId(protocol.CLOSESTATEMENT).putInt(statement.handle)
+        self._putMessageId(protocol.CLOSESTATEMENT).putInt(stmt.handle)
         self._exchangeMessages(False)
 
-    def close_result_set(self, result_set):
-        # type: (ResultSet) -> None
+    def close_result_set(self, resultset):
+        # type: (result_set.ResultSet) -> None
         """Close the result set."""
-        self._putMessageId(protocol.CLOSERESULTSET).putInt(result_set.handle)
+        self._putMessageId(protocol.CLOSERESULTSET).putInt(resultset.handle)
         self._exchangeMessages(False)
 
     def create_prepared_statement(self, query):
-        # type: (str) -> PreparedStatement
+        # type: (str) -> statement.PreparedStatement
         """Create a prepared statement for the given query."""
         self._putMessageId(protocol.PREPARE).putString(query)
         self._exchangeMessages()
@@ -316,16 +313,19 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         handle = self.getInt()
         param_count = self.getInt()
 
-        statement = PreparedStatement(handle, param_count)
+        stmt = statement.PreparedStatement(handle, param_count)
 
         if self.__sessionVersion >= protocol.SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT:
             if self.getBoolean():
-                statement.description = self._parse_result_set_description()
+                stmt.description = self._parse_result_set_description()
 
-        return statement
+        return stmt
 
-    def execute_prepared_statement(self, prepared_statement, parameters):
-        # type: (PreparedStatement, Collection[Value]) -> ExecutionResult
+    def execute_prepared_statement(
+            self, prepared_statement,  # type: statement.PreparedStatement
+            parameters                 # type: Collection[result_set.Value]
+    ):
+        # type: (...) -> statement.ExecutionResult
         """Execute a prepared statement with the given parameters."""
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEPREPAREDSTATEMENT)
 
@@ -338,10 +338,10 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         result = self.getInt()
         rowcount = self.getInt()
 
-        return ExecutionResult(prepared_statement, result, rowcount)
+        return statement.ExecutionResult(prepared_statement, result, rowcount)
 
     def execute_batch_prepared_statement(self, prepared_statement, param_lists):
-        # type: (PreparedStatement, Collection[Collection[Value]]) -> List[int]
+        # type: (statement.PreparedStatement, Collection[Collection[result_set.Value]]) -> List[int]
         """Batch the prepared statement with the given parameters."""
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
@@ -377,10 +377,10 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         return results
 
-    def fetch_result_set(self, statement):
-        # type: (Statement) -> ResultSet
+    def fetch_result_set(self, stmt):
+        # type: (statement.Statement) -> result_set.ResultSet
         """Get the ResultSet from the previous operation."""
-        self._putMessageId(protocol.GETRESULTSET).putInt(statement.handle)
+        self._putMessageId(protocol.GETRESULTSET).putInt(stmt.handle)
         self._exchangeMessages()
 
         handle = self.getInt()
@@ -391,7 +391,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             self.getString()
 
         complete = False
-        init_results = []  # type: List[Row]
+        init_results = []  # type: List[result_set.Row]
 
         # If we hit the end of the stream without next==0, there are more
         # results to fetch.
@@ -407,26 +407,26 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             init_results.append(tuple(row))
 
-        return ResultSet(handle, colcount, init_results, complete)
+        return result_set.ResultSet(handle, colcount, init_results, complete)
 
-    def fetch_result_set_next(self, result_set):
-        # type: (ResultSet) -> None
+    def fetch_result_set_next(self, resultset):
+        # type: (result_set.ResultSet) -> None
         """Get more rows from this result set."""
-        self._putMessageId(protocol.NEXT).putInt(result_set.handle)
+        self._putMessageId(protocol.NEXT).putInt(resultset.handle)
         self._exchangeMessages()
 
-        result_set.clear_results()
+        resultset.clear_results()
 
         while self._hasBytes(1):
             if self.getInt() == 0:
-                result_set.complete = True
+                resultset.complete = True
                 break
 
-            row = [None] * result_set.col_count
-            for i in range(result_set.col_count):
+            row = [None] * resultset.col_count
+            for i in range(resultset.col_count):
                 row[i] = self.getValue()
 
-            result_set.add_row(tuple(row))
+            resultset.add_row(tuple(row))
 
     def _parse_result_set_description(self):
         # type: () -> List[List[Any]]
@@ -448,15 +448,16 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             # TODO: type information should be derived from the type
             # (column_type) not the typename.
-            description[i] = [column_name, TypeObjectFromNuodb(column_type_name),
+            description[i] = [column_name,
+                              datatype.TypeObjectFromNuodb(column_type_name),
                               column_display_size, None, precision, scale, None]
 
         return description
 
-    def fetch_result_set_description(self, result_set):
-        # type: (ResultSet) -> List[List[Any]]
+    def fetch_result_set_description(self, resultset):
+        # type: (result_set.ResultSet) -> List[List[Any]]
         """Return the metadata for this result set."""
-        self._putMessageId(protocol.GETMETADATA).putInt(result_set.handle)
+        self._putMessageId(protocol.GETMETADATA).putInt(resultset.handle)
         self._exchangeMessages()
         return self._parse_result_set_description()
 
@@ -483,9 +484,9 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             self.__output.append(protocol.INT0 + value)
         else:
             if isMessageId:
-                data = toByteString(value)
+                data = crypt.toByteString(value)
             else:
-                data = toSignedByteString(value)
+                data = crypt.toSignedByteString(value)
             self.__output.append(protocol.INTLEN0 + len(data))
             self.__output += data
         return self
@@ -500,7 +501,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         # Convert the decimal's notation into decimal
         value += REMOVE_FORMAT
         scale = abs(value.as_tuple()[2])
-        data = toSignedByteString(int(value * decimal.Decimal(10**scale)))
+        data = crypt.toSignedByteString(int(value * decimal.Decimal(10**scale)))
 
         # If our length including the tag is more than 9 bytes we will need to
         # send the data using ScaledCount2
@@ -523,7 +524,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if length < 40:
             self.__output.append(protocol.UTF8LEN0 + length)
         else:
-            lengthStr = toByteString(length)
+            lengthStr = crypt.toByteString(length)
             self.__output.append(protocol.UTF8COUNT0 + len(lengthStr))
             self.__output += lengthStr
         self.__output += data
@@ -539,7 +540,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if length < 40:
             self.__output.append(protocol.OPAQUELEN0 + length)
         else:
-            lenData = toByteString(length)
+            lenData = crypt.toByteString(length)
             self.__output.append(protocol.OPAQUECOUNT0 + len(lenData))
             self.__output += lenData
         self.__output += value
@@ -587,7 +588,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         :type value: int
         """
-        data = toSignedByteString(value)
+        data = crypt.toSignedByteString(value)
         self.__output.append(protocol.MILLISECLEN0 + len(data))
         self.__output += data
         return self
@@ -598,7 +599,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         :type value: int
         """
-        data = toSignedByteString(value)
+        data = crypt.toSignedByteString(value)
         self.__output.append(protocol.NANOSECLEN0 + len(data))
         self.__output += data
         return self
@@ -609,7 +610,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         :type value: int
         """
-        data = toByteString(value)
+        data = crypt.toByteString(value)
         self.__output.append(protocol.TIMELEN0 + len(data))
         self.__output += data
         return self
@@ -622,7 +623,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         :type value: datatype.Binary
         """
         length = len(value)
-        lenData = toByteString(length)
+        lenData = crypt.toByteString(length)
         self.__output.append(protocol.BLOBLEN0 + len(lenData))
         self.__output += lenData
         self.__output += value
@@ -635,7 +636,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         :type value: datatype.Binary
         """
         length = len(value)
-        lenData = toByteString(length)
+        lenData = crypt.toByteString(length)
         self.__output.append(protocol.CLOBLEN0 + len(lenData))
         self.__output += lenData
         self.__output += value
@@ -643,7 +644,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
     def _putScaled(self, base, ticks, scale):
         # type: (int, int, int) -> EncodedSession
-        data = toSignedByteString(ticks)
+        data = crypt.toSignedByteString(ticks)
         if data:
             self.__output.append(base + len(data))
             self.__output.append(scale)
@@ -689,10 +690,10 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         """
         scale = abs(value.as_tuple()[2])
         sign = 1 if value.as_tuple()[0] == 0 else -1
-        signData = toSignedByteString(sign)
-        data = toByteString(int(abs(value) * decimal.Decimal(10**scale)))
+        signData = crypt.toSignedByteString(sign)
+        data = crypt.toByteString(int(abs(value) * decimal.Decimal(10**scale)))
         self.__output.append(protocol.SCALEDCOUNT2)
-        self.__output += toByteString(scale)
+        self.__output += crypt.toByteString(scale)
         self.__output += signData
         self.__output.append(len(data))
         self.__output += data
@@ -745,7 +746,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             return code - protocol.INT0
 
         elif code >= protocol.INTLEN1 and code <= protocol.INTLEN8:
-            return fromSignedByteString(self._takeBytes(code - protocol.INTLEN0))
+            return crypt.fromSignedByteString(self._takeBytes(code - protocol.INTLEN0))
 
         raise DataError('Not an integer: %d' % (code))
 
@@ -759,8 +760,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.SCALEDLEN0 and code <= protocol.SCALEDLEN8:
-            scale = fromByteString(self._takeBytes(1))
-            value = fromSignedByteString(self._takeBytes(code - protocol.SCALEDLEN0))
+            scale = crypt.fromByteString(self._takeBytes(1))
+            value = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDLEN0))
             # preserves Decimal sign, exp, int...
             sign = 1 if value < 0 else 0
             data = tuple(int(i) for i in str(abs(value)))
@@ -778,12 +779,12 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         if code >= protocol.UTF8LEN0 and code <= protocol.UTF8LEN39:
             data = self._takeBytes(code - protocol.UTF8LEN0)
-            return arrayToStr(data)
+            return crypt.arrayToStr(data)
 
         if code >= protocol.UTF8COUNT1 and code <= protocol.UTF8COUNT4:
-            length = fromByteString(self._takeBytes(code - protocol.UTF8COUNT0))
+            length = crypt.fromByteString(self._takeBytes(code - protocol.UTF8COUNT0))
             data = self._takeBytes(length)
-            return arrayToStr(data)
+            return crypt.arrayToStr(data)
 
         raise DataError('Not a string: %s' % (code))
 
@@ -799,7 +800,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             value = self._takeBytes(code - protocol.OPAQUELEN0)
             return datatype.Binary(value)
         if code >= protocol.OPAQUECOUNT1 and code <= protocol.OPAQUECOUNT4:
-            length = fromByteString(self._takeBytes(code - protocol.OPAQUECOUNT0))
+            length = crypt.fromByteString(self._takeBytes(code - protocol.OPAQUECOUNT0))
             value = self._takeBytes(length)
             return datatype.Binary(value)
 
@@ -858,13 +859,13 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.MILLISECLEN0 and code <= protocol.MILLISECLEN8:
-            return fromSignedByteString(self._takeBytes(code - protocol.MILLISECLEN0))
+            return crypt.fromSignedByteString(self._takeBytes(code - protocol.MILLISECLEN0))
 
         if code >= protocol.NANOSECLEN0 and code <= protocol.NANOSECLEN8:
-            return fromSignedByteString(self._takeBytes(code - protocol.NANOSECLEN0))
+            return crypt.fromSignedByteString(self._takeBytes(code - protocol.NANOSECLEN0))
 
         if code >= protocol.TIMELEN0 and code <= protocol.TIMELEN4:
-            return fromByteString(self._takeBytes(code - protocol.TIMELEN0))
+            return crypt.fromByteString(self._takeBytes(code - protocol.TIMELEN0))
 
         raise DataError('Not a time')
 
@@ -878,7 +879,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.BLOBLEN0 and code <= protocol.BLOBLEN4:
-            length = fromByteString(self._takeBytes(code - protocol.BLOBLEN0))
+            length = crypt.fromByteString(self._takeBytes(code - protocol.BLOBLEN0))
             return datatype.Binary(self._takeBytes(length))
 
         raise DataError('Not a blob')
@@ -892,7 +893,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.CLOBLEN0 and code <= protocol.CLOBLEN4:
-            length = fromByteString(self._takeBytes(code - protocol.CLOBLEN0))
+            length = crypt.fromByteString(self._takeBytes(code - protocol.CLOBLEN0))
             return self._takeBytes(length)
 
         raise DataError('Not a clob')
@@ -906,8 +907,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.SCALEDTIMELEN1 and code <= protocol.SCALEDTIMELEN8:
-            scale = fromByteString(self._takeBytes(1))
-            time = fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMELEN0))
+            scale = crypt.fromByteString(self._takeBytes(1))
+            time = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMELEN0))
             ticks = decimal.Decimal(time) / decimal.Decimal(10**scale)
             return datatype.TimeFromTicks(round(int(ticks)),
                                           int((ticks % 1) * decimal.Decimal(1000000)))
@@ -923,8 +924,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.SCALEDTIMESTAMPLEN1 and code <= protocol.SCALEDTIMESTAMPLEN8:
-            scale = fromByteString(self._takeBytes(1))
-            stamp = fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
+            scale = crypt.fromByteString(self._takeBytes(1))
+            stamp = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
             ticks = decimal.Decimal(stamp) / decimal.Decimal(10**scale)
             return datatype.TimestampFromTicks(round(int(ticks)),
                                                int((ticks % 1) * decimal.Decimal(1000000)))
@@ -940,8 +941,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         code = self._getTypeCode()
 
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
-            scale = fromByteString(self._takeBytes(1))
-            date = fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
+            scale = crypt.fromByteString(self._takeBytes(1))
+            date = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
             return datatype.DateFromTicks(round(date / 10.0 ** scale))
 
         raise DataError('Not a scaled date')
@@ -966,11 +967,11 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         """
         code = self._getTypeCode()
         if code is protocol.SCALEDCOUNT2:
-            scale = decimal.Decimal(fromByteString(self._takeBytes(1)))
-            sign = fromSignedByteString(self._takeBytes(1))
+            scale = decimal.Decimal(crypt.fromByteString(self._takeBytes(1)))
+            sign = crypt.fromSignedByteString(self._takeBytes(1))
             sign = 1 if sign < 0 else 0
-            length = fromByteString(self._takeBytes(1))
-            data = fromByteString(self._takeBytes(length))
+            length = crypt.fromByteString(self._takeBytes(1))
+            data = crypt.fromByteString(self._takeBytes(length))
             value = tuple(int(i) for i in str(abs(data)))
             scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
             return scaledcount
@@ -985,22 +986,22 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         """
         code = self._getTypeCode()
         if code is protocol.SCALEDCOUNT3:
-            sz = fromByteString(self._takeBytes(1))
+            sz = crypt.fromByteString(self._takeBytes(1))
             if sz == 0:
                 scale = 0
             else:
-                scale = fromByteString(self._takeBytes(sz))
+                scale = crypt.fromByteString(self._takeBytes(sz))
 
-            sign = fromSignedByteString(self._takeBytes(1))
+            sign = crypt.fromSignedByteString(self._takeBytes(1))
             sign = 1 if sign < 0 else 0
 
-            sz = fromByteString(self._takeBytes(1))
+            sz = crypt.fromByteString(self._takeBytes(1))
             if sz == 0:
                 length = 0
             else:
-                length = fromByteString(self._takeBytes(sz))
+                length = crypt.fromByteString(self._takeBytes(sz))
 
-            data = fromByteString(self._takeBytes(length))
+            data = crypt.fromByteString(self._takeBytes(length))
             value = tuple(int(i) for i in str(abs(data)))
             scaledcount = decimal.Decimal((sign, value, -1 * int(scale)))
             return scaledcount
@@ -1076,20 +1077,20 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             resp = self.recv(timeout=None)
             if resp is None:
                 db_error_handler(protocol.OPERATION_TIMEOUT, "timed out")
-            self.__input = bytesToArray(resp)
+            self.__input = crypt.bytesToArray(resp)
 
             error = self.getInt()
             if error != 0:
                 db_error_handler(error, self.getString())
 
     def setCiphers(self, cipherIn, cipherOut):
-        # type: (BaseCipher, BaseCipher) -> None
+        # type: (crypt.BaseCipher, crypt.BaseCipher) -> None
         """Set the incoming and outgoing ciphers for the session.
 
         :type cipherIn: RC4Cipher , NoCipher
         :type cipherOut: RC4Cipher , NoCipher
         """
-        Session._setCiphers(self, cipherIn, cipherOut)
+        session.Session._setCiphers(self, cipherIn, cipherOut)
 
     # Protected utility routines
 

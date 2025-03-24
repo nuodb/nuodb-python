@@ -31,16 +31,17 @@ __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'DATETIME', 'ROWID', 'TypeObjectFromNuodb']
 
 import sys
+import decimal
+import time
+
+from datetime import datetime as Timestamp, date as Date, time as Time
+from datetime import timedelta as TimeDelta
 
 try:
     from typing import Tuple, Union  # pylint: disable=unused-import
 except ImportError:
     pass
 
-from datetime import datetime as Timestamp, date as Date, time as Time
-from datetime import timedelta as TimeDelta
-import decimal
-import time
 from .exception import DataError
 
 isP2 = sys.version[0] == '2'

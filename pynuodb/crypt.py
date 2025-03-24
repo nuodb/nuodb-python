@@ -1,12 +1,10 @@
 """Manage encryption.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
-
-__all__ = ["ClientPassword", "RC4Cipher", "NoCipher"]
 
 # This module provides the basic cryptographic routines (SRP and RC4) used to
 # establish authenticated, confidential sessions with engines. Note that no

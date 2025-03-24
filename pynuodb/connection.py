@@ -1,6 +1,6 @@
 """A module for connecting to a NuoDB database.
 
-(C) Copyright 2013-2023 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -24,9 +24,11 @@ except ImportError:
     pass
 
 from .exception import Error, InterfaceError
-from .cursor import Cursor
-from .session import Session, SessionException, checkForError
-from .encodedsession import EncodedSession
+from .session import SessionException
+
+from . import cursor
+from . import session
+from . import encodedsession
 
 apilevel = "2.0"
 threadsafety = 1
@@ -87,7 +89,7 @@ class Connection(object):
     from .exception import ProgrammingError, NotSupportedError
 
     _trans_id = None          # type: Optional[int]
-    __session = None          # type: EncodedSession
+    __session = None          # type: encodedsession.EncodedSession
 
     def __init__(self, database=None,  # type: Optional[str]
                  host=None,            # type: Optional[str]
@@ -114,7 +116,7 @@ class Connection(object):
             raise InterfaceError("No password provided.")
 
         # Split the options into connection parameters and session options
-        params, opts = Session.session_options(options)
+        params, opts = session.Session.session_options(options)
 
         params['Database'] = database
 
@@ -128,8 +130,8 @@ class Connection(object):
             (host, port) = self._getTE(host, params, opts)
 
         # Connect to the NuoDB TE.  It needs all the options.
-        self.__session = EncodedSession(host, port=port, options=options,
-                                        **kwargs)
+        self.__session = encodedsession.EncodedSession(
+            host, port=port, options=options, **kwargs)
         self.__session.doConnect(params)
 
         params.update({'user': user,
@@ -148,7 +150,7 @@ class Connection(object):
     def _getTE(admin, attributes, options):
         # type: (str, Mapping[str, str], Mapping[str, str]) -> Tuple[str, int]
         """Connect to the AP and ask it to direct us a TE for this database."""
-        s = Session(admin, service="SQL2", options=options)
+        s = session.Session(admin, service="SQL2", options=options)
         try:
             s.doConnect(attributes=attributes)
             connectDetail = s.recv()
@@ -160,7 +162,7 @@ class Connection(object):
             raise RuntimeError("Session.rev() returned None without timeout!")
 
         connString = connectDetail.decode()
-        checkForError(connString)
+        session.checkForError(connString)
 
         root = ElementTree.fromstring(connString)
         if root.tag != "Cloud":
@@ -255,10 +257,10 @@ class Connection(object):
         self.__session.send_rollback()
 
     def cursor(self, prepared_statement_cache_size=50):
-        # type: (int) -> Cursor
+        # type: (int) -> cursor.Cursor
         """Return a new Cursor object using the connection.
 
         :param cache_size: Size of the prepared statement cache.
         """
         self._check_closed()
-        return Cursor(self.__session, prepared_statement_cache_size)
+        return cursor.Cursor(self.__session, prepared_statement_cache_size)

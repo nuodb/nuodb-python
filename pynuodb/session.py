@@ -17,8 +17,7 @@ import socket
 import struct
 import sys
 from ipaddress import ip_address
-import xml.etree.ElementTree as ElementTree
-from xml.etree.ElementTree import Element  # pylint: disable=unused-import
+import xml.etree.ElementTree as ET
 
 try:
     from urllib.parse import urlparse
@@ -32,8 +31,7 @@ except ImportError:
     pass
 
 from .exception import Error, OperationalError, InterfaceError
-from .crypt import ClientPassword, NoCipher, RC4Cipher
-from .crypt import BaseCipher  # pylint: disable=unused-import
+from . import crypt
 
 isP2 = sys.version[0] == '2'
 
@@ -55,10 +53,10 @@ def checkForError(message):
     """Check a result XML string for errors.
 
     :param message: The message to be checked.
-    :raises ElementTree.ParseError: If the message is invalid XML.
+    :raises ET.ParseError: If the message is invalid XML.
     :raises SessionException: If the message is an error result.
     """
-    root = ElementTree.fromstring(message)
+    root = ET.fromstring(message)
     if root.tag == "Error":
         raise SessionException(root.get("text", "Unknown Error"))
 
@@ -87,8 +85,8 @@ class Session(object):
     __SRP_REQ = '<SRPRequest ClientKey="%s" Ciphers="%s" Username="%s"/>'
 
     __isTLSEncrypted = False
-    __cipherOut = None   # type: BaseCipher
-    __cipherIn = None    # type: BaseCipher
+    __cipherOut = None   # type: crypt.BaseCipher
+    __cipherIn = None    # type: crypt.BaseCipher
 
     __port = NUODB_PORT  # type: int
     __sock = None        # type: Optional[socket.socket]
@@ -273,7 +271,7 @@ class Session(object):
         return self.__port
 
     def _setCiphers(self, cipherIn, cipherOut):
-        # type: (BaseCipher, BaseCipher) -> None
+        # type: (crypt.BaseCipher, crypt.BaseCipher) -> None
         """Set the input and output cipher implementations."""
         self.__cipherIn = cipherIn
         self.__cipherOut = cipherOut
@@ -288,13 +286,13 @@ class Session(object):
         req = Session.__AUTH_REQ % (self.__service)
         self.send(req.encode())
 
-        cp = ClientPassword()
+        cp = crypt.ClientPassword()
         key = cp.genClientKey()
         req = Session.__SRP_REQ % (key, cipher, account)
         response = self.__sendAndReceive(req.encode())
 
         try:
-            root = ElementTree.fromstring(response.decode())
+            root = ET.fromstring(response.decode())
             if root.tag != "SRPResponse":
                 raise InterfaceError("Request for authorization was denied")
 
@@ -309,15 +307,16 @@ class Session(object):
 
             serverCipher = root.get("Cipher")
             if serverCipher == 'None':
-                self._setCiphers(NoCipher(), NoCipher())
+                self._setCiphers(crypt.NoCipher(), crypt.NoCipher())
             else:
-                self._setCiphers(RC4Cipher(sessionKey), RC4Cipher(sessionKey))
+                self._setCiphers(crypt.RC4Cipher(sessionKey),
+                                 crypt.RC4Cipher(sessionKey))
 
             verifyMessage = self.recv()
             if verifyMessage is None:
                 raise SessionException("Failed to establish session (no verification)")
             try:
-                root = ElementTree.fromstring(verifyMessage.decode())
+                root = ET.fromstring(verifyMessage.decode())
             except Exception as e:
                 raise SessionException("Failed to establish session with password: " + str(e))
 
@@ -331,7 +330,7 @@ class Session(object):
 
     def doConnect(self, attributes=None,  # type: Optional[Mapping[str, str]]
                   text=None,              # type: Optional[str]
-                  children=None           # type: Optional[Iterable[Element]]
+                  children=None           # type: Optional[Iterable[ET.Element]]
                   ):
         # type: (...) -> None
         """Connect to the service."""
@@ -346,7 +345,7 @@ class Session(object):
 
     def doRequest(self, attributes=None,  # type: Optional[Dict[str, str]]
                   text=None,              # type: Optional[str]
-                  children=None           # type: Optional[Iterable[Element]]
+                  children=None           # type: Optional[Iterable[ET.Element]]
                   ):
         # type: (...) -> str
         """Ask the service to execute a request and return the response.
@@ -369,7 +368,7 @@ class Session(object):
                                   template,  # type: str
                                   attrs,     # type: Optional[Mapping[str, str]]
                                   text,      # type: Optional[str]
-                                  children   # type: Optional[Iterable[Element]]
+                                  children   # type: Optional[Iterable[ET.Element]]
                                   ):
         # type: (...) -> str
         """Create an XML service message and return it."""
@@ -381,7 +380,7 @@ class Session(object):
         message = template % (self.__service, attributeString)
 
         if children or text:
-            root = ElementTree.fromstring(message)
+            root = ET.fromstring(message)
 
             if text:
                 root.text = text
@@ -390,7 +389,7 @@ class Session(object):
                 for child in children:
                     root.append(child)
 
-            message = ElementTree.tostring(root, encoding=self.__xml_encoding)
+            message = ET.tostring(root, encoding=self.__xml_encoding)
 
         return message
 
