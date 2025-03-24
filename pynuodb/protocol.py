@@ -155,7 +155,12 @@ AUTHORIZETYPESREQUEST             = 122
 SETRESULTSETFETCHSIZE             = 123
 SETSTATEMENTFETCHSIZE             = 124
 RECOVERTRANSACTION                = 125
-SQLTEST                           = 126
+CREATESTATEMENTHOLD               = 127
+PREPARESTATEMENTHOLD              = 128
+PREPARECALLHOLD                   = 129
+SETCONNECTIONHOLDABILITY          = 130
+GETCONNECTIONHOLDABILITY          = 131
+GETRESULTSETHOLDABILITY           = 132
 
 # Error code values
 SYNTAX_ERROR                      = -1
@@ -369,5 +374,5 @@ PREPARE_AND_EXECUTE_TOGETHER                    = 26
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
-CURRENT_PROTOCOL_VERSION   = MULTI_CIPHER
+CURRENT_PROTOCOL_VERSION   = CURSOR_HOLDABILITY
 AUTH_TEST_STR              = 'Success!'
