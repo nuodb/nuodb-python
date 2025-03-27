@@ -400,8 +400,8 @@ class RC4CipherNuoDB(BaseCipher):
     name = 'RC4-local'
     keysize = int(160 / 8)
 
-    def __init__(self, _, key):
-        # type: (bool, bytes) -> None
+    def __init__(self, _, key, convert=True):
+        # type: (bool, bytes, bool) -> None
         """Create an RC4 cipher using the given key.
 
         This uses a native Python implementation which is sloooooow.
@@ -410,6 +410,7 @@ class RC4CipherNuoDB(BaseCipher):
 
         :param encrypt: True if encrypting, False if decrypting
         :param key: The cipher key.
+        :param convert: If True hash the key
         """
         super(RC4CipherNuoDB, self).__init__()
 
@@ -419,7 +420,10 @@ class RC4CipherNuoDB(BaseCipher):
 
         state = self.__state
 
-        data = bytesToArray(self._convert_key(key))
+        if convert:
+            key = self._convert_key(key)
+        data = bytesToArray(key)
+
         sz = len(data)
         j = 0
         for i in range(256):
@@ -465,14 +469,17 @@ class RC4CipherCryptography(BaseCipher):
     name = 'RC4'
     keysize = int(160 / 8)
 
-    def __init__(self, encrypt, key):
-        # type: (bool, bytes) -> None
+    def __init__(self, encrypt, key, convert=True):
+        # type: (bool, bytes, bool) -> None
         """Create an RC4 cipher using the given key.
 
         :param encrypt: True if encrypting, False if decrypting
         :param key: The key to initialize from.
+        :param convert: If True hash the key
         """
-        algo = ARC4(self._convert_key(key))
+        if convert:
+            key = self._convert_key(key)
+        algo = ARC4(key)
 
         # There's a bug in older versions of mypy where they don't infer the
         # optionality of mode correctly.
