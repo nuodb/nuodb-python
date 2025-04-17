@@ -58,11 +58,11 @@ def ymd2day(year: int, month: int, day: int,validate: bool =False) -> int:
       - Julian Calendar for dates before and including 10/4/1582.
     Dates between the Julian Calendar and Georgian Calendar don't exist and
     ValueError will be raised.
-    
+
     If validate = true then ValueError is raised if year,month,day is not a valid
     date and within year range.
     """
-    
+
     mm = (month+9)%12
     yy = year - mm//10
     d  = day
@@ -104,12 +104,12 @@ def day2ymd(daynum: int) -> (int,int,int):
        | -719614 | (1,1,1)          |
        | 2932896 | (9999,12,31)     |
        +----------------------------+
-    
+
     """
 
     # before 1/1/1 or after 9999/12/25
-    if daynum < -719164 or daynum > 2932896:
-        raise ValueError(f"Invalid daynum {daynum} before 0001-01-01 or after 9999-12-31")
+    # if daynum < -719164 or daynum > 2932896:
+    #     raise ValueError(f"Invalid daynum {daynum} before 0001-01-01 or after 9999-12-31")
 
     # In Julian Calender 0001-01-03 is (JD 1721426).
     if daynum < _GREGORIAN_DAY1:

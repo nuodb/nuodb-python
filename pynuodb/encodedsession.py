@@ -39,9 +39,7 @@ from .result_set import ResultSet
 
 from .crypt import BaseCipher, ClientPassword  # pylint: disable=unused-import
 
-isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
-
 
 class EncodedSession(Session):  # pylint: disable=too-many-public-methods
     """Class for representing an encoded session with the database.
@@ -134,7 +132,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
     @timezone_name.setter
     def timezone_name(self,tzname):
         self.__timezone_name = tzname
-            
+
 
 
     def open_database(self, db_name, password, parameters):
@@ -279,7 +277,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         Query TE for TimeZone name. This is done because timezone abbreviations
         are allowed in TE but, not handled by ZoneInfo.  If TE gets a TimeZone=EST
         connection property,  it will set TimeZone system connection property to America/
-        
+
         # type: () -> None
         """
         # Create a statement handle
@@ -434,10 +432,11 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if error_string is not None:
             raise BatchError(error_string, results)
 
-        tzChange = self.getBoolean()
-        if tzChange:
-            tzName = self.getString()
-            print(f"New TimeZone: {tzName}")
+        if self.__sessionVersion >= protocol.TIMESTAMP_WITHOUT_TZ:
+            tzChange = self.getBoolean()
+            if tzChange:
+                tzName = self.getString()
+                self.timezone_name = tzName
 
         # timezone
         # transid (getLong)
@@ -587,7 +586,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
         :type value: str
         """
-        data = bytes(value) if isP2 else value.encode('utf-8')  # type: ignore
+        data = value.encode('utf-8')  # type: ignore
         length = len(data)
         if length < 40:
             self.__output.append(protocol.UTF8LEN0 + length)
@@ -967,19 +966,24 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         raise DataError('Not a clob')
 
 
-    # def __unpack(self,scale,time):
-    #     shiftr= int(10**scale)
-    #     ticks = time // shiftr
-    #     fraction = time % shiftr
-    #     if scale > 6:
-    #         micros = fraction // int(10**(scale-6))
-    #     else:
-    #         micros = fraction * int(10**(6-scale))
-    #     return (ticks,micros)
-    
+    __shifters = [1,10,100,1000,10000,100000,1000000,10000000,100000000, 1000000000]
+
     def __unpack(self,scale,time):
-        ticks = decimal.Decimal(time) / decimal.Decimal(10**scale)
-        return (round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
+        shiftr= self.__shifters[scale]
+        ticks = time // shiftr
+        fraction = time % shiftr
+        if scale > 6:
+            micros = fraction // self.__shifters[scale-6]
+        else:
+            micros = fraction * self.__shifters[6-scale]
+        if micros < 0:
+            micros %= 1000000
+            ticks += 1
+        return (ticks,micros)
+
+    # def __unpack(self,scale,time):
+    #     ticks = decimal.Decimal(time) / decimal.Decimal(10**scale)
+    #     return (round(int(ticks)), int((ticks % 1) * decimal.Decimal(1000000)))
 
     def getScaledTime(self):
 
@@ -1009,17 +1013,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
         if code >= protocol.SCALEDTIMESTAMPLEN1 and code <= protocol.SCALEDTIMESTAMPLEN8:
             scale = fromByteString(self._takeBytes(1))
             stamp = fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
-            # shiftr = 10**scale
-            # ticks = stamp//shiftr
-            # if scale:
-            #     micro = stamp%shiftr
-            #     micro *= int(10**(6-scale))
             seconds,micros = self.__unpack(scale,stamp)
-            #return datatype.TimestampFromTicks(seconds,micros,self.timezone_info)
-            ticks = decimal.Decimal(stamp) / decimal.Decimal(10**scale)
-            os, om = (round(int(ticks)),int((ticks % 1) * decimal.Decimal(1000000)))
-            print(f"seconds={seconds} micros={micros} os={os}, om={om}")
-            return datatype.TimestampFromTicks(os,om)
+            return datatype.TimestampFromTicks(seconds,micros,self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
 

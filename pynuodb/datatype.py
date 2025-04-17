@@ -85,7 +85,6 @@ TICKSDAY=86400
 def DateFromTicks(ticks):
     # type: (int) -> Date
     """Convert ticks to a Date object."""
-    #return Date(*time.localtime(ticks)[:3])
     y,m,d = day2ymd(ticks//TICKSDAY)
     return Date(year=y,month=m,day=d)
 
@@ -93,9 +92,7 @@ def DateFromTicks(ticks):
 def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
     # type: (int, int) -> Time
     """Convert ticks to a Time object."""
-    #return Time(*time.localtime(ticks)[3:6] + (micro,))
 
-    print(f"TimeFromTicks: {ticks} {micro}")
     if ticks >= TICKSDAY or ticks <= -TICKSDAY:
         dt = TimestampFromTicks(ticks,micro,zoneinfo)
         _time = dt.time()
@@ -111,7 +108,7 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
 
         # convert time to standard time offset from utc for given timezone. Use
         # today's date for offset calculation.
-        
+
         today  = Timestamp.now().date()
         time   = Time(hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
         tstamp = Timestamp.combine(today,time).astimezone(zoneinfo)
@@ -126,7 +123,7 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
 def TimestampFromTicks(ticks, micro=0,zoneinfo=localZoneInfo):
     # type: (int, int) -> Timestamp
     """Convert ticks to a Timestamp object."""
-    #return Timestamp(*time.localtime(ticks)[:6] + (micro,))
+
     day = ticks//TICKSDAY
     y,m,d = day2ymd(day)
 
@@ -136,20 +133,25 @@ def TimestampFromTicks(ticks, micro=0,zoneinfo=localZoneInfo):
     min  =  sec // 60
     sec  %=  60
 
-    dt = Timestamp(year=y,month=m,day=d,hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
-    dt = dt.astimezone(zoneinfo)
-    #print(f"TimestampFromTicks: {ticks} {micro} - {dt}")
+    # this requires both utc and current session to be between year 1 and year 9999 inclusive.
+    # nuodb could store a timestamp that is east of utc where utc would be year 10000, for now
+    # let's just return NULL for that case.
+    if y < 10000:
+        dt = Timestamp(year=y,month=m,day=d,hour=hour,minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
+        dt = dt.astimezone(zoneinfo)
+    else:
+        # shift one day.
+        dt = Timestamp(year=9999,month=12,day=31,hour=hour,
+                       minute=min,second=sec,microsecond=micro,tzinfo=TimeZone.utc)
+        dt = dt.astimezone(zoneinfo)
+        # add day back.
+        dt += TimeDelta(days=1)
     return dt
 
 
 def DateToTicks(value):
     # type: (Date) -> int
     """Convert a Date object to ticks."""
-    # timeStruct = Date(value.year, value.month, value.day).timetuple()
-    # try:
-    #     return int(time.mktime(timeStruct))
-    # except Exception:
-    #     raise DataError("Year out of range")
     day = ymd2day(value.year, value.month, value.day)
     return day * TICKSDAY
 
@@ -167,15 +169,6 @@ def packtime(seconds: int, microseconds: int) -> (int, int):
     else:
         return (seconds, 0)
 
-# def packtime(seconds, microseconds):
-#     if microseconds:
-#         micro = decimal.Decimal(microseconds) / decimal.Decimal(1000000)
-#         t1 = decimal.Decimal(str(seconds)) + micro
-#         tlen = len(str(micro)) - 2
-#         return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
-#     else:
-#         return (seconds, 0)
-
 def TimeToTicks(value,zoneinfo = localZoneInfo):
     # type: (Time) -> Tuple[int, int]
     """Convert a Time object to ticks."""
@@ -192,12 +185,11 @@ def TimeToTicks(value,zoneinfo = localZoneInfo):
     dst_offset = zoneinfo.dst(tstamp)
     utc_offset = zoneinfo.utcoffset(tstamp)
     std_offset = dst_offset - utc_offset
-    
+
     timeStruct = TimeDelta(hours=tstamp.hour, minutes=tstamp.minute,
                            seconds=tstamp.second,
                            microseconds=tstamp.microsecond)
     timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
-
     return (int((timeDec + std_offset) * 10**abs(timeDec.as_tuple()[2])),
             abs(timeDec.as_tuple()[2]))
 
@@ -205,20 +197,9 @@ def TimeToTicks(value,zoneinfo = localZoneInfo):
 def TimestampToTicks(value,zoneinfo  = localZoneInfo):
     # type: (Timestamp) -> Tuple[int, int]
     """Convert a Timestamp object to ticks."""
-    # timeStruct = Timestamp(value.year, value.month, value.day, value.hour,
-    #                        value.minute, value.second).timetuple()
-    # try:
-    #     if not value.microsecond:
-    #         return (int(time.mktime(timeStruct)), 0)
-    #     micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
-    #     t1 = decimal.Decimal(int(time.mktime(timeStruct))) + micro
-    #     tlen = len(str(micro)) - 2
-    #     return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
-    # except Exception:
-    #     raise DataError("Year out of range")
 
     # if naive timezone then leave date/time but change tzinfo to
-    # be connection's timezone.    
+    # be connection's timezone.
     if value.tzinfo is None:
         value = value.replace(tzinfo=zoneinfo)
     dt = value.astimezone(TimeZone.utc)
@@ -227,7 +208,6 @@ def TimestampToTicks(value,zoneinfo  = localZoneInfo):
     timesecs += dt.minute * 60
     timesecs += dt.second
     packedtime = packtime(timesecs,dt.microsecond)
-    #print(f'TimestampToTicks: {value} {timesecs} {dt.microsecond} =  {packedtime}')
     return packedtime
 
 
@@ -288,3 +268,4 @@ def TypeObjectFromNuodb(nuodb_type_name):
     if obj is None:
         raise DataError('received unknown column type "%s"' % (name))
     return obj
+
