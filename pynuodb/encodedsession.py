@@ -436,8 +436,8 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
             self.getString()    # catalog_name
             self.getString()    # schema_name
             self.getString()    # table_name
-            column_name = self.getString()
-            self.getString()    # column_label
+            self.getString()    # column_name
+            column_label = self.getString()    # column_label
             self.getValue()     # collation_sequence
             column_type_name = self.getString()
             self.getInt()       # column_type
@@ -448,7 +448,7 @@ class EncodedSession(Session):  # pylint: disable=too-many-public-methods
 
             # TODO: type information should be derived from the type
             # (column_type) not the typename.
-            description[i] = [column_name, TypeObjectFromNuodb(column_type_name),
+            description[i] = [column_label, TypeObjectFromNuodb(column_type_name),
                               column_display_size, None, precision, scale, None]
 
         return description
