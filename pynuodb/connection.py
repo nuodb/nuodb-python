@@ -16,7 +16,9 @@ __all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 
 import os
 import copy
+import sys
 import time
+import tzlocal
 import xml.etree.ElementTree as ElementTree
 
 try:
@@ -36,6 +38,7 @@ apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
 
+isP2 = sys.version[0] == '2'
 
 def connect(database=None,  # type: Optional[str]
             host=None,      # type: Optional[str]
@@ -149,9 +152,14 @@ class Connection(object):
             host, port=port, options=options, **kwargs)
         self.__session.doConnect(params)
 
-        params.update({'user': user,
-                       'timezone': time.strftime('%Z'),
-                       'clientProcessId': str(os.getpid())})
+        if 'timezone' not in [k.lower() for k in params]:
+            if isP2:
+                local_tz = tzlocal.get_localzone()
+                if local_tz:
+                    params['timezone'] = local_tz.zone
+            else:
+                params['timezone'] = tzlocal.get_localzone_name()
+        params.update({'user': user, 'clientProcessId': str(os.getpid()) })
 
         self.__session.open_database(database, password, params)
 

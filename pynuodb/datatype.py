@@ -42,10 +42,64 @@ try:
 except ImportError:
     pass
 
+import tzlocal
 from .exception import DataError
+from .calendar  import ymd2day, day2ymd
 
 isP2 = sys.version[0] == '2'
+TICKSDAY=86400
 
+if isP2:
+    import pytz as TimeZone
+
+    def utc_TimeStamp(year,month,day,hour=0,minute=0,second=0,microsecond=0):
+        # type: (int,int,int,int,int,int,int) -> TimeStamp
+        """
+        timezone aware datetime with UTC timezone.
+        """
+        dt = Timestamp(year=year, month=month, day=day,
+                       hour=hour, minute=minute, second=second, microsecond=microsecond)
+        return TimeZone.utc.localize(dt, is_dst=None)
+
+    def utc_Time_today(time):
+        # type: (Time) -> TimeStamp
+        time_tzinfo = time.tzinfo
+        tstamp = Timestamp.combine(Date.today(),time)
+        if time.tzinfo is None:
+            tstamp = TimeZone.utc.localize(tstamp, is_dst=None)
+        else:
+            tstamp = tstamp.replace(tzinfo=time_tzinfo)
+            tstamp = tstamp.astimezone(TimeZone.utc)
+        return tstamp
+
+    def timezone_aware(tstamp,tzinfo):
+        return tzinfo.localize(tstamp, is_dst=None)
+
+else:
+    from datetime import timezone as TimeZone
+
+    def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
+        # type: (int,int,int,int,int,int,int) -> TimeStamp
+        """
+        timezone aware datetime with UTC timezone.
+        """
+        return Timestamp(year=year, month=month, day=day,
+                         hour=hour, minute=minute, second=second,
+                         microsecond=microsecond, tzinfo=TimeZone.utc)
+
+    def utc_Time_today(time):
+        # type: (Time) -> TimeStamp
+        tstamp = Timestamp.combine(Date.today(),time)
+        if time.tzinfo is None:
+            utc_tstamp = tstamp.replace(tzinfo=TimeZone.utc)
+        else:
+            utc_tstamp = tstamp.astimezone(TimeZone.utc)
+        return utc_tstamp
+
+    def timezone_aware(tstamp,tzinfo):
+        return tstamp.replace(tzinfo=tzinfo)
+
+localZoneInfo = tzlocal.get_localzone()
 
 class Binary(bytes):
     """A binary string.
@@ -83,56 +137,130 @@ class Binary(bytes):
 def DateFromTicks(ticks):
     # type: (int) -> Date
     """Convert ticks to a Date object."""
-    return Date(*time.localtime(ticks)[:3])
+    y,m,d = day2ymd(ticks//TICKSDAY)
+    return Date(year=y,month=m,day=d)
 
 
-def TimeFromTicks(ticks, micro=0):
+def TimeFromTicks(ticks, micro=0, zoneinfo=localZoneInfo ):
     # type: (int, int) -> Time
     """Convert ticks to a Time object."""
-    return Time(*time.localtime(ticks)[3:6] + (micro,))
+
+    if ticks >= TICKSDAY or ticks <= -TICKSDAY:
+        dt = TimestampFromTicks(ticks,micro,zoneinfo)
+        _time = dt.time()
+    else:
+        if ticks < 0 and micro:
+            ticks -= 1
+        timeticks = ticks % TICKSDAY
+        hour  = timeticks // 3600
+        sec   = timeticks % 3600
+        min   = (sec // 60 )
+        sec  %= 60
+        micro %= 1000000
+
+        # convert time to standard time offset from utc for given timezone. Use
+        # today's date for offset calculation.
+
+        utc_tstamp = utc_TimeStamp(year=1970,month=1,day=1,hour=hour,minute=min,second=sec,microsecond=micro)
+        tstamp   = utc_tstamp.astimezone(zoneinfo)
+        dst_offset = tstamp.dst()
+        if dst_offset:
+            tstamp -= dst_offset
+        _time    = tstamp.time()
+    return _time
 
 
-def TimestampFromTicks(ticks, micro=0):
+def TimestampFromTicks(ticks, micro=0,zoneinfo=localZoneInfo):
     # type: (int, int) -> Timestamp
     """Convert ticks to a Timestamp object."""
-    return Timestamp(*time.localtime(ticks)[:6] + (micro,))
+
+    day = ticks//TICKSDAY
+    y,m,d = day2ymd(day)
+
+    timeticks = ticks % TICKSDAY
+    hour = timeticks // 3600
+    sec  = timeticks % 3600
+    min  =  sec // 60
+    sec  %=  60
+
+    # this requires both utc and current session to be between year 1 and year 9999 inclusive.
+    # nuodb could store a timestamp that is east of utc where utc would be year 10000, for now
+    # let's just return NULL for that case.
+    if y < 10000:
+        dt = utc_TimeStamp(year=y,month=m,day=d,hour=hour,minute=min,second=sec,microsecond=micro)
+        dt = dt.astimezone(zoneinfo)
+    else:
+        # shift one day.
+        dt = utc_TimeStamp(year=9999,month=12,day=31,hour=hour,
+                           minute=min,second=sec,microsecond=micro)
+        dt = dt.astimezone(zoneinfo)
+        # add day back.
+        dt += TimeDelta(days=1)
+
+    # current test assume datetimes are naive.
+    return dt.replace(tzinfo=None)
 
 
 def DateToTicks(value):
     # type: (Date) -> int
     """Convert a Date object to ticks."""
-    timeStruct = Date(value.year, value.month, value.day).timetuple()
-    try:
-        return int(time.mktime(timeStruct))
-    except Exception:
-        raise DataError("Year out of range")
+    day = ymd2day(value.year, value.month, value.day)
+    return day * TICKSDAY
 
 
-def TimeToTicks(value):
+def packtime(seconds, microseconds):
+    # type: (int,int) -> (int,int)
+    if microseconds:
+        ndiv=0
+        msecs  = microseconds
+        shiftr = 1000000
+        shiftl = 1
+        while (microseconds % shiftr):
+            shiftr //= 10
+            shiftl *= 10
+            ndiv +=1
+        return ( seconds*shiftl + microseconds//shiftr, ndiv )
+    else:
+        return (seconds, 0)
+
+
+def TimeToTicks(value,zoneinfo = localZoneInfo):
     # type: (Time) -> Tuple[int, int]
     """Convert a Time object to ticks."""
-    timeStruct = TimeDelta(hours=value.hour, minutes=value.minute,
-                           seconds=value.second,
-                           microseconds=value.microsecond)
+
+    # convert time to time relative to connection timezone
+    # using today as date.
+
+    tstamp = utc_Time_today(value)
+    tstamp = tstamp.astimezone(zoneinfo)
+
+    dst_offset = zoneinfo.dst(tstamp)
+    utc_offset = zoneinfo.utcoffset(tstamp)
+    std_offset = dst_offset - utc_offset
+
+    timeStruct = TimeDelta(hours=tstamp.hour, minutes=tstamp.minute,
+                           seconds=tstamp.second,
+                           microseconds=tstamp.microsecond)
     timeDec = decimal.Decimal(str(timeStruct.total_seconds()))
-    return (int((timeDec + time.timezone) * 10**abs(timeDec.as_tuple()[2])),
+    return (int((timeDec + std_offset) * 10**abs(timeDec.as_tuple()[2])),
             abs(timeDec.as_tuple()[2]))
 
 
-def TimestampToTicks(value):
+def TimestampToTicks(value,zoneinfo  = localZoneInfo):
     # type: (Timestamp) -> Tuple[int, int]
     """Convert a Timestamp object to ticks."""
-    timeStruct = Timestamp(value.year, value.month, value.day, value.hour,
-                           value.minute, value.second).timetuple()
-    try:
-        if not value.microsecond:
-            return (int(time.mktime(timeStruct)), 0)
-        micro = decimal.Decimal(value.microsecond) / decimal.Decimal(1000000)
-        t1 = decimal.Decimal(int(time.mktime(timeStruct))) + micro
-        tlen = len(str(micro)) - 2
-        return (int(t1 * decimal.Decimal(int(10**tlen))), tlen)
-    except Exception:
-        raise DataError("Year out of range")
+
+    # if naive timezone then leave date/time but change tzinfo to
+    # be connection's timezone.
+    if value.tzinfo is None:
+        value = timezone_aware(value,zoneinfo)
+    dt = value.astimezone(TimeZone.utc)
+    timesecs  = ymd2day(dt.year,dt.month,dt.day) * TICKSDAY
+    timesecs += dt.hour * 3600
+    timesecs += dt.minute * 60
+    timesecs += dt.second
+    packedtime = packtime(timesecs,dt.microsecond)
+    return packedtime
 
 
 class TypeObject(object):

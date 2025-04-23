@@ -43,7 +43,12 @@ setup(
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),
-    install_requires=['pytz>=2015.4', 'ipaddress'],
+    install_requires=[
+        'ipaddress',
+        'pytz>=2015.4; python_version <= "3.6"',
+        'tzlocal<3; python_version < "3.0"',
+        'tzlocal>=3; python_version >= "3.6"',
+    ],
     extras_require=dict(crypto='cryptography>=2.6.1'),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
