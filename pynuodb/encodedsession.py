@@ -32,15 +32,16 @@ from . import datatype
 from . import session
 from . import statement
 from . import result_set
+import sys
+from datetime import datetime
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from pytz import timezone as ZoneInfo
 
 isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
-
-if isP2:
-    from pytz import timezone as ZoneInfo
-else:
-    from zoneinfo import ZoneInfo
-
 
 class EncodedSession(session.Session):  # pylint: disable=too-many-public-methods
     """Class for representing an encoded session with the database.

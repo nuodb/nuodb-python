@@ -45,9 +45,8 @@ setup(
     long_description=open(readme).read(),
     install_requires=[
         'ipaddress',
-        'pytz>=2015.4; python_version <= "3.6"',
-        'tzlocal<3; python_version < "3.0"',
-        'tzlocal>=3; python_version >= "3.6"',
+        'pytz>=2015.4',
+        'tzlocal'
     ],
     extras_require=dict(crypto='cryptography>=2.6.1'),
     classifiers=[

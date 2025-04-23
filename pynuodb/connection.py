@@ -38,7 +38,6 @@ apilevel = "2.0"
 threadsafety = 1
 paramstyle = "qmark"
 
-isP2 = sys.version[0] == '2'
 
 def connect(database=None,  # type: Optional[str]
             host=None,      # type: Optional[str]
@@ -153,12 +152,13 @@ class Connection(object):
         self.__session.doConnect(params)
 
         if 'timezone' not in [k.lower() for k in params]:
-            if isP2:
+            if hasattr(tzlocal, 'get_localzone_name'):
+                params['timezone'] = tzlocal.get_localzone_name()
+            else:
                 local_tz = tzlocal.get_localzone()
                 if local_tz:
                     params['timezone'] = local_tz.zone
-            else:
-                params['timezone'] = tzlocal.get_localzone_name()
+
         params.update({'user': user, 'clientProcessId': str(os.getpid()) })
 
         self.__session.open_database(database, password, params)

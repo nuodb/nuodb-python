@@ -46,36 +46,8 @@ import tzlocal
 from .exception import DataError
 from .calendar  import ymd2day, day2ymd
 
-isP2 = sys.version[0] == '2'
-TICKSDAY=86400
-
-if isP2:
-    import pytz as TimeZone
-
-    def utc_TimeStamp(year,month,day,hour=0,minute=0,second=0,microsecond=0):
-        # type: (int,int,int,int,int,int,int) -> TimeStamp
-        """
-        timezone aware datetime with UTC timezone.
-        """
-        dt = Timestamp(year=year, month=month, day=day,
-                       hour=hour, minute=minute, second=second, microsecond=microsecond)
-        return TimeZone.utc.localize(dt, is_dst=None)
-
-    def utc_Time_today(time):
-        # type: (Time) -> TimeStamp
-        time_tzinfo = time.tzinfo
-        tstamp = Timestamp.combine(Date.today(),time)
-        if time.tzinfo is None:
-            tstamp = TimeZone.utc.localize(tstamp, is_dst=None)
-        else:
-            tstamp = tstamp.replace(tzinfo=time_tzinfo)
-            tstamp = tstamp.astimezone(TimeZone.utc)
-        return tstamp
-
-    def timezone_aware(tstamp,tzinfo):
-        return tzinfo.localize(tstamp, is_dst=None)
-
-else:
+try:
+    from zoneinfo import ZoneInfo
     from datetime import timezone as TimeZone
 
     def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
@@ -98,6 +70,36 @@ else:
 
     def timezone_aware(tstamp,tzinfo):
         return tstamp.replace(tzinfo=tzinfo)
+
+except ImportError:
+    import pytz as TimeZone
+
+    def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
+        # type: (int,int,int,int,int,int,int) -> TimeStamp
+        """
+        timezone aware datetime with UTC timezone.
+        """
+        dt = Timestamp(year=year, month=month, day=day,
+                       hour=hour, minute=minute, second=second, microsecond=microsecond)
+        return TimeZone.utc.localize(dt, is_dst=None)
+
+    def utc_Time_today(time):
+        # type: (Time) -> TimeStamp
+        time_tzinfo = time.tzinfo
+        tstamp = Timestamp.combine(Date.today(),time)
+        if time.tzinfo is None:
+            tstamp = TimeZone.utc.localize(tstamp, is_dst=None)
+        else:
+            tstamp = tstamp.replace(tzinfo=time_tzinfo)
+            tstamp = tstamp.astimezone(TimeZone.utc)
+        return tstamp
+
+    def timezone_aware(tstamp,tzinfo):
+        return tzinfo.localize(tstamp, is_dst=None)
+
+
+isP2 = sys.version[0] == '2'
+TICKSDAY=86400
 
 localZoneInfo = tzlocal.get_localzone()
 
