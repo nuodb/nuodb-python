@@ -112,3 +112,16 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
         assert row[1] == datetime.time(5, 44, 33, 221100)
         assert row[2] == datetime.datetime(2000, 1, 1, 5, 44, 33, 221100)
         assert row[3] == datetime.datetime(2000, 1, 1, 5, 44, 33, 221100)
+
+    def test_null_type(self):
+        con = self._connect()
+        cursor = con.cursor()
+
+        null_type = self.driver.TypeObjectFromNuodb('<null>')
+
+        cursor.execute("SELECT NULL from dual")
+        row = cursor.fetchone()
+
+        assert len(row) == 1
+        assert cursor.description[0][1] == null_type
+        assert row[0] is None

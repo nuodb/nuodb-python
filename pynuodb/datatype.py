@@ -154,8 +154,9 @@ BINARY = TypeObject(str)
 NUMBER = TypeObject(int, decimal.Decimal)
 DATETIME = TypeObject(Timestamp, Date, Time)
 ROWID = TypeObject()
+NULL = TypeObject(None)
 
-TYPEMAP = {"<null>": None,
+TYPEMAP = {"<null>": NULL,
            "string": STRING,
            "char": STRING,
            "varchar": STRING,
