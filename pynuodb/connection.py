@@ -16,7 +16,9 @@ __all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
 
 import os
 import copy
+import sys
 import time
+import tzlocal
 import xml.etree.ElementTree as ElementTree
 
 try:
@@ -149,9 +151,15 @@ class Connection(object):
             host, port=port, options=options, **kwargs)
         self.__session.doConnect(params)
 
-        params.update({'user': user,
-                       'timezone': time.strftime('%Z'),
-                       'clientProcessId': str(os.getpid())})
+        if 'timezone' not in [k.lower() for k in params]:
+            if hasattr(tzlocal, 'get_localzone_name'):
+                params['timezone'] = tzlocal.get_localzone_name()
+            else:
+                local_tz = tzlocal.get_localzone()
+                if local_tz:
+                    params['timezone'] = local_tz.zone
+
+        params.update({'user': user, 'clientProcessId': str(os.getpid()) })
 
         self.__session.open_database(database, password, params)
 

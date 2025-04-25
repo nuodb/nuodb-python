@@ -1,1 +1,2 @@
+tzlocal
 pytz>=2015.4
