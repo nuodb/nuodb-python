@@ -26,15 +26,15 @@ The algorithm's for ymd2day and day2ymd are based off of.
 - https://github.com/SETI/rms-julian/blob/main/julian/calendar.py
 """
 
-#EPOCH 1/1/1970
+# EPOCH 1/1/1970
 
 # from: https://aa.usno.navy.mil/data/JulianDate
 # Julian Dates
-# Sunday        1 B.C. February 29      00:00:00.0      1721116.500000
-# Monday        1 B.C. March 1          00:00:00.0      1721117.500000
-# Thursday      A.D. 1970 January 1     00:00:00.0      2440587.500000 (day 0 for our calculations)
-# Thursday      A.D. 1582 October 4     00:00:00.0      2299159.500000 (last day of julian calendar)
-# Friday        A.D. 1582 October 15    00:00:00.0      2299160.500000 (first day of gregorian calendar)
+# Sunday        1 B.C. February 29      00:00:00.0  1721116.500000
+# Monday        1 B.C. March 1          00:00:00.0  1721117.500000
+# Thursday      A.D. 1970 January 1     00:00:00.0  2440587.500000 (day 0 for our calculations)
+# Thursday      A.D. 1582 October 4     00:00:00.0  2299159.500000 (last day of julian calendar)
+# Friday        A.D. 1582 October 15    00:00:00.0  2299160.500000 (day 1 of gregorian calendar)
 
 # used to calculate daynum (relative to 1970-01-01) for dates before and including 1582 Oct 4
 _FEB29_1BCE_JULIAN     = 1721116 - 2440587
@@ -46,7 +46,7 @@ _MAR01_1BCE_JULIAN     = - (_FEB29_1BCE_JULIAN + 1)
 _GREGORIAN_DAY1        = 2299160 - 2440587
 
 
-def ymd2day(year, month, day, validate = False):
+def ymd2day(year, month, day, validate=False):
     # type: (int,int,int,bool) -> int
     """
     Converts given year , month, day to number of days since unix EPOCH.
@@ -63,28 +63,33 @@ def ymd2day(year, month, day, validate = False):
     date and within year range.
     """
 
-    mm = (month+9)%12
-    yy = year - mm//10
+    mm = (month + 9) % 12
+    yy = year - mm // 10
     d  = day
 
-    day_as_int = year*10000+month*100+day
+    day_as_int = year * 10000 + month * 100 + day
     if day_as_int > 15821014:
-        # use Georgian Calendar, leap year every 4 years except centuries that are not divisible by 400
+        # use Georgian Calendar, leap year every 4 years except centuries
+        # that are not divisible by 400
         # 1900 - not yeap year
         # 2000 - yeap year
-        daynum = (365*yy + yy//4 - yy//100 + yy//400) + (mm * 306 + 5)//10 + d + _FEB29_1BCE_GREGORIAN
+        daynum = (365 * yy + yy // 4 - yy // 100 + yy // 400) + \
+            (mm * 306 + 5) // 10 + d + _FEB29_1BCE_GREGORIAN
     elif day_as_int < 15821005:
         # Julian Calendar, leap year ever 4 years
-        daynum = (365*yy + yy//4) + (mm * 306 + 5)//10 + d + _FEB29_1BCE_JULIAN
+        daynum = (365 * yy + yy // 4) + (mm * 306 + 5) // 10 + d + _FEB29_1BCE_JULIAN
     else:
-        raise ValueError("Invalid date {year:04d}-{month:02d}-{day:02d} not in Gregorian or Julian Calendar".format(
-            year=year,
-            month=month,
-            day=day
-        ))
+        msg = (
+            "Invalid date {year:04d}-{month:02d}-{day:02d} not in "
+            "Gregorian or Julian Calendar"
+        )
+        raise ValueError(msg.format(year=year,
+                                    month=month,
+                                    day=day
+                                    ))
 
     if validate:
-        if day2ymd(daynum) != (year,month,day):
+        if day2ymd(daynum) != (year, month, day):
             raise ValueError("Invalid date {year:04d}-{month:02d}-{day:02d}".format(
                 year=year,
                 month=month,
@@ -92,8 +97,9 @@ def ymd2day(year, month, day, validate = False):
             ))
     return daynum
 
+
 def day2ymd(daynum):
-    # type: (int) -> (int, int, int)
+    # type: (int) -> (int, int, int) # type: ignore
     """
     Converts given day number relative to 1970-01-01 to a tuple (year,month,day).
 
@@ -124,18 +130,17 @@ def day2ymd(daynum):
     if daynum < _GREGORIAN_DAY1:
         g = daynum + _MAR01_1BCE_JULIAN
         y = (100 * g + 75) // 36525
-        doy = g - (365*y + y//4)
+        doy = g - (365 * y + y // 4)
     else:
         # In Georgian Calender 0001-01-01 is (JD 1721426).
         g = daynum + _MAR01_1BCE_JULIAN - 2
-        y = (10000*g + 14780)//3652425 # 365.2425 avg. number days in year.
-        doy = g - (365*y + y//4 - y//100 + y//400)
+        y = (10000 * g + 14780) // 3652425  # 365.2425 avg. number days in year.
+        doy = g - (365 * y + y // 4 - y // 100 + y // 400)
         if doy < 0:
             y -= 1
-            doy = g - (365*y + y//4 - y//100 + y//400)
-    m0 = (100 * doy + 52)//3060
-    m = (m0+2)%12 + 1
-    y += (m0+2)//12
-    d = doy - (m0*306+5)//10 + 1
-    return (y,m,d)
-
+            doy = g - (365 * y + y // 4 - y // 100 + y // 400)
+    m0 = (100 * doy + 52) // 3060
+    m = (m0 + 2) % 12 + 1
+    y += (m0 + 2) // 12
+    d = doy - (m0 * 306 + 5) // 10 + 1
+    return (y, m, d,)

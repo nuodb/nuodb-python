@@ -16,8 +16,8 @@ import pynuodb
 from pynuodb.exception import DataError
 
 from . import nuodb_base
-from .mock_tzs import Local, localize
-import tzlocal
+from .mock_tzs import localize
+
 
 class TestNuoDBBasic(nuodb_base.NuoBase):
     def connectManyTimesUsingOptions(self, options):

@@ -159,7 +159,7 @@ class Connection(object):
                 if local_tz:
                     params['timezone'] = local_tz.zone
 
-        params.update({'user': user, 'clientProcessId': str(os.getpid()) })
+        params.update({'user': user, 'clientProcessId': str(os.getpid())})
 
         self.__session.open_database(database, password, params)
 

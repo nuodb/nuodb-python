@@ -32,8 +32,6 @@ from . import datatype
 from . import session
 from . import statement
 from . import result_set
-import sys
-from datetime import datetime
 import pytz
 
 try:
@@ -166,15 +164,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         return tzinfo
 
     @timezone_name.setter
-    def timezone_name(self,tzname):
+    def timezone_name(self, tzname):
         try:
             # fails if tzname is bad
             ZoneInfo(tzname)
-        except:
+        except Exception:
             # this might be a shortname not
             # fully qualified (PST instead of PST8PDT)
             possible_alternatives = [
-                tzname for tzname in filter(lambda x: tzname in x,pytz.all_timezones)
+                tzname for tzname in filter(lambda x: tzname in x, pytz.all_timezones)
             ]
             if len(possible_alternatives) == 1:
                 tzname = possible_alternatives[0]
@@ -331,21 +329,12 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         timezone on open_database as part of the protocol, but that is a
         protocol change which is not in place.
         """
-        # Create a statement handle
-        self._putMessageId(protocol.CREATE)
-        self._exchangeMessages()
-        handle = self.getInt()
-
-        self._setup_statement(handle, protocol.EXECUTEQUERY)
-        self.putString("select value from system.connectionproperties where property='TimeZone'")
-        self._exchangeMessages()
-
-        # returns: rsHandle, count, colname, result, fieldValue, r2
-        res = [self.getInt(), self.getInt(), self.getString(),
-               self.getInt(), self.getString(), self.getInt()]
-        self._putMessageId(protocol.CLOSESTATEMENT).putInt(handle)
-        # notify driver of the timezone to use on this connection
-        self.timezone_name=res[-2]
+        stmt = self.create_statement()
+        sql = "select value from system.connectionproperties where property='TimeZone'"
+        self.execute_statement(stmt, sql)
+        rset = self.fetch_result_set(stmt).fetchone()
+        self.timezone_name = rset[0]
+        self.close_statement(stmt)
 
     def test_connection(self):
         # type: () -> None
@@ -761,7 +750,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :type value: datetype.Time
         """
         return self._putScaled(protocol.SCALEDTIMELEN0,
-                               *datatype.TimeToTicks(value,self.timezone_info))
+                               *datatype.TimeToTicks(value, self.timezone_info))
 
     def putScaledTimestamp(self, value):
         # type: (datatype.Timestamp) -> EncodedSession
@@ -770,7 +759,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :type value: datetime.datetime
         """
         return self._putScaled(protocol.SCALEDTIMESTAMPLEN0,
-                               *datatype.TimestampToTicks(value,self.timezone_info))
+                               *datatype.TimestampToTicks(value, self.timezone_info))
 
     def putScaledDate(self, value):
         # type: (datatype.Date) -> EncodedSession
@@ -997,21 +986,20 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         raise DataError('Not a clob')
 
+    __shifters = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000]
 
-    __shifters = [1,10,100,1000,10000,100000,1000000,10000000,100000000, 1000000000]
-
-    def __unpack(self,scale,time):
-        shiftr= self.__shifters[scale]
+    def __unpack(self, scale, time):
+        shiftr = self.__shifters[scale]
         ticks = time // shiftr
         fraction = time % shiftr
         if scale > 6:
-            micros = fraction // self.__shifters[scale-6]
+            micros = fraction // self.__shifters[scale - 6]
         else:
-            micros = fraction * self.__shifters[6-scale]
+            micros = fraction * self.__shifters[6 - scale]
         if micros < 0:
             micros %= 1000000
             ticks += 1
-        return (ticks,micros)
+        return (ticks, micros)
 
     def getScaledTime(self):
         # type: () -> datatype.Time
@@ -1024,8 +1012,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDTIMELEN1 and code <= protocol.SCALEDTIMELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             time = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMELEN0))
-            seconds,micros = self.__unpack(scale,time)
-            return datatype.TimeFromTicks(seconds,micros,self.timezone_info)
+            seconds, micros = self.__unpack(scale, time)
+            return datatype.TimeFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled time')
 
@@ -1040,8 +1028,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDTIMESTAMPLEN1 and code <= protocol.SCALEDTIMESTAMPLEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             stamp = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
-            seconds,micros = self.__unpack(scale,stamp)
-            return datatype.TimestampFromTicks(seconds,micros,self.timezone_info)
+            seconds, micros = self.__unpack(scale, stamp)
+            return datatype.TimestampFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
 
@@ -1056,7 +1044,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             date = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
-            return datatype.DateFromTicks(date//(10**scale))
+            return datatype.DateFromTicks(date // (10**scale))
 
         raise DataError('Not a scaled date')
 

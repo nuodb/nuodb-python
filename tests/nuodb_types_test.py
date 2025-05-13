@@ -10,6 +10,7 @@ import datetime
 from . import nuodb_base
 from .mock_tzs import localize
 
+
 class TestNuoDBTypes(nuodb_base.NuoBase):
     def test_boolean_types(self):
         con = self._connect()
