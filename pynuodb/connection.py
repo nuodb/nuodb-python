@@ -12,7 +12,8 @@ Exported Functions:
 connect -- Creates a connection object.
 """
 
-__all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect', 'Connection']
+__all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect',
+           'reset', 'Connection']
 
 import os
 import copy
@@ -57,6 +58,17 @@ def connect(database=None,  # type: Optional[str]
     return Connection(database=database, host=host,
                       user=user, password=password,
                       options=options, **kwargs)
+
+
+def reset():
+    # type: () -> None
+    """Reset the module to its initial state.
+
+    Forget any global state maintained by the module.
+    NOTE: this does not impact existing connections or cursors.
+    It only impacts new connections.
+    """
+    encodedsession.EncodedSession.reset()
 
 
 class Connection(object):
