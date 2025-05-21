@@ -470,14 +470,12 @@ class Session(object):
         # don't have to reallocate this entire buffer, but it is unreliable.
         buf = lenbuf + data
         view = memoryview(buf)
-        start = 0
-        left = len(buf)
+        end = len(buf)
+        cur = 0
 
         try:
-            while left > 0:
-                sent = sock.send(view[start:left])
-                start += sent
-                left -= sent
+            while cur < end:
+                cur += sock.send(view[cur:])
         except Exception:
             self.close()
             raise
