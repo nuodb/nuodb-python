@@ -283,7 +283,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     def __set_dbinfo(self, sid, txid, seqid):
         # type: (int, int, int) -> None
         with EncodedSession.__dblock:
-            lci = self.__dbinfo.get(sid, (-1, -1))
+            # 0 is an invalid sequence ID
+            lci = self.__dbinfo.get(sid, (0, 0))
             if seqid > lci[1]:
                 self.__dbinfo[sid] = (txid, seqid)
 
