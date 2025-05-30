@@ -1,1 +1,3 @@
+tzlocal
 pytz>=2015.4
+jdcal>=1.4.1

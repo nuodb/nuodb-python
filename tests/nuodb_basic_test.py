@@ -16,7 +16,7 @@ import pynuodb
 from pynuodb.exception import DataError
 
 from . import nuodb_base
-from .mock_tzs import Local
+from .mock_tzs import localize
 
 
 class TestNuoDBBasic(nuodb_base.NuoBase):
@@ -498,8 +498,8 @@ class TestNuoDBBasic(nuodb_base.NuoBase):
             test_vals = (
                 pynuodb.Date(2008, 1, 1),
                 pynuodb.Time(8, 13, 34),
-                pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99, Local),
-                pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88, Local),
+                localize(pynuodb.Timestamp(2014, 12, 19, 14, 8, 30, 99)),
+                localize(pynuodb.Timestamp(2014, 7, 23, 6, 22, 19, 88)),
             )
             exc_str = ("insert into typetest ("
                        "date_col, "
@@ -666,66 +666,45 @@ class TestNuoDBBasic(nuodb_base.NuoBase):
             finally:
                 con.close()
 
-    @pytest.mark.skipif(sys.platform.startswith("win"),
-                        reason="time.tzset() does not work on windows")
     def test_timezones(self):
-        oldtz = os.environ.get('TZ')
-        try:
-            os.environ['TZ'] = 'EST+05EDT,M4.1.0,M10.5.0'
-            time.tzset()
+        con = self._connect(options={'TimeZone':'EST5EDT'})
+        cursor = con.cursor()
+        cursor.execute("drop table typetest if exists")
+        cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, timestamp_col timestamp)")
+        vals = (pynuodb.Timestamp(2013, 5, 24, 0, 0, 1),)
+        cursor.execute("insert into typetest (timestamp_col) values (?)", vals)
+        con.commit()
+        con.close()
 
-            con = self._connect()
-            cursor = con.cursor()
-            cursor.execute("drop table typetest if exists")
-            cursor.execute("create table typetest (id integer GENERATED ALWAYS AS IDENTITY, timestamp_col timestamp)")
-            vals = (pynuodb.Timestamp(2013, 5, 24, 0, 0, 1),)
-            cursor.execute("insert into typetest (timestamp_col) values (?)", vals)
-            con.commit()
-            con.close()
+        con = self._connect(options={'TimeZone':'PST8PDT'})
+        cursor = con.cursor()
+        cursor.execute("select * from typetest")
+        row = cursor.fetchone()
 
-            os.environ['TZ'] = 'PST+08PDT,M4.1.0,M10.5.0'
-            time.tzset()
-            con = self._connect()
-            cursor = con.cursor()
-            cursor.execute("select * from typetest")
-            row = cursor.fetchone()
+        assert vals[0].year == row[1].year
+        assert vals[0].month == row[1].month
+        assert vals[0].day == row[1].day + 1
+        assert vals[0].hour == (row[1].hour + 3) % 24
+        assert vals[0].minute == row[1].minute
+        assert vals[0].second == row[1].second
+        assert vals[0].microsecond == row[1].microsecond
+        con.close()
 
-            assert vals[0].year == row[1].year
-            assert vals[0].month == row[1].month
-            assert vals[0].day == row[1].day + 1
-            assert vals[0].hour == (row[1].hour + 3) % 24
-            assert vals[0].minute == row[1].minute
-            assert vals[0].second == row[1].second
-            assert vals[0].microsecond == row[1].microsecond
-            con.close()
+        con = self._connect(options={'TimeZone':'CET'})
+        cursor = con.cursor()
+        cursor.execute("select * from typetest")
+        row = cursor.fetchone()
 
-            os.environ['TZ'] = 'CET-01CST,M4.1.0,M10.5.0'
-            time.tzset()
-            con = self._connect()
-            cursor = con.cursor()
-            cursor.execute("select * from typetest")
-            row = cursor.fetchone()
+        assert vals[0].year == row[1].year
+        assert vals[0].month == row[1].month
+        assert vals[0].day == row[1].day
+        assert vals[0].hour == (row[1].hour - 6) % 24
+        assert vals[0].minute == row[1].minute
+        assert vals[0].second == row[1].second
+        assert vals[0].microsecond == row[1].microsecond
 
-            assert vals[0].year == row[1].year
-            assert vals[0].month == row[1].month
-            assert vals[0].day == row[1].day
-            assert vals[0].hour == (row[1].hour - 6) % 24
-            assert vals[0].minute == row[1].minute
-            assert vals[0].second == row[1].second
-            assert vals[0].microsecond == row[1].microsecond
-
-            cursor.execute("drop table typetest if exists")
-            con.close()
-
-        finally:
-            try:
-                if oldtz is None:
-                    os.environ.pop('TZ')
-                else:
-                    os.environ['TZ'] = oldtz
-                time.tzset()
-            except Exception:
-                pass
+        cursor.execute("drop table typetest if exists")
+        con.close()
 
     def test_param_time_micro_types(self):
         con = self._connect()
