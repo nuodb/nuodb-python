@@ -16,12 +16,15 @@ import struct
 import decimal
 import sys
 import threading
+import datetime  # pylint: disable=unused-import
 
 try:
     from typing import Any, Collection, Dict, List  # pylint: disable=unused-import
     from typing import Mapping, Optional, Tuple  # pylint: disable=unused-import
 except ImportError:
     pass
+
+import tzlocal
 
 from .exception import DataError, EndOfStream, ProgrammingError
 from .exception import db_error_handler, BatchError
@@ -33,6 +36,14 @@ from . import datatype
 from . import session
 from . import statement
 from . import result_set
+
+# ZoneInfo is preferred but not introduced until 3.9
+if sys.version_info >= (3, 9):
+    # preferred python >= 3.9
+    from zoneinfo import ZoneInfo
+else:
+    # fallback to pytz if python < 3.9
+    from pytz import timezone as ZoneInfo
 
 isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
@@ -113,6 +124,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     __dblock = threading.Lock()
     __databases = {}  # type: Dict[str, Dict[int, Tuple[int, int]]]
 
+    # timezone to use for this connection, set on open database
+    __timezone_name = ''  # type: str
+
     @staticmethod
     def reset():
         # type: () -> None
@@ -159,6 +173,38 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             self.__encryption = False
         super(EncodedSession, self).__init__(host, service=service,
                                              options=options, **kwargs)
+        if hasattr(tzlocal, 'get_localzone_name'):
+            # tzlocal >= 3.0
+            self.__timezone_name = tzlocal.get_localzone_name()
+        else:
+            # tzlocal < 3.0
+            local_tz = tzlocal.get_localzone()
+            self.__timezone_name = getattr(local_tz, 'zone')
+
+    @property
+    def timezone_name(self):
+        # type: () -> Optional[str]
+        """ read name of timezone for this connection """
+        return self.__timezone_name
+
+    @timezone_name.setter
+    def timezone_name(self, tzname):
+        # type: (str) -> None
+        try:
+            # fails if tzname is bad
+            ZoneInfo(tzname)
+        except KeyError:
+            raise ProgrammingError('Invalid TimeZone ' + tzname)
+        except LookupError:
+            raise ProgrammingError('Invalid TimeZone ' + tzname)
+        self.__timezone_name = tzname
+
+    @property
+    def timezone_info(self):
+        # type: () -> datetime.tzinfo
+        """ get a tzinfo for this connection """
+        tz_info = ZoneInfo(self.__timezone_name)
+        return tz_info
 
     def open_database(self, db_name, password, parameters):  # pylint: disable=too-many-branches,too-many-statements
         # type: (str, str, Dict[str, str]) -> None
@@ -576,7 +622,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """
         # Convert the decimal's notation into decimal
         value += REMOVE_FORMAT
-        scale = abs(value.as_tuple()[2])
+        exponent = value.as_tuple()[2]
+        if not isinstance(exponent, int):
+            # this should not occur
+            raise ValueError("Invalid exponent in Decimal: %r" % exponent)
+        scale = abs(exponent)
         data = crypt.toSignedByteString(int(value * decimal.Decimal(10**scale)))
 
         # If our length including the tag is more than 9 bytes we will need to
@@ -738,7 +788,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :type value: datetype.Time
         """
         return self._putScaled(protocol.SCALEDTIMELEN0,
-                               *datatype.TimeToTicks(value))
+                               *datatype.TimeToTicks(value, self.timezone_info))
 
     def putScaledTimestamp(self, value):
         # type: (datatype.Timestamp) -> EncodedSession
@@ -747,7 +797,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :type value: datetime.datetime
         """
         return self._putScaled(protocol.SCALEDTIMESTAMPLEN0,
-                               *datatype.TimestampToTicks(value))
+                               *datatype.TimestampToTicks(value, self.timezone_info))
 
     def putScaledDate(self, value):
         # type: (datatype.Date) -> EncodedSession
@@ -764,7 +814,12 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         :type value: decimal.Decimal
         """
-        scale = abs(value.as_tuple()[2])
+        exponent = value.as_tuple()[2]
+        if not isinstance(exponent, int):
+            # this should not occur
+            raise ValueError("Invalid exponent in Decimal: %r" % exponent)
+        scale = abs(exponent)
+
         sign = 1 if value.as_tuple()[0] == 0 else -1
         signData = crypt.toSignedByteString(sign)
         data = crypt.toByteString(int(abs(value) * decimal.Decimal(10**scale)))
@@ -974,6 +1029,21 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         raise DataError('Not a clob')
 
+    @staticmethod
+    def __unpack(scale, time):
+        # type: (int, int) -> Tuple[int, int]
+        shiftr = 10 ** scale
+        ticks = time // shiftr
+        fraction = time % shiftr
+        if scale > 6:
+            micros = fraction // 10 ** (scale - 6)
+        else:
+            micros = fraction * 10 ** (6 - scale)
+        if micros < 0:
+            micros %= 1000000
+            ticks += 1
+        return (ticks, micros)
+
     def getScaledTime(self):
         # type: () -> datatype.Time
         """Read the next Scaled Time value off the session.
@@ -985,9 +1055,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDTIMELEN1 and code <= protocol.SCALEDTIMELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             time = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMELEN0))
-            ticks = decimal.Decimal(time) / decimal.Decimal(10**scale)
-            return datatype.TimeFromTicks(round(int(ticks)),
-                                          int((ticks % 1) * decimal.Decimal(1000000)))
+            seconds, micros = self.__unpack(scale, time)
+            return datatype.TimeFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled time')
 
@@ -1002,9 +1071,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDTIMESTAMPLEN1 and code <= protocol.SCALEDTIMESTAMPLEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             stamp = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPLEN0))
-            ticks = decimal.Decimal(stamp) / decimal.Decimal(10**scale)
-            return datatype.TimestampFromTicks(round(int(ticks)),
-                                               int((ticks % 1) * decimal.Decimal(1000000)))
+            seconds, micros = self.__unpack(scale, stamp)
+            return datatype.TimestampFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
 
@@ -1019,7 +1087,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             date = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
-            return datatype.DateFromTicks(round(date / 10.0 ** scale))
+            return datatype.DateFromTicks(date // (10 ** scale))
 
         raise DataError('Not a scaled date')
 

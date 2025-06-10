@@ -17,13 +17,14 @@ __all__ = ['apilevel', 'threadsafety', 'paramstyle', 'connect',
 
 import os
 import copy
-import time
 import xml.etree.ElementTree as ElementTree
 
 try:
     from typing import Any, Dict, Mapping, Optional, Tuple  # pylint: disable=unused-import
 except ImportError:
     pass
+
+import tzlocal
 
 from . import __version__
 from .exception import Error, InterfaceError
@@ -161,10 +162,13 @@ class Connection(object):
             host, port=port, options=options, **kwargs)
         self.__session.doConnect(params)
 
-        params.update({'user': user,
-                       'timezone': time.strftime('%Z'),
-                       'clientProcessId': str(os.getpid())})
+        # updates params['TimeZone'] if not set and returns
+        # loalzone_name either params['TimeZone'] or based
+        # upon tzlocal.
+        localzone_name = self._init_local_timezone(params)
+        params.update({'user': user, 'clientProcessId': str(os.getpid())})
 
+        self.__session.timezone_name = localzone_name
         self.__session.open_database(database, password, params)
 
         self.__config['client_protocol_id'] = self.__session.protocol_id
@@ -185,6 +189,28 @@ class Connection(object):
             self.setautocommit(kwargs['autocommit'])
         else:
             self.setautocommit(False)
+
+    @staticmethod
+    def _init_local_timezone(params):
+        # type: (Dict[str, str]) -> str
+        # params['timezone'] updated if not set
+        # returns timezone
+        localzone_name = None
+        for k, v in params.items():
+            if k.lower() == 'timezone':
+                localzone_name = v
+                break
+        if localzone_name is None:
+            if hasattr(tzlocal, 'get_localzone_name'):
+                # tzlocal >= 3.0
+                params['timezone'] = tzlocal.get_localzone_name()
+            else:
+                # tzlocal < 3.0
+                local_tz = tzlocal.get_localzone()
+                if local_tz:
+                    params['timezone'] = getattr(local_tz, 'zone')
+            localzone_name = params['timezone']
+        return localzone_name
 
     @staticmethod
     def _getTE(admin, attributes, options):
