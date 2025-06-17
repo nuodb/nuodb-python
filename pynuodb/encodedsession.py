@@ -776,7 +776,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         return self
 
     def putVectorDouble(self, value):
-        # type
+        # type: (datatype.Vector) -> EncodedSession
+        """Append a Vector with subtype Vector.DOUBLE to the message.
+
+        :type value: datatype.Vector
+        """
         self.__output.append(protocol.VECTOR)
         # subtype
         self.__output.append(protocol.VECTOR_DOUBLE)
@@ -794,6 +798,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         return self
 
     def putVector(self, value):
+        # type: (datatype.Vector) -> EncodedSession
+        """Append a Vector type to the message.
+
+        :type value: datatype.Vector
+        """
         if value.getSubtype() == datatype.Vector.DOUBLE:
             return self.putVectorDouble(value)
 
@@ -1065,7 +1074,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         raise DataError('Not a UUID')
 
     def getVector(self):
-        # type: () -> list[float]
+        # type: () -> datatype.Vector
         """Read the next vector off the session.
 
         :rtype datatype.Vector
@@ -1168,7 +1177,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if code == protocol.UUID:
             return self.getUUID()
-        
+
         if code == protocol.VECTOR:
             return self.getVector()
 

@@ -172,6 +172,8 @@ class Vector(list):
                             " first argument")
 
     def getSubtype(self):
+        # type: () -> int
+        """Returns the subtype of vector this instance holds data for"""
         return self.subtype
 
 
