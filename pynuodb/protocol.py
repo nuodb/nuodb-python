@@ -45,7 +45,7 @@ BLOBLEN0                          = 189
 BLOBLEN4                          = 193
 CLOBLEN0                          = 194
 CLOBLEN4                          = 198
-SCALEDCOUNT1                      = 199
+VECTOR                            = 199
 UUID                              = 200
 SCALEDDATELEN0                    = 200
 SCALEDDATELEN1                    = 201
@@ -65,6 +65,9 @@ ARRAYLEN8                         = 238
 SCALEDCOUNT3                      = 239
 DEBUGBARRIER                      = 240
 SCALEDTIMESTAMPNOTZ               = 241
+
+# subtypes of the VECTOR type
+VECTOR_DOUBLE                     = 0
 
 # Protocol Messages
 FAILURE                           = 0
