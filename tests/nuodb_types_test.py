@@ -131,6 +131,14 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
     def test_vector_type(self):
         con = self._connect()
         cursor = con.cursor()
+        
+        # only activate this tests if tested against version 8 or above
+        cursor.execute("select cast(substring_index(release_ver, '.', 1) as int)"
+                       " from system.nodes limit 1")
+        row = cursor.fetchone()
+        database_major_version = row[0]
+        if database_major_version < 8:
+            return
 
         cursor.execute("CREATE TEMPORARY TABLE tmp ("
                        " vec3 VECTOR(3, DOUBLE),"
