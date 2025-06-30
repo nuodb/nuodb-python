@@ -152,7 +152,7 @@ class TypeObject(object):
 
 
 class Vector(list):
-    """A specific type for SQL VECTOR(<dim>, DOUBLE)
+    """A specific type for SQL VECTOR(<dim>, <subtype>)
        to be able to detect the desired type when binding parameters.
        Apart from creating the value as a Vector with subtype
        this can be used as a list."""
