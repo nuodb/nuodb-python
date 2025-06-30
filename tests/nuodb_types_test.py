@@ -11,6 +11,7 @@ import datetime
 from pynuodb import datatype
 
 from . import nuodb_base
+from .mock_tzs import localize
 
 
 class TestNuoDBTypes(nuodb_base.NuoBase):
@@ -112,8 +113,9 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
         assert len(row) == 4
         assert row[0] == datetime.date(2000, 1, 1)
         assert row[1] == datetime.time(5, 44, 33, 221100)
-        assert row[2] == datetime.datetime(2000, 1, 1, 5, 44, 33, 221100)
-        assert row[3] == datetime.datetime(2000, 1, 1, 5, 44, 33, 221100)
+        assert row[2] == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
+        assert row[3] == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
+
 
     def test_null_type(self):
         con = self._connect()
