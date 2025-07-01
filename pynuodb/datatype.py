@@ -27,14 +27,16 @@ ROWID -- TypeObject()
 
 __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'TimestampFromTicks', 'DateToTicks', 'TimeToTicks',
-           'TimestampToTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-           'DATETIME', 'ROWID', 'TypeObjectFromNuodb']
+           'TimestampToTicks', 'Binary', 'Vector', 'STRING', 'BINARY', 'NUMBER',
+           'DATETIME', 'ROWID', 'VECTOR_DOUBLE', 'TypeObjectFromNuodb']
 
 import sys
 import decimal
 from datetime import datetime as Timestamp, date as Date, time as Time
 from datetime import timedelta as TimeDelta
 from datetime import tzinfo  # pylint: disable=unused-import
+
+from pynuodb import protocol
 
 try:
     from typing import Tuple, Union  # pylint: disable=unused-import
@@ -279,10 +281,37 @@ class TypeObject(object):
         return -1
 
 
+class Vector(list):
+    """A specific type for SQL VECTOR(<dim>, <subtype>)
+       to be able to detect the desired type when binding parameters.
+       Apart from creating the value as a Vector with subtype
+       this can be used as a list."""
+    DOUBLE = protocol.VECTOR_DOUBLE
+
+    def __init__(self, subtype, *args, **kwargs):
+        if args:
+            if subtype != Vector.DOUBLE:
+                raise TypeError("Vector type only supported for subtype DOUBLE")
+
+            self.subtype = subtype
+
+            # forward the remaining arguments to the list __init__
+            super(Vector, self).__init__(*args, **kwargs)
+        else:
+            raise TypeError("Vector needs to be initialized with a subtype like Vector.DOUBLE as"
+                            " first argument")
+
+    def getSubtype(self):
+        # type: () -> int
+        """Returns the subtype of vector this instance holds data for"""
+        return self.subtype
+
+
 STRING = TypeObject(str)
 BINARY = TypeObject(str)
 NUMBER = TypeObject(int, decimal.Decimal)
 DATETIME = TypeObject(Timestamp, Date, Time)
+VECTOR_DOUBLE = TypeObject(list)
 ROWID = TypeObject()
 NULL = TypeObject(None)
 
@@ -309,6 +338,7 @@ TYPEMAP = {"<null>": NULL,
            "timestamp without time zone": DATETIME,
            "timestamp with time zone": DATETIME,
            "time without time zone": DATETIME,
+           "vector double": VECTOR_DOUBLE,
            # Old types used by NuoDB <2.0.3
            "binarystring": BINARY,
            "binaryvaryingstring": BINARY,

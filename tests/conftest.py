@@ -299,10 +299,20 @@ def database(ap, db, te):
                     'user': db[1],
                     'password': db[2],
                     'options': {'schema': 'test'}}  # type: DATABASE_FIXTURE
+    system_information = {'effective_version': 0}
+
     try:
         while True:
             try:
                 conn = pynuodb.connect(**connect_args)
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("select GETEFFECTIVEPLATFORMVERSION() from system.dual")
+                    row = cursor.fetchone()
+                    system_information['effective_version'] = row[0]
+                finally:
+                    cursor.close()
+
                 break
             except pynuodb.session.SessionException:
                 pass
@@ -315,4 +325,4 @@ def database(ap, db, te):
 
     _log.info("Database %s is available", db[0])
 
-    return connect_args
+    return {'connect_args': connect_args, 'system_information': system_information}
