@@ -37,7 +37,7 @@ class NuoBase(object):
         self.system_information = database['system_information']
 
         # Verify the database is up and has a running TE
-        dbname = database['connect_args']['database']
+        dbname = self.connect_args['database']
         (ret, out) = nuocmd(['--show-json', 'get', 'processes',
                              '--db-name', dbname], logout=False)
         assert ret == 0, "DB not running: %s" % (out)

@@ -8,7 +8,7 @@ See the LICENSE file provided with this software.
 import decimal
 import datetime
 
-from pynuodb import datatype
+import pynuodb
 
 from . import nuodb_base
 from .mock_tzs import localize
@@ -151,13 +151,13 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
         # check metadata
         [name, type, _, _, precision, scale, _] = cursor.description[0]
         assert name == "VEC3"
-        assert type == datatype.VECTOR_DOUBLE
+        assert type == pynuodb.VECTOR_DOUBLE
         assert precision == 3
         assert scale == 0
 
         [name, type, _, _, precision, scale, _] = cursor.description[1]
         assert name == "VEC5"
-        assert type == datatype.VECTOR_DOUBLE
+        assert type == pynuodb.VECTOR_DOUBLE
         assert precision == 5
         assert scale == 0
 
@@ -169,14 +169,14 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
         assert cursor.fetchone() is None
         
         # check this is actually a Vector type, not just a list
-        assert isinstance(row[0], datatype.Vector)
-        assert row[0].getSubtype() == datatype.Vector.DOUBLE
-        assert isinstance(row[1], datatype.Vector)
-        assert row[1].getSubtype() == datatype.Vector.DOUBLE
+        assert isinstance(row[0], pynuodb.Vector)
+        assert row[0].getSubtype() == pynuodb.Vector.DOUBLE
+        assert isinstance(row[1], pynuodb.Vector)
+        assert row[1].getSubtype() == pynuodb.Vector.DOUBLE
 
         # check prepared parameters
-        parameters = [datatype.Vector(datatype.Vector.DOUBLE, [11.11, -2.2, 3333.333]),
-                      datatype.Vector(datatype.Vector.DOUBLE, [-1.23, 2.345, -0.34, 4, -5678.9])]
+        parameters = [pynuodb.Vector(pynuodb.Vector.DOUBLE, [11.11, -2.2, 3333.333]),
+                      pynuodb.Vector(pynuodb.Vector.DOUBLE, [-1.23, 2.345, -0.34, 4, -5678.9])]
         cursor.execute("TRUNCATE TABLE tmp")
         cursor.execute("INSERT INTO tmp VALUES (?, ?)", parameters)
 

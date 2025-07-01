@@ -309,8 +309,7 @@ def database(ap, db, te):
                 try:
                     cursor.execute("select GETEFFECTIVEPLATFORMVERSION() from system.dual")
                     row = cursor.fetchone()
-                    effective_version = row[0]
-                    system_information['effective_version'] = effective_version
+                    system_information['effective_version'] = row[0]
                 finally:
                     cursor.close()
 

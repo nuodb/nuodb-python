@@ -27,8 +27,8 @@ ROWID -- TypeObject()
 
 __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'TimestampFromTicks', 'DateToTicks', 'TimeToTicks',
-           'TimestampToTicks', 'Binary', 'STRING', 'BINARY', 'NUMBER',
-           'DATETIME', 'ROWID', 'TypeObjectFromNuodb']
+           'TimestampToTicks', 'Binary', 'Vector', 'STRING', 'BINARY', 'NUMBER',
+           'DATETIME', 'ROWID', 'VECTOR_DOUBLE', 'TypeObjectFromNuodb']
 
 import sys
 import decimal
