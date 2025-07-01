@@ -823,6 +823,39 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self.__output += data
         return self
 
+    def putVectorDouble(self, value):
+        # type: (datatype.Vector) -> EncodedSession
+        """Append a Vector with subtype Vector.DOUBLE to the message.
+
+        :type value: datatype.Vector
+        """
+        self.__output.append(protocol.VECTOR)
+        # subtype
+        self.__output.append(protocol.VECTOR_DOUBLE)
+        # length in bytes in count notation, i.e. first
+        # number of bytes needed for the length, then the
+        # encoded length
+        lengthStr = crypt.toByteString(len(value) * 8)
+        self.__output.append(len(lengthStr))
+        self.__output += lengthStr
+
+        # the actual vector: Each value as double in little endian encoding
+        for val in value:
+            self.__output += struct.pack('<d', float(val))
+
+        return self
+
+    def putVector(self, value):
+        # type: (datatype.Vector) -> EncodedSession
+        """Append a Vector type to the message.
+
+        :type value: datatype.Vector
+        """
+        if value.getSubtype() == datatype.Vector.DOUBLE:
+            return self.putVectorDouble(value)
+
+        raise DataError("unsupported value for VECTOR subtype: %d" % (value.getSubtype()))
+
     def putValue(self, value):  # pylint: disable=too-many-return-statements
         # type: (Any) -> EncodedSession
         """Call the supporting function based on the type of the value."""
@@ -853,6 +886,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if isinstance(value, bool):
             return self.putBoolean(value)
+
+        # we don't want to autodetect lists as being VECTOR, so we
+        # only bind double if it is the explicit type
+        if isinstance(value, datatype.Vector):
+            return self.putVector(value)
 
         # I find it pretty bogus that we pass str(value) here: why not value?
         return self.putString(str(value))
@@ -1096,6 +1134,36 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         raise DataError('Not a UUID')
 
+    def getVector(self):
+        # type: () -> datatype.Vector
+        """Read the next vector off the session.
+
+        :rtype datatype.Vector
+        """
+        if self._getTypeCode() == protocol.VECTOR:
+            subtype = crypt.fromByteString(self._takeBytes(1))
+            if subtype == protocol.VECTOR_DOUBLE:
+                # VECTOR(<dim>, DOUBLE)
+                lengthBytes = crypt.fromByteString(self._takeBytes(1))
+                length = crypt.fromByteString(self._takeBytes(lengthBytes))
+
+                if length % 8 != 0:
+                    raise DataError("Invalid size for VECTOR DOUBLE data: %d" % (length))
+
+                dimension = length // 8
+
+                # VECTOR DOUBLE stores the data as little endian
+                vector = datatype.Vector(datatype.Vector.DOUBLE,
+                                         [struct.unpack('<d', self._takeBytes(8))[0]
+                                          for _ in range(dimension)])
+
+                return vector
+            else:
+                raise DataError("Unknown VECTOR type: %d" % (subtype))
+            return 1
+
+        raise DataError('Not a VECTOR')
+
     def getScaledCount2(self):
         # type: () -> decimal.Decimal
         """Read a scaled and signed decimal from the session.
@@ -1170,6 +1238,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if code == protocol.UUID:
             return self.getUUID()
+
+        if code == protocol.VECTOR:
+            return self.getVector()
 
         if code == protocol.SCALEDCOUNT2:
             return self.getScaledCount2()

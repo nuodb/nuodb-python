@@ -25,6 +25,7 @@ class NuoBase(object):
     driver = pynuodb  # type: Any
 
     connect_args = ()
+    system_information = ()
     host = None
 
     lower_func = 'lower'  # For stored procedure test
@@ -32,10 +33,11 @@ class NuoBase(object):
     @pytest.fixture(autouse=True)
     def _setup(self, database):
         # Preserve the options we'll need to create a connection to the DB
-        self.connect_args = database
+        self.connect_args = database['connect_args']
+        self.system_information = database['system_information']
 
         # Verify the database is up and has a running TE
-        dbname = database['database']
+        dbname = self.connect_args['database']
         (ret, out) = nuocmd(['--show-json', 'get', 'processes',
                              '--db-name', dbname], logout=False)
         assert ret == 0, "DB not running: %s" % (out)
