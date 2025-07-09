@@ -39,7 +39,7 @@ from datetime import tzinfo  # pylint: disable=unused-import
 from pynuodb import protocol
 
 try:
-    from typing import Tuple, Union  # pylint: disable=unused-import
+    from typing import Optional, Tuple, Union  # pylint: disable=unused-import
 except ImportError:
     pass
 
@@ -50,21 +50,19 @@ from .calendar import ymd2day, day2ymd
 # zoneinfo.ZoneInfo is preferred but not introduced until python3.9
 if sys.version_info >= (3, 9):
     # used for python>=3.9 with support for zoneinfo.ZoneInfo
-    from zoneinfo import ZoneInfo  # pylint: disable=unused-import
-    from datetime import timezone
+    from datetime import timezone  # pylint: disable=no-name-in-module,ungrouped-imports
     UTC = timezone.utc
 
     def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
         # type: (int, int, int, int, int, int, int) -> Timestamp
-        """
-        timezone aware datetime with UTC timezone.
-        """
+        """Return a Timestamp UTC timezone."""
         return Timestamp(year=year, month=month, day=day,
                          hour=hour, minute=minute, second=second,
                          microsecond=microsecond, tzinfo=UTC)
 
     def timezone_aware(tstamp, tz_info):
         # type: (Timestamp, tzinfo) -> Timestamp
+        """Return a Timestamp that uses the provided timezone."""
         return tstamp.replace(tzinfo=tz_info)
 
 else:
@@ -73,27 +71,24 @@ else:
 
     def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
         # type: (int, int, int, int, int, int, int) -> Timestamp
-        """
-        timezone aware datetime with UTC timezone.
-        """
+        """Return a Timestamp UTC timezone."""
         dt = Timestamp(year=year, month=month, day=day,
                        hour=hour, minute=minute, second=second, microsecond=microsecond)
         return UTC.localize(dt, is_dst=None)
 
     def timezone_aware(tstamp, tz_info):
         # type: (Timestamp, tzinfo) -> Timestamp
+        """Return a Timestamp that uses the provided timezone."""
         return tz_info.localize(tstamp, is_dst=None)  # type: ignore[attr-defined]
 
 isP2 = sys.version[0] == '2'
 TICKSDAY = 86400
 LOCALZONE = tzlocal.get_localzone()
 
-if hasattr(tzlocal, 'get_localzone_name'):
-    # tzlocal >= 3.0
-    LOCALZONE_NAME = tzlocal.get_localzone_name()
-else:
-    # tzlocal < 3.0
-    # local_tz is a pytz.tzinfo object.  should have zone attribute
+try:
+    LOCALZONE_NAME = tzlocal.get_localzone_name()  # type: ignore
+except AttributeError:
+    # Python 2.7 tzlocal
     LOCALZONE_NAME = getattr(LOCALZONE, 'zone')
 
 
@@ -168,34 +163,34 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
 
 
 def TimestampFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
-    # type: (int, int, tzinfo) -> Timestamp
+    # type: (int, int, Optional[tzinfo]) -> Timestamp
     """Convert ticks to a Timestamp object."""
     day = ticks // TICKSDAY
     y, m, d = day2ymd(day)
     timeticks = ticks % TICKSDAY
-    hour = timeticks // 3600
-    sec  = timeticks % 3600
-    min  = sec // 60
-    sec  %= 60
+    hours = timeticks // 3600
+    secs = timeticks % 3600
+    mins = secs // 60
+    secs %= 60
 
-    # this requires both utc and current session to be between year 1 and year 9999 inclusive.
-    # nuodb could store a timestamp that is east of utc where utc would be year 10000.
+    # This requires both utc and current session to be between year 1 and year
+    # 9999 inclusive.  NuoDB could store a timestamp that is east of UTC,
+    # where UTC would be year 10000.
     if y < 10000:
-        dt = utc_TimeStamp(year=y, month=m, day=d, hour=hour,
-                           minute=min, second=sec, microsecond=micro)
+        dt = utc_TimeStamp(year=y, month=m, day=d, hour=hours,
+                           minute=mins, second=secs, microsecond=micro)
         if zoneinfo is None:
             return dt.replace(tzinfo=None)
         dt = dt.astimezone(zoneinfo)
     else:
         # shift one day.
-        dt = utc_TimeStamp(year=9999, month=12, day=31, hour=hour,
-                           minute=min, second=sec, microsecond=micro)
+        dt = utc_TimeStamp(year=9999, month=12, day=31, hour=hours,
+                           minute=mins, second=secs, microsecond=micro)
         if zoneinfo is None:
             return dt.replace(tzinfo=None)
         dt = dt.astimezone(zoneinfo)
         # add day back.
         dt += TimeDelta(days=1)
-    # returns timezone-aware datetime
     return dt
 
 
@@ -207,18 +202,17 @@ def DateToTicks(value):
 
 
 def _packtime(seconds, microseconds):
-    # type: (int, int) -> Tuple[int,int]
-    if microseconds:
-        ndiv = 0
-        shiftr = 1000000
-        shiftl = 1
-        while (microseconds % shiftr):
-            shiftr //= 10
-            shiftl *= 10
-            ndiv += 1
-        return (seconds * shiftl + microseconds // shiftr, ndiv)
-    else:
+    # type: (int, int) -> Tuple[int, int]
+    if microseconds == 0:
         return (seconds, 0)
+    ndiv = 0
+    shiftr = 1000000
+    shiftl = 1
+    while (microseconds % shiftr) != 0:
+        shiftr //= 10
+        shiftl *= 10
+        ndiv += 1
+    return (seconds * shiftl + microseconds // shiftr, ndiv)
 
 
 def TimeToTicks(value, zoneinfo=LOCALZONE):
@@ -263,7 +257,7 @@ def TimestampToTicks(value, zoneinfo=LOCALZONE):
     if value.tzinfo is None:
         value = timezone_aware(value, zoneinfo)
     dt = value.astimezone(UTC)
-    timesecs  = ymd2day(dt.year, dt.month, dt.day) * TICKSDAY
+    timesecs = ymd2day(dt.year, dt.month, dt.day) * TICKSDAY
     timesecs += dt.hour * 3600
     timesecs += dt.minute * 60
     timesecs += dt.second

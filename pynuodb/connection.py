@@ -20,7 +20,8 @@ import copy
 import xml.etree.ElementTree as ElementTree
 
 try:
-    from typing import Any, Dict, Mapping, Optional, Tuple  # pylint: disable=unused-import
+    from typing import Any, Dict, Mapping, Optional, Tuple, Type  # pylint: disable=unused-import
+    from types import TracebackType  # pylint: disable=unused-import
 except ImportError:
     pass
 
@@ -353,12 +354,12 @@ class Connection(object):
 
     def __enter__(self):
         # type: () -> Connection
-        """Returns the NuoDB SQL Connection object itself to be used within the context block."""
+        """Returns self to be used within a context block."""
         return self
 
-    def __exit__(self, exc_type, # type: Optional[Type[BaseException]]
-                 exc_val,        # type: Optional[BaseException]
-                 exc_tb,         # type: Optional[Any]
+    def __exit__(self, exc_type,  # type: Optional[Type[BaseException]]
+                 exc_val,         # type: Optional[BaseException]
+                 exc_tb,          # type: Optional[TracebackType]
                  ):
         # type: (...) -> None
         """Exits the runtime context, closing the connection.

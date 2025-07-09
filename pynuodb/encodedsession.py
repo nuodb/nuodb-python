@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """A module for housing the EncodedSession class.
 
 (C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
@@ -39,7 +40,7 @@ from .datatype import LOCALZONE_NAME
 # ZoneInfo is preferred but not introduced until 3.9
 if sys.version_info >= (3, 9):
     # preferred python >= 3.9
-    from zoneinfo import ZoneInfo
+    from zoneinfo import ZoneInfo  # pylint: disable=import-error
 else:
     # fallback to pytz if python < 3.9
     from pytz import timezone as ZoneInfo
@@ -48,7 +49,7 @@ isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
 
 
-class EncodedSession(session.Session):  # pylint: disable=too-many-public-methods
+class EncodedSession(session.Session):  # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """Class for representing an encoded session with the database.
 
     Public Functions:
@@ -124,7 +125,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     __databases = {}  # type: Dict[str, Dict[int, Tuple[int, int]]]
 
     # timezone to use for this connection, set on open database
-    __timezone_name = ''  # type: str
+    __timezone_name = ''
 
     @staticmethod
     def reset():
@@ -168,16 +169,16 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """Construct an EncodedSession object."""
         self.__output = bytearray()
         self.__input = bytearray()
+        self.__timezone_name = LOCALZONE_NAME
         if options and options.get('cipher') == 'None':
             self.__encryption = False
         super(EncodedSession, self).__init__(host, service=service,
                                              options=options, **kwargs)
-        self.__timezone_name = LOCALZONE_NAME
 
     @property
     def timezone_name(self):
-        # type: () -> Optional[str]
-        """ read name of timezone for this connection """
+        # type: () -> str
+        """Return the name of timezone for this connection."""
         return self.__timezone_name
 
     @timezone_name.setter
@@ -195,7 +196,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     @property
     def timezone_info(self):
         # type: () -> datetime.tzinfo
-        """ get a tzinfo for this connection """
+        """Get a tzinfo for this connection."""
         tz_info = ZoneInfo(self.__timezone_name)
         return tz_info
 
@@ -387,7 +388,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             if tzUpdate:
                 server_tz = self.getValue()
                 self.__timezone_name = server_tz
-        
+
         txid = self.getInt()
         sid = self.getInt()
         seqid = self.getInt()
@@ -1112,7 +1113,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return datatype.TimestampFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
-    
+
     def getScaledTimestampNoTz(self):
         # type: () -> datatype.Timestamp
         """Read the next Scaled Timestamp without timezone value off the session.
@@ -1122,7 +1123,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         code = self._getTypeCode()
         if code == protocol.SCALEDTIMESTAMPNOTZ:
             scale = crypt.fromByteString(self._takeBytes(1))
-            stamp = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPNOTZLEN0))
+            buf = self._takeBytes(code - protocol.SCALEDTIMESTAMPNOTZLEN0)
+            stamp = crypt.fromSignedByteString(buf)
             seconds, micros = self.__unpack(scale, stamp)
             return datatype.TimestampFromTicks(seconds, micros, None)
 

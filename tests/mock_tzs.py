@@ -6,8 +6,8 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-from datetime import tzinfo, datetime
 import sys
+import datetime
 import pytz
 
 try:
@@ -25,28 +25,29 @@ try:
         else:
             from pytz.tzinfo import BaseTzInfo as TZType
     else:
-        TZType = tzinfo
+        TZType = datetime.tzinfo
 except ImportError:
     pass
 
 from pynuodb.datatype import LOCALZONE_NAME
 
 
-# Timezone getter function
 def get_timezone(name):
     # type: (str) -> TZType
-    """ get tzinfo by name """
+    """Return tzinfo for a given TZ name."""
     if HAS_ZONEINFO:
-        return ZoneInfo(name)  # type: ignore[return-value]
+        return ZoneInfo(name)   # type: ignore[return-value]
     return pytz.timezone(name)  # type: ignore[return-value]
+
 
 UTC = get_timezone("UTC")
 Local = get_timezone(LOCALZONE_NAME)
 TimeZoneInfo = get_timezone
 
-def localize(dt, tzinfo=Local):  # pylint: disable=redefined-outer-name
-    # type: (datetime, TZType) -> datetime
-    """ localize naive datetime with given timezone """
+
+def localize(dt, tzinfo=Local):
+    # type: (datetime.datetime, TZType) -> datetime
+    """Localize naive datetime with given timezone."""
     if sys.version_info >= (3, 9):
         return dt.replace(tzinfo=tzinfo)
     return tzinfo.localize(dt, is_dst=None)
