@@ -350,3 +350,25 @@ class Connection(object):
         """
         self._check_closed()
         return cursor.Cursor(self.__session, prepared_statement_cache_size)
+
+    def __enter__(self):
+        # Return self to allow use within the 'with' block
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+         # type: () -> None
+        
+        # exc_type is None if the block completed normally.
+        # If an exception occurred, exc_type, exc_val, exc_tb hold details.
+        try:
+            if exc_type is None:
+                # No error: commit if needed
+                if not self.autocommit:
+                    self.commit()
+            else:
+                # Error! Rollback if needed.
+                if not self.autocommit:
+                    self.rollback()
+        finally:
+            # Always close the connection!
+            self.close()
