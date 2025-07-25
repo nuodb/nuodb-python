@@ -7,7 +7,6 @@ See the LICENSE file provided with this software.
 """
 
 import datetime
-from contextlib import closing
 import pytest
 from pynuodb.exception import ProgrammingError
 from .mock_tzs import localize, UTC, TimeZoneInfo
@@ -42,7 +41,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         local_dt = localize(dt, TimeZoneInfo('America/New_York'))
         pst_dt = localize(dt, TimeZoneInfo('America/Los_Angeles'))
 
-        with closing(self._connect(options={'TimeZone': 'America/Chicago'})) as con:
+        with self._connect(options={'TimeZone': 'America/Chicago'}) as con:
             cursor = con.cursor()
             cursor.execute("drop table if exists NONNAIVE")
             cursor.execute("create table NONNAIVE(tstamp datetime, dtstr string)")
@@ -77,7 +76,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         # type: () -> None
         """Test insert and query of dates before 1900"""
 
-        with closing(self._connect(options={'TimeZone': 'EST5EDT'})) as con:
+        with self._connect(options={'TimeZone': 'EST5EDT'}) as con:
             cursor = con.cursor()
             cursor.execute("create temporary table HISTORY(day date)")
             cursor.execute("insert into HISTORY VALUES ('November 19, 1863')")
@@ -102,7 +101,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         # type: () -> None
         """Test read dates either in daylight saving time or not"""
 
-        with closing(self._connect(options={'TimeZone': 'America/New_York'})) as con:
+        with self._connect(options={'TimeZone': 'America/New_York'}) as con:
             cursor = con.cursor()
 
             tz = TimeZoneInfo('America/New_York')
@@ -118,7 +117,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
             nytime = row[0].astimezone(tz)
             assert nytime.hour == 20
 
-        with closing(self._connect(options={'TimeZone': 'Pacific/Auckland'})) as con:
+        with self._connect(options={'TimeZone': 'Pacific/Auckland'}) as con:
             tz = TimeZoneInfo('Pacific/Auckland')
             cursor = con.cursor()
             cursor.execute("select TIMESTAMP'2010-01-01 20:01:21' from DUAL")
@@ -143,7 +142,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         valid dates per the switch over.
         """
 
-        with closing(self._connect(options={'TimeZone': 'EST5EDT'})) as con:
+        with self._connect(options={'TimeZone': 'EST5EDT'}) as con:
             cursor = con.cursor()
             ddl = (
                 "create temporary table HISTORY(day string, "
@@ -173,7 +172,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         # type: () -> None
         """Test timestamps with microseconds set before or after epoch"""
 
-        with closing(self._connect(options={'TimeZone': 'EST5EDT'})) as con:
+        with self._connect(options={'TimeZone': 'EST5EDT'}) as con:
             cursor = con.cursor()
 
             dt = datetime.datetime(year=1990, month=1, day=1, hour=1,
@@ -211,7 +210,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
 
     def test_time_wraps_read(self):
 
-        with closing(self._connect(options={'TimeZone': 'Pacific/Auckland'})) as con:
+        with self._connect(options={'TimeZone': 'Pacific/Auckland'}) as con:
             cursor = con.cursor()
             # GMT is 1990-05-31 21:00:01.2
             cursor.execute("select CAST(TIMESTAMP'1990-06-01 9:00:01.2' AS TIME) from dual")
@@ -221,7 +220,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
             assert row[0].second == 1
             assert row[0].microsecond == 200000
 
-        with closing(self._connect(options={'TimeZone': 'Pacific/Honolulu'})) as con:
+        with self._connect(options={'TimeZone': 'Pacific/Honolulu'}) as con:
             cursor = con.cursor()
             # GMT is 1990-06-02 05:00:01.2
             cursor.execute("select CAST(TIMESTAMP'1990-06-01 19:00:01.2' AS TIME) from dual")
@@ -269,7 +268,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         CONNTZ = "America/Chicago"
         GMT    = "GMT"
 
-        with closing(self._connect(options={'TimeZone': CONNTZ})) as con:
+        with self._connect(options={'TimeZone': CONNTZ}) as con:
             cursor = con.cursor()
             cursor.execute('drop table WESTTZ if exists')
             cursor.execute("create table WESTTZ ( t TIME, t_as_string TIME, dt TIME)")
@@ -346,7 +345,7 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
         EASTTZ = "America/Chicago"
         GMT    = "GMT"
 
-        with closing(self._connect(options={'TimeZone': CONNTZ})) as con:
+        with self._connect(options={'TimeZone': CONNTZ}) as con:
             cursor = con.cursor()
             cursor.execute('drop table EASTTZ if exists')
             cursor.execute("create table EASTTZ ( t TIME, t_as_string TIME, dt TIME)")
