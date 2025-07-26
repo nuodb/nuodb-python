@@ -356,8 +356,7 @@ class Connection(object):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-         # type: () -> None
-        
+        # type: () -> None
         # exc_type is None if the block completed normally.
         # If an exception occurred, exc_type, exc_val, exc_tb hold details.
         try:
