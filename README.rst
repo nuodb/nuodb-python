@@ -21,6 +21,7 @@ Requirements
 * Python -- one of the following:
 
   - CPython_ >= 2.7
+  - CPython_ >= 3.8
 
 * NuoDB -- one of the following:
 
