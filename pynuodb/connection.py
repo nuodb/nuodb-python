@@ -352,22 +352,26 @@ class Connection(object):
         return cursor.Cursor(self.__session, prepared_statement_cache_size)
 
     def __enter__(self):
-        # Return self to allow use within the 'with' block
+        # type: () -> Connection
+        """Returns the NuoDB SQL Connection object itself to be used within the context block.
+        
+        Enter the runtime context related to this object.
+        """
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # type: () -> None
-        # exc_type is None if the block completed normally.
-        # If an exception occurred, exc_type, exc_val, exc_tb hold details.
-        try:
-            if exc_type is None:
-                # No error: commit if needed
-                if not self.autocommit:
-                    self.commit()
-            else:
-                # Error! Rollback if needed.
-                if not self.autocommit:
-                    self.rollback()
-        finally:
-            # Always close the connection!
-            self.close()
+    def __exit__(self, exc_type, # type: Optional[Type[BaseException]]
+                 exc_val,        # type: Optional[BaseException]
+                 exc_tb,         # type: Optional[Any]
+                 ):
+        # type: (...) -> None
+         """Exit the runtime context and close the connection.
+         
+         This method is automatically called at the end of a 'with' statement block.
+         It ensures that the connection is properly closed regardless of whether an exception occurred.
+         
+         Args:
+         exc_type (Optional[Type[BaseException]]): The exception type, if an exception occurred.
+         exc_val (Optional[BaseException]): The exception instance, if an exception occurred.
+         exc_tb (Optional[Any]): The traceback object, if an exception occurred.
+         """
+        self.close()
