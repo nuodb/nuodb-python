@@ -364,14 +364,14 @@ class Connection(object):
                  exc_tb,         # type: Optional[Any]
                  ):
         # type: (...) -> None
-         """Exit the runtime context and close the connection.
-         
-         This method is automatically called at the end of a 'with' statement block.
-         It ensures that the connection is properly closed regardless of whether an exception occurred.
-         
-         Args:
-         exc_type (Optional[Type[BaseException]]): The exception type, if an exception occurred.
-         exc_val (Optional[BaseException]): The exception instance, if an exception occurred.
-         exc_tb (Optional[Any]): The traceback object, if an exception occurred.
-         """
+        """Exit the runtime context and close the connection.
+        
+        This method is automatically called at the end of a 'with' statement block.
+        It ensures that the connection is properly closed regardless of whether an exception occurred.
+        
+        Args:
+        exc_type (Optional[Type[BaseException]]): The exception type, if an exception occurred.
+        exc_val (Optional[BaseException]): The exception instance, if an exception occurred.
+        exc_tb (Optional[Any]): The traceback object, if an exception occurred.
+        """
         self.close()
