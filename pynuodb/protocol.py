@@ -67,7 +67,6 @@ SCALEDCOUNT3                      = 239
 DEBUGBARRIER                      = 240
 SCALEDTIMESTAMPNOTZ               = 241
 
-
 # subtypes of the VECTOR type
 VECTOR_DOUBLE                     = 0
 
