@@ -382,6 +382,10 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def __execute_postfix(self):
         # type: () -> None
+        tzUpdate = self.getBoolean()
+        if tzUpdate:
+            server_tz = self.getValue()
+            self.__timezone_name = server_tz
         txid = self.getInt()
         sid = self.getInt()
         seqid = self.getInt()
@@ -397,9 +401,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """
         self._setup_statement(stmt.handle, protocol.EXECUTE).putString(query)
         self._exchangeMessages()
-
         result = self.getInt()
         rowcount = self.getInt()
+
         self.__execute_postfix()
 
         return statement.ExecutionResult(stmt, result, rowcount)
@@ -449,6 +453,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         result = self.getInt()
         rowcount = self.getInt()
+        
         self.__execute_postfix()
 
         return statement.ExecutionResult(prepared_statement, result, rowcount)
@@ -500,7 +505,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         handle = self.getInt()
         colcount = self.getInt()
-
         # skip the header labels
         for _ in range(colcount):
             self.getString()
@@ -1106,6 +1110,21 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return datatype.TimestampFromTicks(seconds, micros, self.timezone_info)
 
         raise DataError('Not a scaled timestamp')
+    
+    def getScaledTimestampNoTz(self):
+        # type: () -> datatype.Timestamp
+        """Read the next Scaled Timestamp value off the session as a naive datetime.
+
+        :rtype: datetime.datetime
+        """
+        code = self._getTypeCode()
+        if code == protocol.SCALEDTIMESTAMPNOTZ:
+            scale = crypt.fromByteString(self._takeBytes(1))
+            stamp = crypt.fromSignedByteString(self._takeBytes(code-protocol.SCALEDTIMESTAMPNOTZLEN0))
+            seconds, micros = self.__unpack(scale, stamp)
+            return datatype.TimestampFromTicks(seconds, micros, None)
+        raise DataError('Not a scaled timestamp without time zone')
+
 
     def getScaledDate(self):
         # type: () -> datatype.Date
@@ -1265,6 +1284,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
             return self.getScaledDate()
+
+        if code == protocol.SCALEDTIMESTAMPNOTZ:
+            return self.getScaledTimestampNoTz()
 
         if code == protocol.NULL:
             return self.getNull()
