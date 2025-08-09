@@ -48,3 +48,5 @@ results/
 .pydevproject
 .settings
 .idea
+venv
+
