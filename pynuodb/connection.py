@@ -350,3 +350,20 @@ class Connection(object):
         """
         self._check_closed()
         return cursor.Cursor(self.__session, prepared_statement_cache_size)
+
+    def __enter__(self):
+        # type: () -> Connection
+        """Returns the NuoDB SQL Connection object itself to be used within the context block."""
+        return self
+
+    def __exit__(self, exc_type, # type: Optional[Type[BaseException]]
+                 exc_val,        # type: Optional[BaseException]
+                 exc_tb,         # type: Optional[Any]
+                 ):
+        # type: (...) -> None
+        """Exits the runtime context, closing the connection.
+
+        This immediately closes the connection, which destroys all cursors
+        created by it and rolls back any uncommitted transactions.
+        """
+        self.close()
