@@ -382,10 +382,12 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def __execute_postfix(self):
         # type: () -> None
-        tzUpdate = self.getBoolean()
-        if tzUpdate:
-            server_tz = self.getValue()
-            self.__timezone_name = server_tz
+        if self.__sessionVersion >= protocol.TIMESTAMP_WITHOUT_TZ:
+            tzUpdate = self.getBoolean()
+            if tzUpdate:
+                server_tz = self.getValue()
+                self.__timezone_name = server_tz
+        
         txid = self.getInt()
         sid = self.getInt()
         seqid = self.getInt()
