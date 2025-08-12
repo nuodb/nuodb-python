@@ -61,6 +61,7 @@ LOBSTREAM0                        = 226
 LOBSTREAM1                        = 227
 LOBSTREAM4                        = 230
 ARRAYLEN1                         = 231
+SCALEDTIMESTAMPNOTZLEN0           = 233
 ARRAYLEN8                         = 238
 SCALEDCOUNT3                      = 239
 DEBUGBARRIER                      = 240
@@ -377,5 +378,5 @@ PREPARE_AND_EXECUTE_TOGETHER                    = 26
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
-CURRENT_PROTOCOL_VERSION   = CURSOR_HOLDABILITY
+CURRENT_PROTOCOL_VERSION   = TIMESTAMP_WITHOUT_TZ
 AUTH_TEST_STR              = 'Success!'
