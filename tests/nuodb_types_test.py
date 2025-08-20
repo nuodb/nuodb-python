@@ -11,8 +11,7 @@ import datetime
 import pynuodb
 
 from . import nuodb_base
-from .mock_tzs import localize,Local
-import pytz
+from .mock_tzs import localize
 
 
 
@@ -111,7 +110,6 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
 
         cursor.execute("SELECT * FROM tmp")
         row = cursor.fetchone()
-        print(row)
         
         assert len(row) == 4
         assert row[0] == datetime.date(2000, 1, 1)
