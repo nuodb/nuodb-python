@@ -14,6 +14,7 @@ from . import nuodb_base
 from .mock_tzs import localize
 
 
+
 class TestNuoDBTypes(nuodb_base.NuoBase):
     def test_boolean_types(self):
         con = self._connect()
@@ -109,12 +110,12 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
 
         cursor.execute("SELECT * FROM tmp")
         row = cursor.fetchone()
-
+        
         assert len(row) == 4
         assert row[0] == datetime.date(2000, 1, 1)
         assert row[1] == datetime.time(5, 44, 33, 221100)
         assert row[2] == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
-        assert row[3] == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
+        assert localize(row[3]) == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
 
 
     def test_null_type(self):

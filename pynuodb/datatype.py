@@ -183,11 +183,15 @@ def TimestampFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
     if y < 10000:
         dt = utc_TimeStamp(year=y, month=m, day=d, hour=hour,
                            minute=min, second=sec, microsecond=micro)
+        if zoneinfo is None:
+            return dt.replace(tzinfo=None)
         dt = dt.astimezone(zoneinfo)
     else:
         # shift one day.
         dt = utc_TimeStamp(year=9999, month=12, day=31, hour=hour,
                            minute=min, second=sec, microsecond=micro)
+        if zoneinfo is None:
+            return dt.replace(tzinfo=None)
         dt = dt.astimezone(zoneinfo)
         # add day back.
         dt += TimeDelta(days=1)
