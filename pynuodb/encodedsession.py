@@ -1120,10 +1120,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :rtype: datetime.datetime
         """
         code = self._getTypeCode()
-
         if code == protocol.SCALEDTIMESTAMPNOTZ:
             scale = crypt.fromByteString(self._takeBytes(1))
-            stamp = crypt.fromSignedByteString(self._takeBytes(code-protocol.SCALEDTIMESTAMPNOTZLEN0))
+            stamp = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDTIMESTAMPNOTZLEN0))
             seconds, micros = self.__unpack(scale, stamp)
             return datatype.TimestampFromTicks(seconds, micros, None)
 
