@@ -19,7 +19,9 @@ Requirements
 * NuoDB_ >= 6.0.2
 
 If you don't have a NuoDB domain available you can create one using the Docker
-image on DockerHub.  See `Quick Start Guides / Docker`_.
+image on DockerHub.
+
+See `Quick Start Guides / Docker`_.
 
 Installation
 ------------
@@ -100,5 +102,5 @@ PyNuoDB is licensed under a `BSD 3-Clause License`_.
 .. _NuoDB: https://www.nuodb.com/
 .. _CPython: https://www.python.org/
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
-.. _Quick Start Guides / Docker: https://doc.nuodb.com/nuodb/latest/quick-start-guide/
+.. _Quick Start Guides / Docker: https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/
 .. _BSD 3-Clause License: https://github.com/nuodb/nuodb-python/blob/master/LICENSE
