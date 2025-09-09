@@ -18,9 +18,9 @@ Requirements
 
 * NuoDB_ >= 6.0.2
 
-If you don't have a NuoDB domain available you can create one using the Docker
-image on DockerHub.
-See `Quick Start Guides / Docker`_.
+| If you don't have a NuoDB domain available you can create one using the Docker
+  image on DockerHub.
+| See `Quick Start Guides / Docker`_.
 
 Installation
 ------------
