@@ -15,7 +15,9 @@ Requirements
 ------------
 
 * CPython_ >= 2.7
+
   - Recommended Python version >= 3.8
+
   - Tested with Python 2.7 and 3.6
 
 * NuoDB_ >= 6.0.2
