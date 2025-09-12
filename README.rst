@@ -2,12 +2,8 @@
 NuoDB - Python
 ==============
 
-.. image::https://circleci.com/gh/nuodb/nuodb-python.svg?style=svg
-    :target: https://circleci.com/gh/nuodb/nuodb-python
-    :alt: Test Results
-.. image:: https://gitlab.com/cadmin/nuodb-python/badges/master/pipeline.svg
-    :target: https://gitlab.com/nuodb-mirror/nuodb-python/-/jobs
-    :alt: Dependency Verification
+.. image:: https://dl.circleci.com/status-badge/img/gh/nuodb/nuodb-python/tree/master.svg?style=svg
+    :target: https://dl.circleci.com/status-badge/redirect/gh/nuodb/nuodb-python/tree/master
 
 .. contents::
 
@@ -18,16 +14,17 @@ with limited support and testing from NuoDB.
 Requirements
 ------------
 
-* Python -- one of the following:
+* Python >= 2.7
 
-  - CPython_ >= 2.7
+  - Recommended Python version >= 3.8
 
-* NuoDB -- one of the following:
+  - Tested with CPython_ 2.7 and 3.6
 
-  - NuoDB_ >= 2.0.4
+* NuoDB_ >= 6.0.2
 
-If you don't have a NuoDB domain available you can create one using the Docker
-image on DockerHub.  See `Quick Start Guides / Docker <https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/>`_.
+| If you don't have a NuoDB domain available you can create one using the Docker
+  image on DockerHub.
+| See `Quick Start Guides / Docker`_.
 
 Installation
 ------------
@@ -102,9 +99,11 @@ NuoDB Documentation: https://doc.nuodb.com/nuodb/latest/introduction-to-nuodb/
 License
 -------
 
-PyNuoDB is licensed under a `BSD 3-Clause License <https://github.com/nuodb/nuodb-python/blob/master/LICENSE>`_.
+PyNuoDB is licensed under a `BSD 3-Clause License`_.
 
 .. _Documentation: https://doc.nuodb.com/nuodb/latest/introduction-to-nuodb/
 .. _NuoDB: https://www.nuodb.com/
 .. _CPython: https://www.python.org/
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
+.. _Quick Start Guides / Docker: https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/
+.. _BSD 3-Clause License: https://github.com/nuodb/nuodb-python/blob/master/LICENSE
