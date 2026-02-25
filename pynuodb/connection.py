@@ -221,7 +221,7 @@ class Connection(object):
             # Since we don't pass a timeout to recv, it must return a value
             raise RuntimeError("Session.rev() returned None without timeout!")
 
-        connString = connectDetail.decode()
+        connString = connectDetail.decode('latin-1')
         session.checkForError(connString)
 
         root = ElementTree.fromstring(connString)

@@ -1,6 +1,6 @@
 """Establish and manage a SQL session with a NuoDB database.
 
-(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2026 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -308,7 +308,7 @@ class Session(object):
         response = self.__sendAndReceive(req.encode())
 
         try:
-            root = ET.fromstring(response.decode())
+            root = ET.fromstring(response.decode('latin-1'))
             if root.tag != "SRPResponse":
                 raise InterfaceError("Request for authorization was denied: %s"
                                      % (xmlToString(root)))
@@ -334,7 +334,7 @@ class Session(object):
             if verifyMessage is None:
                 raise SessionException("Failed to establish session (no verification)")
             try:
-                root = ET.fromstring(verifyMessage.decode())
+                root = ET.fromstring(verifyMessage.decode('latin-1'))
             except Exception as e:
                 raise SessionException("Failed to establish session with password: " + str(e))
 
@@ -409,7 +409,7 @@ class Session(object):
             Session.__SERVICE_REQ, attributes, text, children)
 
         try:
-            response = self.__sendAndReceive(requestStr.encode()).decode()
+            response = self.__sendAndReceive(requestStr.encode()).decode('latin-1')
             checkForError(response)
             return response
         finally:
