@@ -8,11 +8,7 @@ See the LICENSE file provided with this software.
 
 from datetime import tzinfo, datetime
 import sys
-import typing
-import tzlocal
 import pytz
-from pynuodb.datatype import LOCALZONE_NAME
-
 
 try:
     from zoneinfo import ZoneInfo
@@ -20,14 +16,20 @@ try:
 except ImportError:
     HAS_ZONEINFO = False
 
-# Define a type for mypy/static typing
-if typing.TYPE_CHECKING:
-    if sys.version_info >= (3, 9):
-        from zoneinfo import ZoneInfo as TZType
+try:
+    import typing
+    # Define a type for mypy/static typing
+    if typing.TYPE_CHECKING:
+        if HAS_ZONEINFO:
+            TZType = ZoneInfo
+        else:
+            from pytz.tzinfo import BaseTzInfo as TZType
     else:
-        from pytz.tzinfo import BaseTzInfo as TZType
-else:
-    TZType = tzinfo
+        TZType = tzinfo
+except ImportError:
+    pass
+
+from pynuodb.datatype import LOCALZONE_NAME
 
 
 # Timezone getter function

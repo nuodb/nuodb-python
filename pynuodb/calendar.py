@@ -17,7 +17,11 @@ to map dates same as the calendar function in the nuodb server.  python
 datetime uses a proleptic Gregorian calendar.
 
 """
-from typing import Tuple  # pylint: disable=unused-import
+try:
+    from typing import Tuple  # pylint: disable=unused-import
+except ImportError:
+    pass
+
 import jdcal
 
 JD_EPOCH = sum(jdcal.gcal2jd(1970, 1, 1))
