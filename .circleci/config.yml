@@ -41,14 +41,21 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Make test directories
-          command: mkdir -p artifacts results
-      - run:
           name: Install make
           command: dnf install make -y
       - run:
+          name: Install pip
+          command: |
+            # We cannot use the dnf package since the Python installed is
+            # a different version than what is available in the repos.
+            curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+            python3 /tmp/get-pip.py --user
+      - run:
+          name: Make test directories
+          command: mkdir -p artifacts results
+      - run:
           name: Install Python dependencies
-          command: make install
+          command: make PYTHON=python3 install
       - run:
           name: Start NuoDB Admin
           command: |
@@ -58,7 +65,7 @@ jobs:
             sudo -u nuodb /opt/nuodb/bin/nuocmd --show-json get effective-license
       - run:
           name: Run test
-          command: make fulltest
+          command: make PYTHON=python3 fulltest
       - store_artifacts:
           path: artifacts
       - store_test_results:

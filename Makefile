@@ -4,9 +4,10 @@
 # See the LICENSE file provided with this software.
 
 PYTHON_VERSION ?= 3
+_PYTHON_MAJOR := $(firstword $(subst ., ,$(PYTHON_VERSION)))
 
-PYTHON ?= python$(PYTHON_VERSION)
-PIP ?= pip$(PYTHON_VERSION)
+PYTHON ?= $(firstword $(foreach v,$(PYTHON_VERSION) $(_PYTHON_MAJOR),$(shell command -v python$v)) python)
+PIP ?= $(PYTHON) -m pip
 
 VIRTUALENV ?= virtualenv
 MYPY ?= mypy
