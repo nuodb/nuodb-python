@@ -1,5 +1,5 @@
 """
-(C) Copyright 2025 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2025-2026 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -7,6 +7,8 @@ See the LICENSE file provided with this software.
 
 import decimal
 import datetime
+
+import pytest
 
 import pynuodb
 
@@ -117,7 +119,6 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
         assert row[2] == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
         assert localize(row[3]) == localize(datetime.datetime(2000, 1, 1, 5, 44, 33, 221100))
 
-
     def test_null_type(self):
         con = self._connect()
         cursor = con.cursor()
@@ -133,12 +134,13 @@ class TestNuoDBTypes(nuodb_base.NuoBase):
 
     def test_vector_type(self):
         con = self._connect()
+
+        # Skip this test if the client protocol doesn't support VECTOR_DOUBLE
+        cfg = con.connection_config()
+        if cfg['client_protocol_id'] < pynuodb.protocol.VECTOR_TYPE:
+            pytest.skip("VECTOR type is not supported")
+
         cursor = con.cursor()
-
-        # only activate this tests if tested against version 8 or above
-        if self.system_information['effective_version'] < 1835008:
-            return
-
         cursor.execute("CREATE TEMPORARY TABLE tmp ("
                        " vec3 VECTOR(3, DOUBLE),"
                        " vec5 VECTOR(5, DOUBLE))")

@@ -1,6 +1,6 @@
 """Constants for the message protocol with the NuoDB database.
 
-(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2026 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -374,6 +374,8 @@ MULTI_CIPHER                                    = 23
 CURSOR_HOLDABILITY                              = 24
 TIMESTAMP_WITHOUT_TZ                            = 25
 PREPARE_AND_EXECUTE_TOGETHER                    = 26
+VECTOR_TYPE                                     = 27
+LAST_COMMIT_INFO_PREPARE                        = 28
 
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.

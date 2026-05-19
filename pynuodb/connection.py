@@ -1,6 +1,6 @@
 """A module for connecting to a NuoDB database.
 
-(C) Copyright 2013-2025 Dassault Systemes SE.  All Rights Reserved.
+(C) Copyright 2013-2026 Dassault Systemes SE.  All Rights Reserved.
 
 This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
@@ -286,20 +286,20 @@ class Connection(object):
         """Returns a copy of the connection configuration.
 
         Configuration:
-          ap_host        :str:  Address of the AP host or None for direct
-          cipher         :str:  Name of the cipher if using SRP, else None
-          connected      :bool: True if the connection is active
-          connection_id  :int:  ID of the connection
-          db_name        :str:  name of the connected database
-          db_protocol_id :int:  Server protocol ID of the connected database
-          db_uuid        :uuid: UUID for the connected database
-          driver_version :str:  Version of this driver
-          engine_host    :str:  Address of the TE we're connected to
-          engine_id      :int:  ID for the TE we're connected to
-          options        :dict: Dictionary of connection options
-          protocol_id    :int:  Negotiated client protocol ID
-          tls_enabled    :bool: True if we're connected using TLS
-          user           :str:  name of the connected user
+          ap_host            :str:  Address of the AP host or None for direct
+          cipher             :str:  Name of the cipher if using SRP, else None
+          connected          :bool: True if the connection is active
+          connection_id      :int:  ID of the connection
+          db_name            :str:  name of the connected database
+          db_protocol_id     :int:  Server protocol ID of the connected database
+          db_uuid            :uuid: UUID for the connected database
+          driver_version     :str:  Version of this driver
+          engine_host        :str:  Address of the TE we're connected to
+          engine_id          :int:  ID for the TE we're connected to
+          options            :dict: Dictionary of connection options
+          client_protocol_id :int:  Negotiated client protocol ID
+          tls_enabled        :bool: True if we're connected using TLS
+          user               :str:  name of the connected user
 
         :returns: Copy of the connection config names and values.
                   Modifying these values has no effect on the connection.
