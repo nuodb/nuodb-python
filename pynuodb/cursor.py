@@ -165,7 +165,7 @@ class Cursor(object):
         :raises ProgrammingError: Incorrect number of parameters
         """
         p_statement = self._statement_cache.get_prepared_statement(operation)
-        if p_statement.parameter_count != len(parameters):
+        if p_statement.parameter_count != len(parameters) and p_statement.handle != -1:
             raise ProgrammingError(
                 "Incorrect number of parameters: expected %d, got %d" %
                 (p_statement.parameter_count, len(parameters)))
@@ -275,8 +275,7 @@ class StatementCache(object):
             self._ps_key_queue.append(query)
             return stmt
 
-        stmt = self._session.create_prepared_statement(query)
-
+        stmt = self._session.create_local_prepared_statement(query)
         while len(self._ps_cache) >= self._ps_cache_size:
             lru_statement_key = self._ps_key_queue.popleft()
             statement_to_remove = self._ps_cache[lru_statement_key]

@@ -88,6 +88,7 @@ SETCURSORNAME                     = 21
 EXECUTEPREPAREDSTATEMENT          = 22
 EXECUTEPREPAREDQUERY              = 23
 EXECUTEPREPAREDUPDATE             = 24
+PREPAREANDEXECUTETOGETHER         = 25
 GETMETADATA                       = 26
 NEXT                              = 27
 CLOSERESULTSET                    = 28
@@ -343,6 +344,13 @@ def lookup_code(error_code):
     """Return a string-ified version of an error code."""
     return stringifyError.get(error_code, '[UNKNOWN ERROR CODE]')
 
+#
+# Default Options
+#
+DEFAULT_EXECUTE_TIMEOUT_MS = 0
+DEFAULT_FETCH_SIZE        = 0
+DEFAULT_EXECUTE_SUBTYPE   = 5
+DEFAULT_PREPARE_SUBTYPE  = 0
 
 #
 # NuoDB Client-Server Features
@@ -378,5 +386,5 @@ PREPARE_AND_EXECUTE_TOGETHER                    = 26
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
-CURRENT_PROTOCOL_VERSION   = TIMESTAMP_WITHOUT_TZ
+CURRENT_PROTOCOL_VERSION   = PREPARE_AND_EXECUTE_TOGETHER
 AUTH_TEST_STR              = 'Success!'

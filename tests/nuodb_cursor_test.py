@@ -7,7 +7,7 @@ See the LICENSE file provided with this software.
 
 import pytest
 
-from pynuodb.exception import DataError, ProgrammingError, BatchError, OperationalError
+from pynuodb.exception import DataError, ProgrammingError, BatchError, OperationalError, DatabaseError
 
 from . import nuodb_base
 
@@ -45,17 +45,17 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         con = self._connect()
         cursor = con.cursor()
 
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(DatabaseError):
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
 
     def test_toomany_parameters(self):
         con = self._connect()
         cursor = con.cursor()
 
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(DatabaseError):
             cursor.execute("SELECT 1 FROM DUAL", [1])
 
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(DatabaseError):
             cursor.execute("SELECT ? FROM DUAL", [1, 2])
 
     def test_incorrect_parameters(self):

@@ -37,6 +37,7 @@ class PreparedStatement(Statement):
         super(PreparedStatement, self).__init__(handle)
         self.parameter_count = parameter_count
         self.description = None  # type: Optional[List[List[Any]]]
+        self.query = None  # type:  Optional[str]
 
 
 class ExecutionResult(object):

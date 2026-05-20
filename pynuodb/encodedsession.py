@@ -359,9 +359,10 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._putMessageId(protocol.CREATE)
         self._exchangeMessages()
         handle = self.getInt()
+        stmt = statement.Statement(handle)
 
-        # Use handle to query dual
-        self._setup_statement(handle, protocol.EXECUTEQUERY)
+        # Use statement to query dual
+        self._setup_statement(stmt, protocol.EXECUTEQUERY)
         self.putString('select 1 as one from dual')
         self._exchangeMessages()
 
@@ -401,7 +402,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :param query: Operation to be executed.
         :returns: The result of the operation execution.
         """
-        self._setup_statement(stmt.handle, protocol.EXECUTE).putString(query)
+        stmt.query = query
+        self._setup_statement(stmt, protocol.EXECUTE).putString(query)
         self._exchangeMessages()
 
         result = self.getInt()
@@ -421,6 +423,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """Close the result set."""
         self._putMessageId(protocol.CLOSERESULTSET).putInt(resultset.handle)
         self._exchangeMessages(False)
+
+    def create_local_prepared_statement(self, query):
+        # type: (str) -> statement.PreparedStatement
+        """Create a local prepared statement for the given query."""
+        if self.__sessionVersion >= protocol.PREPARE_AND_EXECUTE_TOGETHER:
+            stmt = statement.PreparedStatement(-1, -1)
+            stmt.query = query
+            return stmt
+        return self.create_prepared_statement(query)
 
     def create_prepared_statement(self, query):
         # type: (str) -> statement.PreparedStatement
@@ -445,13 +456,21 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     ):
         # type: (...) -> statement.ExecutionResult
         """Execute a prepared statement with the given parameters."""
-        self._setup_statement(prepared_statement.handle, protocol.EXECUTEPREPAREDSTATEMENT)
+        if self.__sessionVersion >= protocol.PREPARE_AND_EXECUTE_TOGETHER and not self._isPrepared(prepared_statement):
+            self._setup_statement(prepared_statement, protocol.PREPAREANDEXECUTETOGETHER)
+        else:
+            self._setup_statement(prepared_statement, protocol.EXECUTEPREPAREDSTATEMENT)
 
         self.putInt(len(parameters))
         for param in parameters:
             self.putValue(param)
 
         self._exchangeMessages()
+
+        # Update handle and parameter count if needed
+        if self.__sessionVersion >= protocol.PREPARE_AND_EXECUTE_TOGETHER and not self._isPrepared(prepared_statement):
+            prepared_statement.handle = self.getInt()
+            prepared_statement.parameter_count = self.getInt()
 
         result = self.getInt()
         rowcount = self.getInt()
@@ -462,7 +481,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     def execute_batch_prepared_statement(self, prepared_statement, param_lists):
         # type: (statement.PreparedStatement, Collection[Collection[result_set.Value]]) -> List[int]
         """Batch the prepared statement with the given parameters."""
-        self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
+        self._setup_statement(prepared_statement, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
         for parameters in param_lists:
             plen = len(parameters)
@@ -1317,14 +1336,26 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     # Protected utility routines
 
-    def _setup_statement(self, handle, msgId):
-        # type: (int, int) -> EncodedSession
+    def _setup_statement(self, prepared_statement, msgId):
+        # type: (statement.PreparedStatement, int) -> EncodedSession
         """Set up a new statement.
 
-        :type handle: int
+        :type prepared_statement: statement.PreparedStatement
         :type msgId: int
         """
+        if msgId != protocol.PREPAREANDEXECUTETOGETHER and not self._isPrepared(prepared_statement):
+            statement = self.create_prepared_statement(prepared_statement.query)
+            prepared_statement.handle = statement.handle
+            prepared_statement.parameter_count = statement.parameter_count
+
         self._putMessageId(msgId)
+
+        if msgId == protocol.PREPAREANDEXECUTETOGETHER:
+            self.putInt(protocol.DEFAULT_EXECUTE_SUBTYPE) #executeSubtype
+            self.putInt(protocol.DEFAULT_PREPARE_SUBTYPE) #prepareSubtype
+            self.putString(prepared_statement.query)
+            self.putInt(protocol.DEFAULT_EXECUTE_TIMEOUT_MS)  # timeout
+            self.putInt(protocol.DEFAULT_FETCH_SIZE)  # fetchsize
         if self.__sessionVersion >= protocol.LAST_COMMIT_INFO:
             with EncodedSession.__dblock:
                 self.putInt(len(self.__dbinfo))
@@ -1332,8 +1363,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
                     self.putInt(sid)
                     self.putInt(tup[0])
                     self.putInt(tup[1])
-        self.putInt(handle)
-
+        if msgId != protocol.PREPAREANDEXECUTETOGETHER:
+            self.putInt(prepared_statement.handle)
         return self
 
     def _hasBytes(self, length):
@@ -1368,3 +1399,9 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return self.__input[self.__inpos:self.__inpos + length]
         finally:
             self.__inpos += length
+    def _isPrepared(self,prepared_statement):
+        # type: (statement.PreparedStatement) -> bool
+        """Check if the prepared statement is valid."""
+        if prepared_statement.handle == -1:
+            return False
+        return True
