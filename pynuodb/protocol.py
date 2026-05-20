@@ -380,5 +380,5 @@ LAST_COMMIT_INFO_PREPARE                        = 28
 # The newest feature this driver supports.
 # The server will negotiate the highest compatible version.
 CURRENT_PROTOCOL_MAJOR     = 1
-CURRENT_PROTOCOL_VERSION   = TIMESTAMP_WITHOUT_TZ
+CURRENT_PROTOCOL_VERSION   = VECTOR_TYPE
 AUTH_TEST_STR              = 'Success!'
