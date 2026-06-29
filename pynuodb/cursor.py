@@ -185,8 +185,10 @@ class Cursor(object):
         # type: () -> Optional[result_set.Row]
         """Return the next row of results from the previous SQL operation."""
         # Inline _check_closed to avoid per-row function-call overhead.
-        if self.closed or self.session.closed:
+        if self.closed:
             raise Error("cursor is closed")
+        if self.session.closed:
+            raise Error("connection is closed")
         rs = self._result_set
         if rs is None:
             raise Error("Previous execute did not produce any results or no call was issued yet")
