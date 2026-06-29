@@ -486,29 +486,23 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         expected = prepared_statement.parameter_count
         if _HAVE_FETCH_ACCEL:
-            # encode_batch wants param_lists to be a real list so it can iterate
-            # via the C protocol (and so len() works for sizing).
+            # encode_batch needs a list (it indexes / lens it).
             if not isinstance(param_lists, list):
                 param_lists = list(param_lists)
             _fetch_accel.encode_batch(
                 self.__output, param_lists, expected, self)
-            nrows = len(param_lists)
         else:
-            put_value = self.putValue
-            put_int = self.putInt
-            nrows = 0
             for parameters in param_lists:
                 plen = len(parameters)
                 if expected != plen:
                     raise ProgrammingError("Incorrect number of parameters specified,"
                                            " expected %d, got %d"
                                            % (expected, plen))
-                put_int(plen)
+                self.putInt(plen)
                 for param in parameters:
-                    put_value(param)
-                nrows += 1
+                    self.putValue(param)
         self.putInt(-1)
-        self.putInt(nrows)
+        self.putInt(len(param_lists))
         self._exchangeMessages()
 
         results = []  # type: List[int]
@@ -586,107 +580,31 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def fetch_result_set_next(self, resultset):
         # type: (result_set.ResultSet) -> None
-        """Get more rows from this result set.
-
-        Hot path: when the Cython extension (_fetch_accel) is available the
-        entire batch decode runs as typed C code — no Python integer boxing for
-        inline values, no bytearray slice for from_bytes, no .decode() call for
-        short strings.  Exotic column types (SCALED, DOUBLE, MILLISEC, …) fall
-        back to _cython_exotic_decode → getValue(), which is rarely reached.
-
-        When the extension is absent the pure-Python inline loop below is used
-        instead; it inlines the common decoders in the same way, so it is still
-        faster than going through getValue() for every cell.
-        """
+        """Get more rows from this result set."""
         self._putMessageId(protocol.NEXT).putInt(resultset.handle)
         self._exchangeMessages()
 
         resultset.clear_results()
 
-        data = self.__input
-        pos = self.__inpos
-        col_count = resultset.col_count
-        results = resultset.results          # clear_results() emptied this list in place
-
         if _HAVE_FETCH_ACCEL:
             pos, complete = _fetch_accel.decode_next_batch(
-                data, pos, col_count, results, self._cython_exotic_decode,
+                self.__input, self.__inpos, resultset.col_count,
+                resultset.results, self._cython_exotic_decode,
                 self.timezone_info)
-        else:
-            # ── Pure-Python fallback ────────────────────────────────────────
-            # Hoist protocol constants and the builtin into locals.
-            INTMINUS10 = protocol.INTMINUS10
-            INT0 = protocol.INT0
-            INT31 = protocol.INT31
-            INTLEN0 = protocol.INTLEN0
-            INTLEN8 = protocol.INTLEN8
-            UTF8LEN0 = protocol.UTF8LEN0
-            UTF8LEN39 = protocol.UTF8LEN39
-            UTF8COUNT0 = protocol.UTF8COUNT0
-            UTF8COUNT1 = protocol.UTF8COUNT1
-            UTF8COUNT4 = protocol.UTF8COUNT4
-            NULL = protocol.NULL
-            TRUE = protocol.TRUE
-            FALSE = protocol.FALSE
-            frombytes = int.from_bytes
-            n = len(data)
+            self.__inpos = pos
+            resultset.complete = complete
+            return
 
-            complete = False
-            while pos < n:
-                # --- row-presence marker: a small inline int (0 = end of set) ---
-                code = data[pos]
-                if INTMINUS10 <= code <= INT31:
-                    marker = code - INT0
-                    pos += 1
-                else:
-                    # Non-inline marker (not expected) -- stay correct via getInt().
-                    self.__inpos = pos
-                    marker = self.getInt()
-                    pos = self.__inpos
-                if marker == 0:
-                    complete = True
-                    break
+        while self._hasBytes(1):
+            if self.getInt() == 0:
+                resultset.complete = True
+                break
 
-                # --- decode one row's columns inline ---
-                row = [None] * col_count
-                for i in range(col_count):
-                    code = data[pos]
-                    if INTMINUS10 <= code <= INTLEN8:                  # integer
-                        if code <= INT31:
-                            row[i] = code - INT0
-                            pos += 1
-                        else:
-                            end = pos + 1 + (code - INTLEN0)
-                            row[i] = frombytes(data[pos + 1:end], 'big', signed=True)
-                            pos = end
-                    elif UTF8LEN0 <= code <= UTF8LEN39:               # short string
-                        end = pos + 1 + (code - UTF8LEN0)
-                        row[i] = data[pos + 1:end].decode('utf-8')
-                        pos = end
-                    elif UTF8COUNT1 <= code <= UTF8COUNT4:            # length-counted string
-                        lp = code - UTF8COUNT0
-                        lstart = pos + 1
-                        length = frombytes(data[lstart:lstart + lp], 'big')
-                        start = lstart + lp
-                        end = start + length
-                        row[i] = data[start:end].decode('utf-8')
-                        pos = end
-                    elif code == NULL:                                # null (1-byte)
-                        pos += 1                                      # row[i] already None
-                    elif code == TRUE:
-                        row[i] = True
-                        pos += 1
-                    elif code == FALSE:
-                        row[i] = False
-                        pos += 1
-                    else:                                            # exotic: generic getValue
-                        self.__inpos = pos
-                        row[i] = self.getValue()
-                        pos = self.__inpos
-                results.append(tuple(row))
+            row = [None] * resultset.col_count
+            for i in range(resultset.col_count):
+                row[i] = self.getValue()
 
-        self.__inpos = pos
-        resultset.complete = complete
+            resultset.add_row(tuple(row))
 
     def _parse_result_set_description(self):
         # type: () -> List[List[Any]]
@@ -1068,7 +986,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return code - protocol.INT0
 
         elif code >= protocol.INTLEN1 and code <= protocol.INTLEN8:
-            return int.from_bytes(self._takeBytes(code - protocol.INTLEN0), 'big', signed=True)
+            return crypt.fromSignedByteString(self._takeBytes(code - protocol.INTLEN0))
 
         raise DataError('Not an integer: %d' % (code))
 
@@ -1394,41 +1312,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     def getValue(self):
         # type: () -> Any
         """Return the next value available in the session."""
-        # Fast path: integers and strings are the overwhelming majority of
-        # cells. Decode them inline from the buffer with a single type-code
-        # read, avoiding the redundant second peek (getValue used to peek, then
-        # getInt/getString re-read the same byte) and the per-read _hasBytes
-        # bounds checks. Whole rows are framed in the buffer by
-        # fetch_result_set_next, so direct slicing is safe; an exhausted buffer
-        # raises IndexError and we fall through to the generic path, which
-        # raises EndOfStream exactly as before.
-        data = self.__input
-        pos = self.__inpos
-        try:
-            code = data[pos]
-            if protocol.INTMINUS10 <= code <= protocol.INTLEN8:
-                if code <= protocol.INT31:                          # inline small int
-                    self.__inpos = pos + 1
-                    return code - protocol.INT0
-                end = pos + 1 + (code - protocol.INTLEN0)           # multi-byte signed int
-                self.__inpos = end
-                return int.from_bytes(data[pos + 1:end], 'big', signed=True)
-            if protocol.UTF8LEN0 <= code <= protocol.UTF8LEN39:     # short string
-                end = pos + 1 + (code - protocol.UTF8LEN0)
-                self.__inpos = end
-                return data[pos + 1:end].decode('utf-8')
-            if protocol.UTF8COUNT1 <= code <= protocol.UTF8COUNT4:  # length-counted string
-                lp = code - protocol.UTF8COUNT0
-                lstart = pos + 1
-                length = int.from_bytes(data[lstart:lstart + lp], 'big')
-                start = lstart + lp
-                end = start + length
-                self.__inpos = end
-                return data[start:end].decode('utf-8')
-        except IndexError:
-            pass
-
-        # --- generic dispatch (unchanged) for every other type ---
         code = self._peekTypeCode()
 
         if code >= protocol.INTMINUS10 and code <= protocol.INTLEN8:
