@@ -119,6 +119,7 @@ class TestNuoDBCython(nuodb_base.NuoBase):
             cursor.execute(
                 "INSERT INTO cython_ten"
                 " VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)")
+            con.commit()
         finally:
             con.close()
 
@@ -152,6 +153,7 @@ class TestNuoDBCython(nuodb_base.NuoBase):
             con = self._connect()
             try:
                 con.cursor().execute("DROP TABLE IF EXISTS cython_ten")
+                con.commit()
             finally:
                 con.close()
 
