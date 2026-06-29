@@ -41,8 +41,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install make
-          command: dnf install make -y
+          name: Install build tools
+          command: dnf install -y make gcc python3-devel
       - run:
           name: Install pip
           command: |

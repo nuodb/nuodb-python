@@ -28,7 +28,8 @@ try:
     from Cython.Build import cythonize
     from setuptools import Extension
     _ext_modules = cythonize(
-        Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"]),
+        #Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"], optional=True),
+        Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"], optional=False),
         compiler_directives={"language_level": "3"},
     )
 except ImportError:
