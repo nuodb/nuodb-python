@@ -319,19 +319,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._putMessageId(protocol.SETAUTOCOMMIT).putInt(value)
         self._exchangeMessages(False)
 
-    def set_statement_fetch_size(self, statement, fetch_size):
-        # type: (statement.Statement, int) -> None
-        """Tell the server how many rows to return per NEXT batch.
-
-        Servers older than SET_FETCH_SIZE (protocol v19) don't recognise
-        this message, so skip the send.
-        """
-        if self.__sessionVersion < protocol.SET_FETCH_SIZE:
-            return
-        self._putMessageId(protocol.SETSTATEMENTFETCHSIZE)
-        self.putInt(statement.handle).putInt(fetch_size)
-        self._exchangeMessages()
-
     def send_close(self):
         # type: () -> None
         """Close this connection."""
