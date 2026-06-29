@@ -24,6 +24,16 @@ import re
 
 from setuptools import setup
 
+try:
+    from Cython.Build import cythonize
+    from setuptools import Extension
+    _ext_modules = cythonize(
+        Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"]),
+        compiler_directives={"language_level": "3"},
+    )
+except ImportError:
+    _ext_modules = []
+
 with open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py')) as v:
     m = re.search(r"^ *__version__ *= *'(.*?)'", v.read(), re.M)
     if m is None:
@@ -40,6 +50,7 @@ setup(
     description='NuoDB Python driver',
     keywords='nuodb scalable cloud database',
     packages=['pynuodb'],
+    ext_modules=_ext_modules,
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),

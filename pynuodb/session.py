@@ -229,6 +229,15 @@ class Session(object):
         self.__sock = socket.socket(af, socket.SOCK_STREAM)
         # disable Nagle's algorithm
         self.__sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        # Bigger receive buffer cuts recv_into syscalls during full-table
+        # scans (each batch is ~140 KB; default SO_RCVBUF is ~64 KB which
+        # forces 2-3 reads per batch).  Kernel clamps to its sysctl maximum
+        # so the request is opportunistic.
+        try:
+            self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF,
+                                   1 << 20)  # 1 MiB
+        except OSError:
+            pass
         # separate connect and read timeout; we do not necessarily want to
         # close out connection if reads block for a long time, because it could
         # take a while for the server to generate data to send
@@ -481,12 +490,13 @@ class Session(object):
             raise
 
     def recv(self, timeout=None):
-        # type: (Optional[float]) -> Optional[bytes]
+        # type: (Optional[float]) -> Optional[bytearray]
         """Pull the next message from the socket.
 
         If timeout is None, wait forever (until read_timeout, if set).
         If timeout is a float, then set this timeout for this recv().
         On timeout, return None but do not close the connection.
+        Returns a bytearray to avoid an extra copy in the caller.
         """
         try:
             # We only wait on timeout to read the header.  Once we read
@@ -506,17 +516,30 @@ class Session(object):
             raise RuntimeError("Session.recv read no data!")
 
         if self.__cipherIn:
-            msg = self.__cipherIn.transform(msg)
+            # cryptography.Cipher.update accepts any buffer-like object, so
+            # pass the bytearray directly instead of copying via bytes(msg).
+            # Result is wrapped back into bytearray so callers always receive
+            # a bytearray regardless of cipher state.
+            return bytearray(self.__cipherIn.transform(msg))
 
         return msg
 
     def __readFully(self, msgLength, timeout=None):
-        # type: (int, Optional[float]) -> Optional[bytes]
-        """Pull the next complete message from the socket."""
+        # type: (int, Optional[float]) -> Optional[bytearray]
+        """Pull the next complete message from the socket.
+
+        Pre-allocates a bytearray of the exact required size and fills it with
+        recv_into(), avoiding the repeated bytearray concatenations and the
+        final bytes() copy that the previous implementation performed.
+        """
+        if msgLength == 0:
+            return bytearray()
         sock = self._sock
-        msg = bytearray()
+        msg = bytearray(msgLength)
+        mv = memoryview(msg)
         old_tmout = sock.gettimeout()
-        while msgLength > 0:
+        offset = 0
+        while offset < msgLength:
             if timeout is not None:
                 # It's a little wrong that this timeout applies to each recv()
                 # instead of to the entire operation; however we only use this
@@ -524,7 +547,7 @@ class Session(object):
                 # pass anyway.
                 sock.settimeout(timeout)
             try:
-                received = sock.recv(msgLength)
+                n = sock.recv_into(mv[offset:], msgLength - offset)
             except socket.timeout:
                 return None
             except IOError as e:
@@ -535,15 +558,14 @@ class Session(object):
                 if timeout is not None:
                     sock.settimeout(old_tmout)
 
-            if not received:
+            if not n:
                 raise SessionException(
                     "Session closed waiting for data: wanted length=%d,"
                     " received length=%d"
-                    % (msgLength, len(msg)))
-            msg += received
-            msgLength -= len(received)
+                    % (msgLength, offset))
+            offset += n
 
-        return bytes(msg)
+        return msg
 
     def stream_recv(self, blocksz=4096, timeout=None):
         # type: (int, Optional[float]) -> Generator[bytes, None, None]
