@@ -43,14 +43,14 @@ all:
 
 install:
 	$(_INSTALL_CMD)
-	$(PIP) install 'Cython>=3.0'
+	$(PIP) install 'setuptools>=40.8.0' 'Cython>=3.0'
 	$(PYTHON) setup.py build_ext --inplace
 
 check: mypy pylint fulltest
 
 fulltest:
 	$(_INSTALL_CMD)
-	$(PIP) install 'Cython>=3.0'
+	$(PIP) install 'setuptools>=40.8.0' 'Cython>=3.0'
 	$(PYTHON) setup.py build_ext --inplace
 	$(PIP) install -r test_requirements.txt
 	$(_VERIFY_CMD)
