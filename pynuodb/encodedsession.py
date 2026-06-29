@@ -465,13 +465,13 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """Batch the prepared statement with the given parameters."""
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
+        expected = prepared_statement.parameter_count
         for parameters in param_lists:
             plen = len(parameters)
-            if prepared_statement.parameter_count != plen:
+            if expected != plen:
                 raise ProgrammingError("Incorrect number of parameters specified,"
                                        " expected %d, got %d"
-                                       % (prepared_statement.parameter_count,
-                                          plen))
+                                       % (expected, plen))
             self.putInt(plen)
             for param in parameters:
                 self.putValue(param)
@@ -869,6 +869,24 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if value is None:
             return self.putNull()
 
+        # Fast paths: `type(v) is X` is a C-level pointer compare; isinstance
+        # walks the MRO and is markedly slower.  These hit on the bulk of
+        # bound parameters (plain int / str / float).
+        tv = type(value)
+        if tv is int:
+            return self.putInt(value)
+        if tv is str:
+            return self.putString(value)
+        if tv is float:
+            return self.putDouble(value)
+        if tv is bool:
+            # Preserve historic wire behaviour: bools encode as integers
+            # because the original isinstance(value, int) chain matched True
+            # and False before reaching the (dead) bool branch below.
+            return self.putInt(value)
+
+        # Subclass-aware fallback for the long tail (int/str subclasses,
+        # Decimal, datetime types, Binary, Vector, etc.).
         if isinstance(value, int):
             return self.putInt(value)
 
@@ -890,9 +908,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if isinstance(value, datatype.Binary):
             return self.putOpaque(value)
-
-        if isinstance(value, bool):
-            return self.putBoolean(value)
 
         # we don't want to autodetect lists as being VECTOR, so we
         # only bind double if it is the explicit type
@@ -918,6 +933,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return crypt.fromSignedByteString(self._takeBytes(code - protocol.INTLEN0))
 
         raise DataError('Not an integer: %d' % (code))
+
 
     # Does not preserve E notation
     def getScaledInt(self):
@@ -1311,7 +1327,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             resp = self.recv(timeout=None)
             if resp is None:
                 db_error_handler(protocol.OPERATION_TIMEOUT, "timed out")
-            self.__input = crypt.bytesToArray(resp)
+            # recv() now returns bytearray directly; no copy needed.
+            self.__input = resp
 
             error = self.getInt()
             if error != 0:
