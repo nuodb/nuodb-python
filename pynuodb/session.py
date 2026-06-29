@@ -547,7 +547,7 @@ class Session(object):
                 # pass anyway.
                 sock.settimeout(timeout)
             try:
-                n = sock.recv_into(mv[offset:], msgLength - offset)
+                received = sock.recv_into(mv[offset:], msgLength - offset)
             except socket.timeout:
                 return None
             except IOError as e:
@@ -558,12 +558,12 @@ class Session(object):
                 if timeout is not None:
                     sock.settimeout(old_tmout)
 
-            if not n:
+            if not received:
                 raise SessionException(
                     "Session closed waiting for data: wanted length=%d,"
                     " received length=%d"
                     % (msgLength, offset))
-            offset += n
+            offset += received
 
         return msg
 
