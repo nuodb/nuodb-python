@@ -37,6 +37,12 @@ from . import statement
 from . import result_set
 from .datatype import LOCALZONE_NAME
 
+try:
+    from . import _fetch as _fetch_accel
+    _HAVE_FETCH_ACCEL = True
+except ImportError:
+    _HAVE_FETCH_ACCEL = False
+
 # ZoneInfo is preferred but not introduced until 3.9
 if sys.version_info >= (3, 9):
     # preferred python >= 3.9
@@ -512,24 +518,45 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         for _ in range(colcount):
             self.getString()
 
-        complete = False
         init_results = []  # type: List[result_set.Row]
 
-        # If we hit the end of the stream without next==0, there are more
-        # results to fetch.
-        while self._hasBytes(1):
-            next_row = self.getInt()
-            if next_row == 0:
-                complete = True
-                break
+        if _HAVE_FETCH_ACCEL:
+            # The initial row batch has the same wire format as subsequent
+            # NEXT batches; reuse the Cython decoder rather than calling
+            # getValue() per cell through the Python path.
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, colcount,
+                init_results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+        else:
+            complete = False
+            # If we hit the end of the stream without next==0, there are more
+            # results to fetch.
+            while self._hasBytes(1):
+                next_row = self.getInt()
+                if next_row == 0:
+                    complete = True
+                    break
 
-            row = [None] * colcount
-            for i in range(colcount):
-                row[i] = self.getValue()
+                row = [None] * colcount
+                for i in range(colcount):
+                    row[i] = self.getValue()
 
-            init_results.append(tuple(row))
+                init_results.append(tuple(row))
 
         return result_set.ResultSet(handle, colcount, init_results, complete)
+
+    def _cython_exotic_decode(self, pos):
+        # type: (int) -> tuple
+        """Bridge called by _fetch_accel.decode_next_batch for exotic wire types.
+
+        Sets __inpos to pos, calls getValue() (which handles any NuoDB type),
+        then returns (value, new_pos) so the Cython loop can resume.
+        """
+        self.__inpos = pos
+        val = self.getValue()
+        return val, self.__inpos
 
     def fetch_result_set_next(self, resultset):
         # type: (result_set.ResultSet) -> None
@@ -538,6 +565,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._exchangeMessages()
 
         resultset.clear_results()
+
+        if _HAVE_FETCH_ACCEL:
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, resultset.col_count,
+                resultset.results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+            resultset.complete = complete
+            return
 
         while self._hasBytes(1):
             if self.getInt() == 0:
