@@ -37,6 +37,10 @@ from . import statement
 from . import result_set
 from .datatype import LOCALZONE_NAME
 
+# When the compiled extension is present we hand row-batch decoding off to
+# the Cython implementation; otherwise this module falls back to the pure
+# Python loop below.  The tests flip _HAVE_FETCH_ACCEL to False at runtime
+# to assert that both paths produce identical results.
 try:
     from . import _fetch as _fetch_accel
     _HAVE_FETCH_ACCEL = True
@@ -518,42 +522,36 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         for _ in range(colcount):
             self.getString()
 
+        complete = False
         init_results = []  # type: List[result_set.Row]
 
         if _HAVE_FETCH_ACCEL:
-            # The initial row batch has the same wire format as subsequent
-            # NEXT batches; reuse the Cython decoder rather than calling
-            # getValue() per cell through the Python path.
             pos, complete = _fetch_accel.decode_next_batch(
                 self.__input, self.__inpos, colcount,
                 init_results, self._cython_exotic_decode,
                 self.timezone_info)
             self.__inpos = pos
-        else:
-            complete = False
-            # If we hit the end of the stream without next==0, there are more
-            # results to fetch.
-            while self._hasBytes(1):
-                next_row = self.getInt()
-                if next_row == 0:
-                    complete = True
-                    break
+            return result_set.ResultSet(handle, colcount, init_results, complete)
 
-                row = [None] * colcount
-                for i in range(colcount):
-                    row[i] = self.getValue()
+        # If we hit the end of the stream without next==0, there are more
+        # results to fetch.
+        while self._hasBytes(1):
+            next_row = self.getInt()
+            if next_row == 0:
+                complete = True
+                break
 
-                init_results.append(tuple(row))
+            row = [None] * colcount
+            for i in range(colcount):
+                row[i] = self.getValue()
+
+            init_results.append(tuple(row))
 
         return result_set.ResultSet(handle, colcount, init_results, complete)
 
     def _cython_exotic_decode(self, pos):
         # type: (int) -> tuple
-        """Bridge called by _fetch_accel.decode_next_batch for exotic wire types.
-
-        Sets __inpos to pos, calls getValue() (which handles any NuoDB type),
-        then returns (value, new_pos) so the Cython loop can resume.
-        """
+        """Bridge: _fetch_accel hands wire types it doesn't fast-path back here."""
         self.__inpos = pos
         val = self.getValue()
         return val, self.__inpos

@@ -9,6 +9,7 @@ See the LICENSE file provided with this software.
 
 import pytest
 
+import pynuodb
 import pynuodb.result_set as _rs
 
 from . import nuodb_base
@@ -59,20 +60,6 @@ _MIXED_TYPES_QUERY = """
 
 
 class TestNuoDBCython(nuodb_base.NuoBase):
-    def test_fetchall_uses_cython_decoder(self):
-        """End-to-end: a SELECT returning a mix of types must round-trip
-        correctly through the Cython decode path."""
-        con = self._connect()
-        try:
-            cursor = con.cursor()
-            cursor.execute(
-                "select 1, 'hello', cast(3.5 as double), true, null"
-                " from system.dual")
-            rows = cursor.fetchall()
-            assert rows == [(1, 'hello', 3.5, True, None)]
-        finally:
-            con.close()
-
     def test_cython_matches_pure_python(self):
         """fetchall() results must be byte-identical between the Cython
         decode path and the pure-Python fallback, across one value of
@@ -182,6 +169,24 @@ class TestNuoDBCython(nuodb_base.NuoBase):
             cursor = con.cursor()
             cursor.execute("select true, false, null from system.dual")
             assert cursor.fetchall() == [(True, False, None)]
+        finally:
+            con.close()
+
+    def test_exotic_type_bridge(self):
+        """Types the Cython fast path doesn't inline (e.g. VECTOR) must
+        round-trip via the _cython_exotic_decode bridge back into Python's
+        getValue().  VECTOR is the user-facing exotic type per the
+        _fetch.pyx module docstring."""
+        from pynuodb.datatype import Vector
+        payload = Vector(Vector.DOUBLE, [0.0, 4.0, 5.0])
+        con = self._connect()
+        try:
+            cursor = con.cursor()
+            cursor.execute(
+                "select cast(? as vector(3, double)) from system.dual",
+                [payload])
+            row = cursor.fetchone()
+            assert list(row[0]) == [0.0, 4.0, 5.0]
         finally:
             con.close()
 
