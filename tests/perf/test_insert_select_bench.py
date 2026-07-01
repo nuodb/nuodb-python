@@ -36,7 +36,7 @@ _DDL_CREATE   = "CREATE TABLE perf_bench (a INT, b VARCHAR(64))"
 _DDL_TRUNCATE = "TRUNCATE TABLE perf_bench"
 
 _SMALL = 100
-_LARGE = 100_000
+_LARGE = 20_000
 
 
 def _rows(n):
@@ -83,7 +83,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             con.close()
 
     def test_insert_large(self, benchmark):
-        """100k rows via executemany """
+        """20k rows via executemany """
         con = self._connect()
         try:
             self._reset(con)
@@ -100,7 +100,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 con.commit()
 
             benchmark.pedantic(target, setup=setup, warmup_rounds=2,
-                               rounds=30,
+                               rounds=100,
                                iterations=1)
         finally:
             con.close()
@@ -125,7 +125,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             con.close()
 
     def test_fetchall_large(self, benchmark):
-        """fetchall over 100k rows. """
+        """fetchall over 20k rows. """
         con = self._connect()
         try:
             self._seed(con, _LARGE)
@@ -135,14 +135,14 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rows = benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            rows = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
                                       iterations=1)
             assert len(rows) == _LARGE
         finally:
             con.close()
 
     def test_fetchmany_large(self, benchmark):
-        """fetchmany(1000) over 100k rows"""
+        """fetchmany(1000) over 20k rows"""
         con = self._connect()
         try:
             self._seed(con, _LARGE)
@@ -158,14 +158,14 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     total += len(batch)
                 return total
 
-            total = benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            total = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
                                        iterations=1)
             assert total == _LARGE
         finally:
             con.close()
 
     def test_fetchone_loop_large(self, benchmark):
-        """fetchone() in a loop over 100k rows.  Isolates per-row
+        """fetchone() in a loop over 20k rows.  Isolates per-row
         overhead """
         con = self._connect()
         try:
@@ -182,7 +182,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     n += 1
                 return n
 
-            n = benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            n = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
                                    iterations=1)
             assert n == _LARGE
         finally:
@@ -216,7 +216,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT %s FROM perf_wide" % col_names)
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
                                         iterations=1)
             assert len(result) == self._WIDE_ROWS
             assert len(result[0]) == self._WIDE_COLS
@@ -257,7 +257,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT i, d, f, ts, bl, s, n FROM perf_mixed")
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
                                         iterations=1)
             assert len(result) == _LARGE
         finally:
