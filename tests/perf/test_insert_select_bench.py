@@ -156,3 +156,99 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             assert total == _LARGE
         finally:
             con.close()
+
+    def test_fetchone_loop_large(self, benchmark):
+        """fetchone() in a loop over 100k rows.  Isolates per-row
+        overhead """
+        con = self._connect()
+        try:
+            self._seed(con, _LARGE)
+            cur = con.cursor()
+
+            def target():
+                cur.execute("SELECT a, b FROM perf_bench")
+                n = 0
+                while True:
+                    row = cur.fetchone()
+                    if row is None:
+                        break
+                    n += 1
+                return n
+
+            n = benchmark.pedantic(target, rounds=3, iterations=1)
+            assert n == _LARGE
+        finally:
+            con.close()
+
+    # -- Wide rows / mixed types ---------------------------------------
+
+    _WIDE_COLS = 50
+    _WIDE_ROWS = 1000
+
+    def test_fetchall_wide(self, benchmark):
+        """50 columns x 1000 rows """
+        cols = ["c%d INT" % i for i in range(self._WIDE_COLS)]
+        col_names = ", ".join("c%d" % i for i in range(self._WIDE_COLS))
+        placeholders = ", ".join(["?"] * self._WIDE_COLS)
+
+        con = self._connect()
+        try:
+            cur = con.cursor()
+            cur.execute("DROP TABLE IF EXISTS perf_wide")
+            cur.execute("CREATE TABLE perf_wide (%s)" % (", ".join(cols),))
+            con.commit()
+            rows = [tuple(range(self._WIDE_COLS)) for _ in range(self._WIDE_ROWS)]
+            cur.executemany(
+                "INSERT INTO perf_wide (%s) VALUES (%s)"
+                % (col_names, placeholders),
+                rows)
+            con.commit()
+
+            def target():
+                cur.execute("SELECT %s FROM perf_wide" % col_names)
+                return cur.fetchall()
+
+            result = benchmark.pedantic(target, rounds=5, iterations=1)
+            assert len(result) == self._WIDE_ROWS
+            assert len(result[0]) == self._WIDE_COLS
+        finally:
+            con.close()
+
+    def test_fetchall_mixed_types(self, benchmark):
+        """SELECT with variety of types: int / decimal / double / timestamp / bool /
+        varchar / null. """
+        con = self._connect()
+        try:
+            cur = con.cursor()
+            cur.execute("DROP TABLE IF EXISTS perf_mixed")
+            cur.execute(
+                "CREATE TABLE perf_mixed ("
+                "  i INT,"
+                "  d DECIMAL(12, 4),"
+                "  f DOUBLE,"
+                "  ts TIMESTAMP,"
+                "  bl BOOLEAN,"
+                "  s VARCHAR(64),"
+                "  n INT"
+                ")")
+            con.commit()
+            rows = [
+                (i, i * 1.25, i / 3.0,
+                 '2024-01-01 12:34:56', bool(i & 1),
+                 'row #%d' % i, None)
+                for i in range(_LARGE)
+            ]
+            cur.executemany(
+                "INSERT INTO perf_mixed (i, d, f, ts, bl, s, n)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                rows)
+            con.commit()
+
+            def target():
+                cur.execute("SELECT i, d, f, ts, bl, s, n FROM perf_mixed")
+                return cur.fetchall()
+
+            result = benchmark.pedantic(target, rounds=5, iterations=1)
+            assert len(result) == _LARGE
+        finally:
+            con.close()
