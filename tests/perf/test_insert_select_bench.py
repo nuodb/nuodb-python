@@ -59,7 +59,7 @@ _DDL_DROP     = "DROP TABLE IF EXISTS perf_bench"
 _DDL_CREATE   = "CREATE TABLE perf_bench (a INT, b VARCHAR(64))"
 _DDL_TRUNCATE = "TRUNCATE TABLE perf_bench"
 
-_SMALL = 100
+_SMALL = 1000
 _LARGE = 20_000
 
 
@@ -84,29 +84,31 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
     # -- INSERT ---------------------------------------------------------
 
     def test_insert_small(self, benchmark):
-        """100 rows via executemany.  Sensitive to per-row putValue cost.
+        """1000 rows via executemany.  Sensitive to per-row putValue cost.
 
-        Uses iterations=10 to batch-average away kernel jitter that
-        otherwise dominates at these tiny per-call times.  pytest-benchmark
-        forbids setup+iterations>1, so the TRUNCATE lives inside the timed
-        target — both master and branch pay it equally.
+        Sized so per-call time is a few tens of ms — small enough to
+        exercise the fixed per-query overhead, large enough that TRUNCATE
+        (out-of-band via setup) and kernel jitter don't dominate the min.
         """
         con = self._connect()
         try:
             self._reset(con)
             cur = con.cursor()
-            rows = _rows(_SMALL)
+            rows = _rows(1000)
 
             def target():
-                cur.execute(_DDL_TRUNCATE)
                 cur.executemany(
                     "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
                 con.commit()
 
+            def setup():
+                cur.execute(_DDL_TRUNCATE)
+                con.commit()
+
             rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
-                                 iterations=10)
-            benchmark.pedantic(target, warmup_rounds=5,
-                               rounds=rounds, iterations=10)
+                                 setup=setup)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=5,
+                               rounds=rounds, iterations=1)
         finally:
             con.close()
 
@@ -136,7 +138,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
     # -- SELECT ---------------------------------------------------------
 
     def test_fetchall_small(self, benchmark):
-        """fetchall over 100 rows.  Sensitive to fixed per-query overhead."""
+        """fetchall over 1000 rows.  Sensitive to fixed per-query overhead."""
         con = self._connect()
         try:
             self._seed(con, _SMALL)
@@ -146,10 +148,9 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
-                                 iterations=10)
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)
             rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds,
-                                      iterations=10)
+                                      iterations=1)
             assert len(rows) == _SMALL
         finally:
             con.close()
