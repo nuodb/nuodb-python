@@ -77,24 +77,18 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
 
     def _seed(self, con, n):
         self._reset(con)
-        con.cursor().executemany(
-            "INSERT INTO perf_bench (a, b) VALUES (?, ?)", _rows(n))
+        con.cursor().executemany("INSERT INTO perf_bench (a, b) VALUES (?, ?)", _rows(n))
         con.commit()
 
     # -- INSERT ---------------------------------------------------------
 
     def test_insert_small(self, benchmark):
-        """1000 rows via executemany.  Sensitive to per-row putValue cost.
-
-        Sized so per-call time is a few tens of ms — small enough to
-        exercise the fixed per-query overhead, large enough that TRUNCATE
-        (out-of-band via setup) and kernel jitter don't dominate the min.
-        """
+        """1000 rows via executemany.  Sensitive to per-row putValue cost.  """
         con = self._connect()
         try:
             self._reset(con)
             cur = con.cursor()
-            rows = _rows(1000)
+            rows = _rows(_SMALL)
 
             def target():
                 cur.executemany(
@@ -105,10 +99,8 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute(_DDL_TRUNCATE)
                 con.commit()
 
-            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
-                                 setup=setup)
-            benchmark.pedantic(target, setup=setup, warmup_rounds=5,
-                               rounds=rounds, iterations=1)
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0, setup=setup)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=5, rounds=rounds, iterations=1)
         finally:
             con.close()
 
@@ -121,24 +113,21 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             rows = _rows(_LARGE)
 
             def target():
-                cur.executemany(
-                    "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
+                cur.executemany( "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
                 con.commit()
 
             def setup():
                 cur.execute(_DDL_TRUNCATE)
                 con.commit()
 
-            benchmark.pedantic(target, setup=setup, warmup_rounds=2,
-                               rounds=100,
-                               iterations=1)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=2, rounds=100, iterations=1)
         finally:
             con.close()
 
     # -- SELECT ---------------------------------------------------------
 
     def test_fetchall_small(self, benchmark):
-        """fetchall over 1000 rows.  Sensitive to fixed per-query overhead."""
+        """fetchall over 1000 rows."""
         con = self._connect()
         try:
             self._seed(con, _SMALL)
@@ -149,8 +138,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 return cur.fetchall()
 
             rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)
-            rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds,
-                                      iterations=1)
+            rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds, iterations=1)
             assert len(rows) == _SMALL
         finally:
             con.close()
@@ -166,8 +154,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rows = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
-                                      iterations=1)
+            rows = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert len(rows) == _LARGE
         finally:
             con.close()
@@ -189,15 +176,13 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     total += len(batch)
                 return total
 
-            total = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
-                                       iterations=1)
+            total = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert total == _LARGE
         finally:
             con.close()
 
     def test_fetchone_loop_large(self, benchmark):
-        """fetchone() in a loop over 20k rows.  Isolates per-row
-        overhead """
+        """fetchone() in a loop over 20k rows.  Isolates per-row overhead """
         con = self._connect()
         try:
             self._seed(con, _LARGE)
@@ -213,8 +198,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     n += 1
                 return n
 
-            n = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
-                                   iterations=1)
+            n = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert n == _LARGE
         finally:
             con.close()
@@ -237,59 +221,38 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             cur.execute("CREATE TABLE perf_wide (%s)" % (", ".join(cols),))
             con.commit()
             rows = [tuple(range(self._WIDE_COLS)) for _ in range(self._WIDE_ROWS)]
-            cur.executemany(
-                "INSERT INTO perf_wide (%s) VALUES (%s)"
-                % (col_names, placeholders),
-                rows)
+            cur.executemany( "INSERT INTO perf_wide (%s) VALUES (%s)" % (col_names, placeholders), rows)
             con.commit()
 
             def target():
                 cur.execute("SELECT %s FROM perf_wide" % col_names)
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
-                                        iterations=1)
+            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert len(result) == self._WIDE_ROWS
             assert len(result[0]) == self._WIDE_COLS
         finally:
             con.close()
 
     def test_fetchall_mixed_types(self, benchmark):
-        """SELECT with variety of types: int / decimal / double / timestamp / bool /
-        varchar / null. """
+        """SELECT with variety of types: int / decimal / double / timestamp / bool / varchar / null. """
         con = self._connect()
         try:
             cur = con.cursor()
             cur.execute("DROP TABLE IF EXISTS perf_mixed")
             cur.execute(
-                "CREATE TABLE perf_mixed ("
-                "  i INT,"
-                "  d DECIMAL(12, 4),"
-                "  f DOUBLE,"
-                "  ts TIMESTAMP,"
-                "  bl BOOLEAN,"
-                "  s VARCHAR(64),"
-                "  n INT"
-                ")")
+                "CREATE TABLE perf_mixed (i INT,  d DECIMAL(12, 4), f DOUBLE,  ts TIMESTAMP,"
+                "bl BOOLEAN, s VARCHAR(64), n INT)")
             con.commit()
-            rows = [
-                (i, i * 1.25, i / 3.0,
-                 '2024-01-01 12:34:56', bool(i & 1),
-                 'row #%d' % i, None)
-                for i in range(_LARGE)
-            ]
-            cur.executemany(
-                "INSERT INTO perf_mixed (i, d, f, ts, bl, s, n)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                rows)
+            rows = [ (i, i * 1.25, i / 3.0, '2024-01-01 12:34:56', bool(i & 1), 'row #%d' % i, None) for i in range(_LARGE) ]
+            cur.executemany( "INSERT INTO perf_mixed (i, d, f, ts, bl, s, n)" " VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
             con.commit()
 
             def target():
                 cur.execute("SELECT i, d, f, ts, bl, s, n FROM perf_mixed")
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100,
-                                        iterations=1)
+            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert len(result) == _LARGE
         finally:
             con.close()

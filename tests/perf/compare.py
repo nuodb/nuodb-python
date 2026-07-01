@@ -23,9 +23,7 @@ def main(args):
     master = _load(args.master)
     branch = _load(args.branch)
 
-    print("%-40s %16s %16s %14s %10s" % (
-        "Test", "master min (ms)", "branch min (ms)",
-        "delta (ms)", "delta %"))
+    print("%-40s %16s %16s %14s %10s" % ( "Test", "master min (ms)", "branch min (ms)", "delta (ms)", "delta %"))
     print("-" * 100)
 
     regressed = []
@@ -47,8 +45,7 @@ def main(args):
 
     print()
     if regressed:
-        print("FAIL: %d test(s) regressed by more than %.2f%%:"
-              % (len(regressed), args.fail_threshold))
+        print("FAIL: %d test(s) regressed by more than %.2f%%:" % (len(regressed), args.fail_threshold))
         for name, p in regressed:
             print("  %s: %+.2f%%" % (name, p))
         sys.exit(1)
