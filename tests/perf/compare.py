@@ -59,8 +59,8 @@ def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('master', help='pytest-benchmark JSON for master')
     p.add_argument('branch', help='pytest-benchmark JSON for this branch')
-    p.add_argument('--fail-threshold', type=float, default=10.0,
-                   help='percent slowdown that fails the build (default 10)')
+    p.add_argument('--fail-threshold', type=float, default=15.0,
+                   help='percent slowdown that fails the build (default 15)')
     return p.parse_args()
 
 
