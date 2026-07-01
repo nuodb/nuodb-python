@@ -107,13 +107,11 @@ jobs:
             sudo -u nuodb /opt/nuodb/etc/nuoadmin tls status
             sudo -u nuodb /opt/nuodb/etc/nuoadmin start
             sudo -u nuodb /opt/nuodb/bin/nuocmd --show-json get effective-license
-      # We run master twice back-to-back on the same runner: the first run
-      # is the baseline that the branch is compared against, the second is
-      # used by calibrate.py to measure this runner's noise floor.  Then
-      # we run the branch and let compare.py flag deltas that clear the
-      # floor.
+      # Run master then this branch on the same runner and let compare.py
+      # print a delta table.  Hardware noise mostly cancels because both
+      # runs share the container; xlarge gives us dedicated cores.
       - run:
-          name: Baseline benchmarks on master (pass 1)
+          name: Baseline benchmarks on master
           command: |
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
                 git fetch --no-tags --depth=1 origin master
@@ -126,19 +124,7 @@ jobs:
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
             python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=/tmp/master_1.json \
-                --benchmark-columns=min,mean,median,stddev,rounds
-      - run:
-          name: Reset DB
-          command: |
-            sudo -u nuodb /opt/nuodb/bin/nuocmd shutdown database \
-                --db-name pynuodb_test 2>/dev/null || true
-      - run:
-          name: Baseline benchmarks on master (pass 2, for noise floor)
-          command: |
-            cd /tmp/base
-            python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=/tmp/master_2.json \
+                --benchmark-json=/tmp/master.json \
                 --benchmark-columns=min,mean,median,stddev,rounds
       - run:
           name: Reset DB
@@ -153,14 +139,9 @@ jobs:
             python3 -m pytest tests/perf --run-perf --benchmark-only \
                 --benchmark-json=artifacts/branch.json \
                 --benchmark-columns=min,mean,median,stddev,rounds
-            python3 tests/perf/calibrate.py /tmp/noise_floor.json \
-                /tmp/master_1.json /tmp/master_2.json \
-                | tee artifacts/noise_floor.txt
             python3 tests/perf/compare.py \
-                /tmp/master_1.json artifacts/branch.json \
-                --noise-floor /tmp/noise_floor.json \
+                /tmp/master.json artifacts/branch.json \
                 | tee artifacts/perf_diff.txt
-            cp /tmp/noise_floor.json artifacts/
       - store_artifacts:
           path: artifacts
       - after_failure:
