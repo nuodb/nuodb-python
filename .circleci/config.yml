@@ -74,11 +74,11 @@ jobs:
           when : "on_fail"
 
   perf_bench:
-    description: "Run insert/select benchmarks on master and on this branch, print the diff"
+    description: "Run insert/select performance benchmarks on master and on this branch, print the diff"
     docker:
       - image: nuodb/nuodb:latest
         user: root
-    resource_class: medium
+    resource_class: xlarge
     environment:
       TZ : America/New_York
       NUO_SET_TLS : disable
@@ -174,6 +174,6 @@ workflows:
           context:
             - common-config
       - perf_bench:
-          name: "Insert/select benchmark comparison"
+          name: "Run insert/select performance benchmark, compared to master"
           context:
             - common-config
