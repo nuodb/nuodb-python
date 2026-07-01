@@ -84,7 +84,13 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
     # -- INSERT ---------------------------------------------------------
 
     def test_insert_small(self, benchmark):
-        """100 rows via executemany.  Sensitive to per-row putValue cost."""
+        """100 rows via executemany.  Sensitive to per-row putValue cost.
+
+        Uses iterations=10 to batch-average away kernel jitter that
+        otherwise dominates at these tiny per-call times.  pytest-benchmark
+        forbids setup+iterations>1, so the TRUNCATE lives inside the timed
+        target — both master and branch pay it equally.
+        """
         con = self._connect()
         try:
             self._reset(con)
@@ -92,18 +98,14 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
             rows = _rows(_SMALL)
 
             def target():
+                cur.execute(_DDL_TRUNCATE)
                 cur.executemany(
                     "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
                 con.commit()
 
-            def setup():
-                # Runs before each round but is NOT included in the timing.
-                cur.execute(_DDL_TRUNCATE)
-                con.commit()
-
             rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
-                                 setup=setup, iterations=10)
-            benchmark.pedantic(target, setup=setup, warmup_rounds=5,
+                                 iterations=10)
+            benchmark.pedantic(target, warmup_rounds=5,
                                rounds=rounds, iterations=10)
         finally:
             con.close()
