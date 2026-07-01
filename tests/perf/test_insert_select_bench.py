@@ -20,9 +20,31 @@ median / stddev.  Numbers move meaningfully with the crypt, session,
 cursor and Cython PRs; that's the point.
 """
 
+import math
+import time
+
 import pytest
 
 from tests import nuodb_base
+
+
+# Small tests have tiny absolute times (sub-ms to a few ms), so per-round
+# jitter dominates unless we run *both* many rounds *and* for a long enough
+# total wall-time to average out kernel/network noise.  This helper probes
+# a single call to size `rounds` so that rounds * per_call_time >= min_seconds,
+# with a floor of `min_rounds`.
+def _rounds_for(target, min_rounds, min_seconds, setup=None, probes=5):
+    total = 0.0
+    for _ in range(probes):
+        if setup is not None:
+            setup()
+        t0 = time.perf_counter()
+        target()
+        total += time.perf_counter() - t0
+    per_call = total / probes
+    if per_call <= 0:
+        return min_rounds
+    return max(min_rounds, int(math.ceil(min_seconds / per_call)))
 
 
 # Skip this whole module unless `--run-perf` is passed on the pytest
@@ -77,8 +99,10 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute(_DDL_TRUNCATE)
                 con.commit()
 
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
+                                 setup=setup)
             benchmark.pedantic(target, setup=setup, warmup_rounds=5,
-                               rounds=200, iterations=1)
+                               rounds=rounds, iterations=1)
         finally:
             con.close()
 
@@ -118,7 +142,8 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rows = benchmark.pedantic(target, warmup_rounds=5, rounds=200,
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)
+            rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds,
                                       iterations=1)
             assert len(rows) == _SMALL
         finally:
