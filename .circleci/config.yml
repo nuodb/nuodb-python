@@ -91,7 +91,7 @@ jobs:
           name: Install build tools
           command: |
             PYVER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-            dnf install -y make gcc "python${PYVER}-devel"
+            dnf install -y git make gcc "python${PYVER}-devel"
       - run:
           name: Install pip
           command: |
@@ -114,7 +114,8 @@ jobs:
       - run:
           name: Baseline benchmarks on master
           command: |
-            git worktree add /tmp/base origin/master
+            git fetch --no-tags --depth=1 origin master
+            git worktree add /tmp/base FETCH_HEAD
             cd /tmp/base
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
