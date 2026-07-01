@@ -95,9 +95,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute(_DDL_CREATE)
                 con.commit()
 
-            # Large insert is slow; cap repetitions so a benchmark run
-            # finishes in seconds rather than minutes.
-            benchmark.pedantic(target, rounds=3, iterations=1)
+            benchmark.pedantic(target, rounds=10, iterations=1)
         finally:
             con.close()
 
@@ -130,7 +128,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rows = benchmark.pedantic(target, rounds=5, iterations=1)
+            rows = benchmark.pedantic(target, rounds=10, iterations=1)
             assert len(rows) == _LARGE
         finally:
             con.close()
@@ -152,7 +150,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     total += len(batch)
                 return total
 
-            total = benchmark.pedantic(target, rounds=5, iterations=1)
+            total = benchmark.pedantic(target, rounds=10, iterations=1)
             assert total == _LARGE
         finally:
             con.close()
@@ -175,7 +173,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                     n += 1
                 return n
 
-            n = benchmark.pedantic(target, rounds=3, iterations=1)
+            n = benchmark.pedantic(target, rounds=10, iterations=1)
             assert n == _LARGE
         finally:
             con.close()
@@ -208,7 +206,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT %s FROM perf_wide" % col_names)
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, rounds=5, iterations=1)
+            result = benchmark.pedantic(target, rounds=10, iterations=1)
             assert len(result) == self._WIDE_ROWS
             assert len(result[0]) == self._WIDE_COLS
         finally:
@@ -248,7 +246,7 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT i, d, f, ts, bl, s, n FROM perf_mixed")
                 return cur.fetchall()
 
-            result = benchmark.pedantic(target, rounds=5, iterations=1)
+            result = benchmark.pedantic(target, rounds=10, iterations=1)
             assert len(result) == _LARGE
         finally:
             con.close()

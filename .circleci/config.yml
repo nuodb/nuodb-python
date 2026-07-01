@@ -125,7 +125,7 @@ jobs:
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
             python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=/tmp/baseline.json \
+                --benchmark-json=/tmp/master.json \
                 --benchmark-columns=min,mean,median,stddev,rounds
       - run:
           name: Branch benchmarks + diff vs master
@@ -133,9 +133,9 @@ jobs:
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
             python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=artifacts/pr.json \
-                --benchmark-compare=/tmp/baseline.json \
-                --benchmark-columns=min,mean,median,stddev,rounds \
+                --benchmark-json=artifacts/branch.json \
+                --benchmark-columns=min,mean,median,stddev,rounds
+            python3 tests/perf/compare.py /tmp/master.json artifacts/branch.json \
                 | tee artifacts/perf_diff.txt
       - store_artifacts:
           path: artifacts
