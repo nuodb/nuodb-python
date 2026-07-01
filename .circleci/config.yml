@@ -114,9 +114,8 @@ jobs:
       - run:
           name: Baseline benchmarks on master
           command: |
-            mkdir -p ~/.ssh
-            ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
-            git fetch --no-tags --depth=1 origin master
+            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+                git fetch --no-tags --depth=1 origin master
             git worktree add /tmp/base FETCH_HEAD
             cd /tmp/base
             make PYTHON=python3 install
