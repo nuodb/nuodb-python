@@ -128,6 +128,15 @@ jobs:
                 --benchmark-json=/tmp/master.json \
                 --benchmark-columns=min,mean,median,stddev,rounds
       - run:
+          name: Reset DB between baseline and branch
+          command: |
+            # Force a clean DB restart so the branch run doesn't inherit
+            # buffer-pool warmth (or any other state) from the master run.
+            # The conftest fixture already shuts it down, this is belt-and-
+            # suspenders in case a test aborted early.
+            sudo -u nuodb /opt/nuodb/bin/nuocmd shutdown database \
+                --db-name pynuodb_test 2>/dev/null || true
+      - run:
           name: Branch benchmarks + diff vs master
           command: |
             make PYTHON=python3 install
