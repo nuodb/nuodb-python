@@ -31,8 +31,9 @@ from tests import nuodb_base
 pytestmark = pytest.mark.perf
 
 
-_DDL_DROP   = "DROP TABLE IF EXISTS perf_bench"
-_DDL_CREATE = "CREATE TABLE perf_bench (a INT, b VARCHAR(64))"
+_DDL_DROP     = "DROP TABLE IF EXISTS perf_bench"
+_DDL_CREATE   = "CREATE TABLE perf_bench (a INT, b VARCHAR(64))"
+_DDL_TRUNCATE = "TRUNCATE TABLE perf_bench"
 
 _SMALL = 100
 _LARGE = 100_000
@@ -70,13 +71,14 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.executemany(
                     "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
                 con.commit()
-                # Truncate between iterations so we measure a clean insert.
-                cur.execute(_DDL_DROP)
-                cur.execute(_DDL_CREATE)
+
+            def setup():
+                # Runs before each round but is NOT included in the timing.
+                cur.execute(_DDL_TRUNCATE)
                 con.commit()
 
-            benchmark.pedantic(target, warmup_rounds=5, rounds=200,
-                               iterations=1)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=5,
+                               rounds=200, iterations=1)
         finally:
             con.close()
 
@@ -92,11 +94,13 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.executemany(
                     "INSERT INTO perf_bench (a, b) VALUES (?, ?)", rows)
                 con.commit()
-                cur.execute(_DDL_DROP)
-                cur.execute(_DDL_CREATE)
+
+            def setup():
+                cur.execute(_DDL_TRUNCATE)
                 con.commit()
 
-            benchmark.pedantic(target, warmup_rounds=2, rounds=30,
+            benchmark.pedantic(target, setup=setup, warmup_rounds=2,
+                               rounds=30,
                                iterations=1)
         finally:
             con.close()
