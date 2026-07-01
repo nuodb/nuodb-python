@@ -117,6 +117,10 @@ jobs:
             GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
                 git fetch --no-tags --depth=1 origin master
             git worktree add /tmp/base FETCH_HEAD
+            # Copy the perf suite + conftest hooks from this branch so the
+            # master worktree's driver is exercised by the same benchmarks.
+            cp -a tests/perf /tmp/base/tests/
+            cp tests/conftest.py /tmp/base/tests/conftest.py
             cd /tmp/base
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
