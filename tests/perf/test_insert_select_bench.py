@@ -33,7 +33,8 @@ from tests import nuodb_base
 # total wall-time to average out kernel/network noise.  This helper probes
 # a single call to size `rounds` so that rounds * per_call_time >= min_seconds,
 # with a floor of `min_rounds`.
-def _rounds_for(target, min_rounds, min_seconds, setup=None, probes=5):
+def _rounds_for(target, min_rounds, min_seconds, setup=None, probes=5,
+                iterations=1):
     total = 0.0
     for _ in range(probes):
         if setup is not None:
@@ -44,7 +45,8 @@ def _rounds_for(target, min_rounds, min_seconds, setup=None, probes=5):
     per_call = total / probes
     if per_call <= 0:
         return min_rounds
-    return max(min_rounds, int(math.ceil(min_seconds / per_call)))
+    per_round = per_call * iterations
+    return max(min_rounds, int(math.ceil(min_seconds / per_round)))
 
 
 # Skip this whole module unless `--run-perf` is passed on the pytest
@@ -100,9 +102,9 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 con.commit()
 
             rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
-                                 setup=setup)
+                                 setup=setup, iterations=10)
             benchmark.pedantic(target, setup=setup, warmup_rounds=5,
-                               rounds=rounds, iterations=1)
+                               rounds=rounds, iterations=10)
         finally:
             con.close()
 
@@ -142,9 +144,10 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
                 cur.execute("SELECT a, b FROM perf_bench")
                 return cur.fetchall()
 
-            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0,
+                                 iterations=10)
             rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds,
-                                      iterations=1)
+                                      iterations=10)
             assert len(rows) == _SMALL
         finally:
             con.close()
