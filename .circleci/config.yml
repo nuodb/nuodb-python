@@ -123,9 +123,7 @@ jobs:
             cd /tmp/base
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
-            python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=/tmp/master.json \
-                --benchmark-columns=min,mean,median,stddev,rounds
+            python3 tests/perf/run_perf.py --output /tmp/master.json
       - run:
           name: Reset DB
           command: |
@@ -136,9 +134,7 @@ jobs:
           command: |
             make PYTHON=python3 install
             $HOME/.local/bin/pip install pytest-benchmark
-            python3 -m pytest tests/perf --run-perf --benchmark-only \
-                --benchmark-json=artifacts/branch.json \
-                --benchmark-columns=min,mean,median,stddev,rounds
+            python3 tests/perf/run_perf.py --output artifacts/branch.json
             python3 tests/perf/compare.py \
                 /tmp/master.json artifacts/branch.json \
                 | tee artifacts/perf_diff.txt
