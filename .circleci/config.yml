@@ -155,6 +155,6 @@ workflows:
           context:
             - common-config
       - perf_bench:
-          name: "Run insert/select performance benchmark, compared to master"
+          name: "Run performance benchmarks, comparing results to master"
           context:
             - common-config
