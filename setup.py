@@ -19,21 +19,36 @@ Note cryptography improves performance, but sessions are encrypted even if it
 is not intalled.
 """
 
+import glob
 import os
 import re
 
-from setuptools import setup
+from setuptools import Extension, setup
 
+# When building a wheel from a checkout we compile .pyx via Cython.  End-user
+# installs from an sdist do not need Cython: MANIFEST.in ships the generated
+# .c files so the fallback branch compiles those directly.
 try:
     from Cython.Build import cythonize
-    from setuptools import Extension
-    _ext_modules = cythonize(
-        #Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"], optional=True),
-        Extension("pynuodb._fetch", ["pynuodb/_fetch.pyx"], optional=False),
-        compiler_directives={"language_level": "3"},
-    )
+    HAS_CYTHON = True
 except ImportError:
-    _ext_modules = []
+    HAS_CYTHON = False
+
+
+def _find_extensions():
+    suffix = '.pyx' if HAS_CYTHON else '.c'
+    sources = sorted(glob.glob(os.path.join('pynuodb', '*' + suffix)))
+    exts = [
+        Extension(src[:-len(suffix)].replace(os.sep, '.'), [src],
+                  optional=False)
+        for src in sources
+    ]
+    if HAS_CYTHON and exts:
+        exts = cythonize(exts, compiler_directives={"language_level": "3"})
+    return exts
+
+
+_ext_modules = _find_extensions()
 
 with open(os.path.join(os.path.dirname(__file__), 'pynuodb', '__init__.py')) as v:
     m = re.search(r"^ *__version__ *= *'(.*?)'", v.read(), re.M)
