@@ -59,7 +59,13 @@ def pytest_configure(config):
 
 def pytest_report_header(config):
     import pynuodb
-    return "pynuodb: %s (%s)" % (pynuodb.__version__, pynuodb.__file__)
+    try:
+        from pynuodb import _fetch
+        ext = "cython: %s" % _fetch.__file__
+    except ImportError:
+        ext = "cython: NOT loaded (pure-Python fallback)"
+    return "pynuodb: %s (%s)\n%s" % (
+        pynuodb.__version__, pynuodb.__file__, ext)
 
 
 def pytest_collection_modifyitems(config, items):
