@@ -98,6 +98,30 @@ cdef extern from *:
     #include <Python.h>
     #include <string.h>
     #include <stdint.h>
+
+    /* __builtin_bswap* and __builtin_clzll are GCC/Clang extensions; MSVC
+       (the default Windows toolchain, used by cibuildwheel's windows-latest
+       job) has no equivalent builtins, only the intrinsics below.  Every
+       call site in this file goes through these macros instead of the raw
+       builtins so the same .pyx compiles unmodified under both toolchains. */
+    #if defined(_MSC_VER)
+    #include <intrin.h>
+    #include <stdlib.h>
+    static CYTHON_INLINE uint16_t _pynuodb_bswap16(uint16_t x) { return _byteswap_ushort(x); }
+    static CYTHON_INLINE uint32_t _pynuodb_bswap32(uint32_t x) { return _byteswap_ulong(x); }
+    static CYTHON_INLINE uint64_t _pynuodb_bswap64(uint64_t x) { return _byteswap_uint64(x); }
+    static CYTHON_INLINE int _pynuodb_clz64(unsigned long long x) {
+        unsigned long idx;
+        _BitScanReverse64(&idx, x);
+        return 63 - (int)idx;
+    }
+    #else
+    #define _pynuodb_bswap16(x) __builtin_bswap16(x)
+    #define _pynuodb_bswap32(x) __builtin_bswap32(x)
+    #define _pynuodb_bswap64(x) __builtin_bswap64(x)
+    #define _pynuodb_clz64(x)   __builtin_clzll(x)
+    #endif
+
     static CYTHON_INLINE void _pynuodb_tuple_steal(
             PyObject *t, Py_ssize_t i, PyObject *o) {
         PyTuple_SET_ITEM(t, i, o);
@@ -157,11 +181,11 @@ cdef extern from *:
         case 0: return 0;
         case 1: return (long long)(signed char)p[0];
         case 2: { uint16_t x; memcpy(&x, p, 2);
-                  return (long long)(int16_t)__builtin_bswap16(x); }
+                  return (long long)(int16_t)_pynuodb_bswap16(x); }
         case 4: { uint32_t x; memcpy(&x, p, 4);
-                  return (long long)(int32_t)__builtin_bswap32(x); }
+                  return (long long)(int32_t)_pynuodb_bswap32(x); }
         case 8: { uint64_t x; memcpy(&x, p, 8);
-                  return (long long)(int64_t)__builtin_bswap64(x); }
+                  return (long long)(int64_t)_pynuodb_bswap64(x); }
         case 3:
             v = ((unsigned long long)p[0] << 16) |
                 ((unsigned long long)p[1] <<  8) |  p[2];
@@ -206,11 +230,11 @@ cdef extern from *:
         case 0: return 0;
         case 1: return p[0];
         case 2: { uint16_t x; memcpy(&x, p, 2);
-                  return __builtin_bswap16(x); }
+                  return _pynuodb_bswap16(x); }
         case 4: { uint32_t x; memcpy(&x, p, 4);
-                  return __builtin_bswap32(x); }
+                  return _pynuodb_bswap32(x); }
         case 8: { uint64_t x; memcpy(&x, p, 8);
-                  return __builtin_bswap64(x); }
+                  return _pynuodb_bswap64(x); }
         case 3: return ((unsigned long long)p[0] << 16) |
                        ((unsigned long long)p[1] <<  8) |  p[2];
         case 5: return ((unsigned long long)p[0] << 32) |
@@ -864,16 +888,16 @@ cdef extern from *:
        is the minimal byte length. */
     static CYTHON_INLINE int _pynuodb_encode_signed(long long v, unsigned char *out) {
         uint64_t uv = (uint64_t)v;
-        uint64_t be = __builtin_bswap64(uv);
+        uint64_t be = _pynuodb_bswap64(uv);
         unsigned char full[8];
         memcpy(full, &be, 8);
 
         int bl;
         if (v >= 0) {
-            bl = (v == 0) ? 0 : (64 - __builtin_clzll((unsigned long long)v));
+            bl = (v == 0) ? 0 : (64 - _pynuodb_clz64((unsigned long long)v));
         } else {
             unsigned long long uw = (unsigned long long)(-(v + 1));
-            bl = (uw == 0) ? 0 : (64 - __builtin_clzll(uw));
+            bl = (uw == 0) ? 0 : (64 - _pynuodb_clz64(uw));
         }
         int nbytes = (bl + 8) / 8;
         memcpy(out, full + (8 - nbytes), nbytes);
@@ -884,10 +908,10 @@ cdef extern from *:
        *unsigned* byte string (same rule as crypt.toByteString), used for
        counted-string length prefixes. */
     static CYTHON_INLINE int _pynuodb_encode_unsigned(unsigned long long n, unsigned char *out) {
-        uint64_t be = __builtin_bswap64((uint64_t)n);
+        uint64_t be = _pynuodb_bswap64((uint64_t)n);
         unsigned char full[8];
         memcpy(full, &be, 8);
-        int bl = (n == 0) ? 0 : (64 - __builtin_clzll(n));
+        int bl = (n == 0) ? 0 : (64 - _pynuodb_clz64(n));
         int nbytes = (bl + 7) / 8;
         if (nbytes == 0) nbytes = 1;
         memcpy(out, full + (8 - nbytes), nbytes);
@@ -898,7 +922,7 @@ cdef extern from *:
     static CYTHON_INLINE void _pynuodb_double_to_be(double d, unsigned char *out) {
         uint64_t v;
         memcpy(&v, &d, 8);
-        uint64_t be = __builtin_bswap64(v);
+        uint64_t be = _pynuodb_bswap64(v);
         memcpy(out, &be, 8);
     }
     """
