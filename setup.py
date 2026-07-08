@@ -70,7 +70,7 @@ setup(
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),
-    install_requires=['pytz>=2015.4', 'ipaddress', 'tzlocal', 'jdcal'],
+    install_requires=['pytz>=2015.4', 'ipaddress;python_version<"3.3"', 'tzlocal', 'jdcal'],
     extras_require=dict(crypto='cryptography>=2.6.1'),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
