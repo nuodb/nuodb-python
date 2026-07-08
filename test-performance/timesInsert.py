@@ -14,8 +14,8 @@ def gettime():
 
 
 def insert(count):
-    for i in range(count):
-        cursor.execute("INSERT INTO perf_test (a,b ) VALUES (%d,'A')" % i)
+    cursor.executemany("INSERT INTO perf_test (a,b) VALUES (?, ?)",
+                       [(i, 'A') for i in range(count)])
     connection.commit()
 
 
