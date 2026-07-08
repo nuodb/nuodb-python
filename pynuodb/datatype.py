@@ -85,6 +85,20 @@ isP2 = sys.version[0] == '2'
 TICKSDAY = 86400
 LOCALZONE = tzlocal.get_localzone()
 
+# Fast path for ymd2day: for the Gregorian range (>= 1582-10-15) plain
+# datetime.date subtraction (C-level) gives the identical result to the
+# jdcal-based calendar.ymd2day, so avoid the pure-Python jdcal math there.
+_EPOCH_DATE = Date(1970, 1, 1)
+_GREGORIAN_START_DATE = Date(1582, 10, 15)
+
+
+def _fast_ymd2day(year, month, day):
+    # type: (int, int, int) -> int
+    d = Date(year, month, day)
+    if d >= _GREGORIAN_START_DATE:
+        return (d - _EPOCH_DATE).days
+    return ymd2day(year, month, day)
+
 try:
     LOCALZONE_NAME = tzlocal.get_localzone_name()  # type: ignore
 except AttributeError:
@@ -197,7 +211,7 @@ def TimestampFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
 def DateToTicks(value):
     # type: (Date) -> int
     """Convert a Date object to ticks."""
-    day = ymd2day(value.year, value.month, value.day)
+    day = _fast_ymd2day(value.year, value.month, value.day)
     return day * TICKSDAY
 
 
@@ -257,7 +271,7 @@ def TimestampToTicks(value, zoneinfo=LOCALZONE):
     if value.tzinfo is None:
         value = timezone_aware(value, zoneinfo)
     dt = value.astimezone(UTC)
-    timesecs = ymd2day(dt.year, dt.month, dt.day) * TICKSDAY
+    timesecs = _fast_ymd2day(dt.year, dt.month, dt.day) * TICKSDAY
     timesecs += dt.hour * 3600
     timesecs += dt.minute * 60
     timesecs += dt.second
