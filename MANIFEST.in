@@ -1,2 +1,2 @@
 include README.rst LICENSE
-recursive-include pynuodb *.pyx
+recursive-include pynuodb *.pyx *.pxd *.c *.h
