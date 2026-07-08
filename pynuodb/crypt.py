@@ -142,50 +142,54 @@ def fromHex(hexStr):
 
 def toSignedByteString(value):
     # type: (int) -> bytearray
-    """Convert an integer into bytes."""
-    result = bytearray()
-    if value == 0 or value == -1:
-        result.append(value & 0xFF)
+    """Convert an integer into the minimal big-endian two's-complement bytes.
+
+    Uses int.to_bytes (C-level) instead of a Python byte-shift loop.  For
+    negative values that are not exact -2**k the standard byte-length formula
+    (bit_length+8)//8 would over-allocate by one; the (-v-1).bit_length()
+    expression below computes the right minimal width without that case split.
+    """
+    if value == 0:
+        return bytearray(b'\x00')
+    if value == -1:
+        return bytearray(b'\xff')
+    if value > 0:
+        nbytes = (value.bit_length() + 8) // 8
     else:
-        while value != 0 and value != -1:
-            result.append(value & 0xFF)
-            value >>= 8
-        # Zero pad if positive
-        if value == 0 and (result[-1] & 0x80) == 0x80:
-            result.append(0x00)
-        elif value == -1 and (result[-1] & 0x80) == 0x00:
-            result.append(0xFF)
-        result.reverse()
-    return result
+        nbytes = ((-value - 1).bit_length() + 8) // 8
+    return bytearray(value.to_bytes(nbytes, 'big', signed=True))
 
 
 def fromSignedByteString(data):
     # type: (bytearray) -> int
     """Convert bytes into a signed integer."""
-    if data:
-        is_neg = (data[0] & 0x80) >> 7
-    else:
-        is_neg = 0
-    result = 0
-    shiftCount = 0
-    for b in reversed(data):
-        result = result | (((b & 0xFF) ^ (is_neg * 0xFF)) << shiftCount)
-        shiftCount += 8
-
-    return ((-1)**is_neg) * (result + is_neg)
+    return int.from_bytes(data, 'big', signed=True)
 
 
 def toByteString(bigInt):
     # type: (int) -> bytearray
-    """Convert an integer into bytes."""
+    """Convert a non-negative integer into the minimal big-endian bytes.
+
+    The legacy implementation also accepted negative inputs and produced a
+    quirky truncated two's-complement representation, but no current caller
+    invokes it that way (lengths, scales, message IDs, SRP primes are all
+    non-negative).  We preserve the original behaviour for 0 and -1 (one byte
+    of 0x00 / 0xff) and fall back to the old algorithm for any other negative
+    value so external semantics stay byte-identical.
+    """
+    if bigInt == 0:
+        return bytearray(b'\x00')
+    if bigInt == -1:
+        return bytearray(b'\xff')
+    if bigInt > 0:
+        nbytes = (bigInt.bit_length() + 7) // 8
+        return bytearray(bigInt.to_bytes(nbytes, 'big'))
+    # Negative-other-than-(-1) fallback (unused in practice).
     result = bytearray()
-    if bigInt == -1 or bigInt == 0:
+    while bigInt != 0 and bigInt != -1:
         result.append(bigInt & 0xFF)
-    else:
-        while bigInt != 0 and bigInt != -1:
-            result.append(bigInt & 0xFF)
-            bigInt >>= 8
-        result.reverse()
+        bigInt >>= 8
+    result.reverse()
     return result
 
 
