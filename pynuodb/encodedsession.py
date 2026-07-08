@@ -476,31 +476,39 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
         expected = prepared_statement.parameter_count
-        for parameters in param_lists:
-            plen = len(parameters)
-            if expected != plen:
-                raise ProgrammingError("Incorrect number of parameters specified,"
-                                       " expected %d, got %d"
-                                       % (expected, plen))
-            self.putInt(plen)
-            for param in parameters:
-                self.putValue(param)
+        if _HAVE_FETCH_ACCEL:
+            _fetch_accel.encode_batch_rows(
+                self.__output, param_lists, expected, self._cython_exotic_encode)
+        else:
+            for parameters in param_lists:
+                plen = len(parameters)
+                if expected != plen:
+                    raise ProgrammingError("Incorrect number of parameters specified,"
+                                           " expected %d, got %d"
+                                           % (expected, plen))
+                self.putInt(plen)
+                for param in parameters:
+                    self.putValue(param)
         self.putInt(-1)
         self.putInt(len(param_lists))
         self._exchangeMessages()
 
-        results = []  # type: List[int]
-        error_string = None
+        if _HAVE_FETCH_ACCEL:
+            results, self.__inpos, error_string = _fetch_accel.decode_batch_results(
+                self.__input, self.__inpos, len(param_lists), protocol.stringifyError)
+        else:
+            results = []  # type: List[int]
+            error_string = None
 
-        for _ in param_lists:
-            result = self.getInt()
-            results.append(result)
-            if result == -3:
-                ec = self.getInt()
-                es = self.getString()
-                # only report first
-                if error_string is None:
-                    error_string = '%s:%s' % (protocol.stringifyError[ec], es)
+            for _ in param_lists:
+                result = self.getInt()
+                results.append(result)
+                if result == -3:
+                    ec = self.getInt()
+                    es = self.getString()
+                    # only report first
+                    if error_string is None:
+                        error_string = '%s:%s' % (protocol.stringifyError[ec], es)
 
         if error_string is not None:
             raise BatchError(error_string, results)
@@ -555,6 +563,22 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self.__inpos = pos
         val = self.getValue()
         return val, self.__inpos
+
+    def _cython_exotic_encode(self, value):
+        # type: (Any) -> bytes
+        """Bridge: _fetch_accel.encode_batch_rows hands values it doesn't fast-path back here.
+
+        Runs `value` through the existing putValue() dispatch into a scratch
+        buffer and returns the resulting wire bytes, so Decimal/datetime/
+        Binary/Vector/oversized-int encoding logic lives in exactly one place.
+        """
+        saved_output = self.__output
+        self.__output = bytearray()
+        try:
+            self.putValue(value)
+            return bytes(self.__output)
+        finally:
+            self.__output = saved_output
 
     def fetch_result_set_next(self, resultset):
         # type: (result_set.ResultSet) -> None

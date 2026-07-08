@@ -4,7 +4,8 @@
 # cython: cdivision=True
 """Cython-accelerated hot paths for the NuoDB Python driver.
 
-Two things live here:
+Everything lives in this one extension module so the driver only ever
+loads/ships a single compiled .so:
 
   ResultSet
       A cdef class that replaces the pure-Python result_set.ResultSet.  The
@@ -35,10 +36,29 @@ Two things live here:
 
       Truly exotic codes (VECTOR, SCALEDCOUNT2/3, LOBSTREAM, ARRAY) fall back
       to a Python callable so correctness is never sacrificed.
+
+  decode_batch_results()
+      The result-code readback loop from execute_batch_prepared_statement():
+      reads back the N getInt()-shaped result codes of a batch execute (and,
+      on the rare -3 error code, the getInt()+getString() error payload).
+
+  encode_batch_rows()
+      The encode loop from execute_batch_prepared_statement(): writes every
+      row of an executemany() batch (plen + each param) directly into the
+      wire message.  Fast-paths None/bool/int/str/float inline in C; anything
+      else (Decimal, datetime types, Binary, Vector, oversized ints) falls
+      back to a Python callable (EncodedSession._cython_exotic_encode) that
+      reuses the existing putValue() dispatch, so correctness for the exotic
+      tail is never at risk.
 """
 
 from cpython.unicode cimport PyUnicode_DecodeUTF8, PyUnicode_AsUTF8String
-from cpython.bytes   cimport PyBytes_FromStringAndSize, PyBytes_AsString, PyBytes_GET_SIZE
+from cpython.bytes   cimport (
+    PyBytes_FromStringAndSize,
+    PyBytes_AsString,
+    PyBytes_AS_STRING,
+    PyBytes_GET_SIZE,
+)
 from cpython.bytearray cimport (
     PyByteArray_FromStringAndSize,
     PyByteArray_AS_STRING,
@@ -54,7 +74,7 @@ import struct as _struct
 import decimal as _decimal
 import uuid as _uuid
 from . import datatype as _datatype
-from .exception import ProgrammingError
+from .exception import DataError, ProgrammingError
 
 # Cached Python constructors / helpers used by the complex-type branches.
 # Looked up once at module import; the decode loop references these via
@@ -339,6 +359,100 @@ cdef inline long long _read_be_signed(const unsigned char* p, int n) nogil:
 cdef inline Py_ssize_t _read_be_uint(const unsigned char* p, int n) nogil:
     """n-byte big-endian unsigned integer (n in 0..8)."""
     return <Py_ssize_t>_pynuodb_be_u64(p, n)
+
+
+# ----- Batch-execute result readback ------------------------------------------
+#
+# execute_batch_prepared_statement() sends one row-count-or-error-code int
+# per statement in the batch, then reads them all back in a tight loop
+# (getInt() per row, occasionally followed by an error int + string on
+# failure).  For large batches this readback loop is pure Python overhead
+# on top of the same wire-decode primitives decode_next_batch() already
+# does in C, so it gets the same treatment here.
+
+cdef inline long long _decode_wire_int(const unsigned char* base, Py_ssize_t* pos) except? -1:
+    """Read one getInt()-shaped value (codes 10-59) and advance *pos."""
+    cdef int code = base[pos[0]]
+    cdef int nbytes
+    if INTMINUS10 <= code <= INT31:
+        pos[0] += 1
+        return code - INT0
+    if code > INT31 and code <= INTLEN8:
+        nbytes = code - INTLEN0
+        pos[0] += 1
+        pos[0] += nbytes
+        return _read_be_signed(base + pos[0] - nbytes, nbytes)
+    raise DataError('Not an integer: %d' % (code))
+
+
+cdef inline object _decode_wire_string(const unsigned char* base, Py_ssize_t* pos):
+    """Read one getString()-shaped value (codes 69-72, 109-148) and advance *pos."""
+    cdef int code = base[pos[0]]
+    cdef int nbytes
+    cdef Py_ssize_t length
+    if UTF8LEN0 <= code <= UTF8LEN39:
+        length = code - UTF8LEN0
+        pos[0] += 1
+        if length == 0:
+            return u''
+        val = PyUnicode_DecodeUTF8(<const char*>(base + pos[0]), length, NULL)
+        pos[0] += length
+        return val
+    if UTF8COUNT1 <= code <= UTF8COUNT4:
+        nbytes = code - UTF8COUNT0
+        pos[0] += 1
+        length = _read_be_uint(base + pos[0], nbytes)
+        pos[0] += nbytes
+        if length == 0:
+            return u''
+        val = PyUnicode_DecodeUTF8(<const char*>(base + pos[0]), length, NULL)
+        pos[0] += length
+        return val
+    raise DataError('getString: Invalid type code: %d' % (code))
+
+
+def decode_batch_results(bytearray data, Py_ssize_t pos, Py_ssize_t count,
+                         dict stringify_error):
+    """Decode the `count` per-statement result codes of a batch execute.
+
+    Mirrors the pure-Python loop in EncodedSession.execute_batch_prepared_statement:
+
+        result = getInt()
+        if result == -3:
+            ec = getInt(); es = getString()   # error code + message
+
+    Every error payload is fully consumed off the wire (so the stream stays
+    in sync) even though only the *first* error's formatted message is kept,
+    matching the existing "only report first" behaviour exactly.
+
+    Returns (results: list[int], new_pos: int, error_string: str or None).
+    """
+    cdef:
+        Py_ssize_t   n = len(data)
+        unsigned char[:] mv = data
+        const unsigned char* base
+        Py_ssize_t   i
+        long long    ival
+        int          ec
+        object       es
+        list         results = []
+        object       error_string = None
+
+    if n == 0 or count == 0:
+        return results, pos, None
+
+    base = &mv[0]
+
+    for i in range(count):
+        ival = _decode_wire_int(base, &pos)
+        results.append(ival)
+        if ival == -3:
+            ec = <int> _decode_wire_int(base, &pos)
+            es = _decode_wire_string(base, &pos)
+            if error_string is None:
+                error_string = '%s:%s' % (stringify_error[ec], es)
+
+    return results, pos, error_string
 
 
 # ----- Helpers for complex Python-constructed types --------------------------
@@ -725,3 +839,204 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
         results.append(row_tup)
 
     return pos, complete
+
+
+# ----- Batch parameter encoding ------------------------------------------------
+#
+# The write-side counterpart to decode_next_batch(): the inner loop of
+# EncodedSession.execute_batch_prepared_statement (encode every row of an
+# executemany() batch into the wire message).  Fast-paths None/bool/int/
+# str/float inline in C; everything else goes through exotic_fn (see
+# encode_batch_rows()'s docstring).
+
+cdef extern from *:
+    """
+    #include <Python.h>
+    #include <string.h>
+    #include <stdint.h>
+
+    /* Encode `v` as the minimal big-endian two's-complement byte string
+       (same rule as crypt.toSignedByteString), writing into `out` (must
+       have room for 8 bytes) and returning the byte count actually used
+       (1-8).  Uniform for all v, including 0 and -1, no special cases
+       needed: taking the low N bytes of the native 64-bit two's
+       complement representation is exactly the minimal encoding when N
+       is the minimal byte length. */
+    static CYTHON_INLINE int _pynuodb_encode_signed(long long v, unsigned char *out) {
+        uint64_t uv = (uint64_t)v;
+        uint64_t be = __builtin_bswap64(uv);
+        unsigned char full[8];
+        memcpy(full, &be, 8);
+
+        int bl;
+        if (v >= 0) {
+            bl = (v == 0) ? 0 : (64 - __builtin_clzll((unsigned long long)v));
+        } else {
+            unsigned long long uw = (unsigned long long)(-(v + 1));
+            bl = (uw == 0) ? 0 : (64 - __builtin_clzll(uw));
+        }
+        int nbytes = (bl + 8) / 8;
+        memcpy(out, full + (8 - nbytes), nbytes);
+        return nbytes;
+    }
+
+    /* Encode `n` (non-negative, fits in size_t) as the minimal big-endian
+       *unsigned* byte string (same rule as crypt.toByteString), used for
+       counted-string length prefixes. */
+    static CYTHON_INLINE int _pynuodb_encode_unsigned(unsigned long long n, unsigned char *out) {
+        uint64_t be = __builtin_bswap64((uint64_t)n);
+        unsigned char full[8];
+        memcpy(full, &be, 8);
+        int bl = (n == 0) ? 0 : (64 - __builtin_clzll(n));
+        int nbytes = (bl + 7) / 8;
+        if (nbytes == 0) nbytes = 1;
+        memcpy(out, full + (8 - nbytes), nbytes);
+        return nbytes;
+    }
+
+    /* Big-endian IEEE-754 double bytes (matches struct.pack('!d', value)). */
+    static CYTHON_INLINE void _pynuodb_double_to_be(double d, unsigned char *out) {
+        uint64_t v;
+        memcpy(&v, &d, 8);
+        uint64_t be = __builtin_bswap64(v);
+        memcpy(out, &be, 8);
+    }
+    """
+    int _pynuodb_encode_signed(long long v, unsigned char *out) nogil
+    int _pynuodb_encode_unsigned(unsigned long long n, unsigned char *out) nogil
+    void _pynuodb_double_to_be(double d, unsigned char *out) nogil
+
+
+cdef class _Buf:
+    """Growable wrapper around a Python bytearray with amortized-doubling
+    resize, so the batch encoder doesn't pay a realloc on every value."""
+
+    cdef bytearray obj
+    cdef Py_ssize_t used
+    cdef Py_ssize_t cap
+
+    def __cinit__(self, bytearray initial):
+        self.obj = initial
+        self.used = PyByteArray_GET_SIZE(initial)
+        self.cap = self.used
+
+    cdef inline void ensure(self, Py_ssize_t extra):
+        cdef Py_ssize_t need = self.used + extra
+        cdef Py_ssize_t newcap
+        if need > self.cap:
+            newcap = self.cap * 2 if self.cap > 0 else 64
+            if newcap < need:
+                newcap = need
+            PyByteArray_Resize(self.obj, newcap)
+            self.cap = newcap
+
+    cdef inline void put_byte(self, unsigned char b):
+        self.ensure(1)
+        (<unsigned char*> PyByteArray_AS_STRING(self.obj))[self.used] = b
+        self.used += 1
+
+    cdef inline void put_bytes(self, const unsigned char* p, Py_ssize_t n):
+        if n == 0:
+            return
+        self.ensure(n)
+        memcpy(<unsigned char*> PyByteArray_AS_STRING(self.obj) + self.used, p, n)
+        self.used += n
+
+    cdef finalize(self):
+        PyByteArray_Resize(self.obj, self.used)
+
+
+cdef inline void _put_int(_Buf buf, long long v):
+    """Encode a C long long using the putInt() wire rule."""
+    cdef unsigned char data[8]
+    cdef int nbytes
+    if v > -11 and v < 32:
+        buf.put_byte(<unsigned char>(INT0 + v))
+    else:
+        nbytes = _pynuodb_encode_signed(v, data)
+        buf.put_byte(<unsigned char>(INTLEN0 + nbytes))
+        buf.put_bytes(data, nbytes)
+
+
+cdef inline void _put_string(_Buf buf, str value):
+    """Encode a str using the putString() wire rule."""
+    cdef bytes data = PyUnicode_AsUTF8String(value)
+    cdef Py_ssize_t length = PyBytes_GET_SIZE(data)
+    cdef unsigned char lenbuf[8]
+    cdef int nbytes
+    if length < 40:
+        buf.put_byte(<unsigned char>(UTF8LEN0 + length))
+    else:
+        nbytes = _pynuodb_encode_unsigned(<unsigned long long> length, lenbuf)
+        buf.put_byte(<unsigned char>(UTF8COUNT0 + nbytes))
+        buf.put_bytes(lenbuf, nbytes)
+    buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(data), length)
+
+
+cdef inline void _put_double(_Buf buf, double value):
+    """Encode a float using the putDouble() wire rule (always 8 bytes)."""
+    cdef unsigned char data[8]
+    _pynuodb_double_to_be(value, data)
+    buf.put_byte(DOUBLELEN0 + 8)
+    buf.put_bytes(data, 8)
+
+
+def encode_batch_rows(bytearray output, list param_lists,
+                      Py_ssize_t expected_param_count, object exotic_fn):
+    """Encode every row of a batch (plen + each param's value) into `output`.
+
+    Parameters
+    ----------
+    output                : bytearray to append to (self.__output); mutated
+                             in place, matching the pure-Python loop's
+                             behaviour of repeatedly appending to the same
+                             buffer.
+    param_lists            : the executemany() sequence of parameter tuples.
+    expected_param_count   : prepared_statement.parameter_count; every row
+                             must match or ProgrammingError is raised (same
+                             message as the pure-Python path).
+    exotic_fn              : callable(value) -> bytes for anything not
+                             fast-pathed here (Decimal, datetime types,
+                             Binary, Vector, oversized ints, unknown
+                             objects).  Should be
+                             EncodedSession._cython_exotic_encode.
+    """
+    cdef _Buf buf = _Buf(output)
+    cdef Py_ssize_t plen
+    cdef object row, param, tv
+    cdef long long ival
+    cdef int overflow
+    cdef bytes exotic_bytes
+
+    for row in param_lists:
+        plen = len(row)
+        if plen != expected_param_count:
+            raise ProgrammingError(
+                "Incorrect number of parameters specified,"
+                " expected %d, got %d" % (expected_param_count, plen))
+        _put_int(buf, plen)
+
+        for param in row:
+            if param is None:
+                buf.put_byte(NULL_V)
+                continue
+
+            tv = type(param)
+            if tv is int or tv is bool:
+                ival = PyLong_AsLongLongAndOverflow(param, &overflow)
+                if overflow:
+                    exotic_bytes = exotic_fn(param)
+                    buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(exotic_bytes),
+                                 PyBytes_GET_SIZE(exotic_bytes))
+                else:
+                    _put_int(buf, ival)
+            elif tv is str:
+                _put_string(buf, <str> param)
+            elif tv is float:
+                _put_double(buf, <double> param)
+            else:
+                exotic_bytes = exotic_fn(param)
+                buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(exotic_bytes),
+                             PyBytes_GET_SIZE(exotic_bytes))
+
+    buf.finalize()
