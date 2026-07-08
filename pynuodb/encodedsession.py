@@ -1402,11 +1402,18 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def _getTypeCode(self):
         # type: () -> int
-        """Read the next Type Code off the session."""
-        try:
-            return self._peekTypeCode()
-        finally:
-            self.__inpos += 1
+        """Read the next Type Code off the session.
+
+        Inlined rather than delegating to _peekTypeCode/_hasBytes: this is
+        the single hottest call in value decoding (once per value read),
+        and skipping the extra function calls and try/finally measurably
+        helps on large result sets / batch results.
+        """
+        inpos = self.__inpos
+        if inpos >= len(self.__input):
+            raise EndOfStream('end of stream reached')
+        self.__inpos = inpos + 1
+        return self.__input[inpos]
 
     def _takeBytes(self, length):
         # type: (int) -> bytearray
