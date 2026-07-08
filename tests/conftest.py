@@ -34,12 +34,32 @@ from . import nuocmd, cvtjson
 def pytest_addoption(parser):
     parser.addoption("--run-perf", action="store_true", default=False,
                      help="run performance benchmarks under tests/perf")
+    # Bypass the nuocmd-driven discovery/lifecycle fixtures and connect
+    # straight to an already-running database.  Handy for local perf runs
+    # where you don't want (or can't) shell out to nuocmd.
+    parser.addoption("--use-existing-db", action="store_true", default=False,
+                     help="skip nuocmd discovery; use --db-* options to connect")
+    parser.addoption("--db-host", default="localhost:48004",
+                     help="SQL host:port when --use-existing-db is set")
+    parser.addoption("--db-name", default=DATABASE_NAME,
+                     help="database name when --use-existing-db is set")
+    parser.addoption("--db-user", default=DBA_USER,
+                     help="user when --use-existing-db is set")
+    parser.addoption("--db-password", default=DBA_PASSWORD,
+                     help="password when --use-existing-db is set")
+    parser.addoption("--db-schema", default="test",
+                     help="schema when --use-existing-db is set")
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "perf: performance benchmark; skipped unless --run-perf is passed")
+
+
+def pytest_report_header(config):
+    import pynuodb
+    return "pynuodb: %s (%s)" % (pynuodb.__version__, pynuodb.__file__)
 
 
 def pytest_collection_modifyitems(config, items):
@@ -306,19 +326,33 @@ def te(ap, db):
 
 
 @pytest.fixture(scope='session')
-def database(ap, db, te):
-    # type: (AP_FIXTURE, DB_FIXTURE, TE_FIXTURE) -> DATABASE_FIXTURE
+def database(request):
+    # type: (pytest.FixtureRequest) -> DATABASE_FIXTURE
     import pynuodb
+
+    if request.config.getoption("--use-existing-db"):
+        connect_args = {
+            'database': request.config.getoption("--db-name"),
+            'host':     request.config.getoption("--db-host"),
+            'user':     request.config.getoption("--db-user"),
+            'password': request.config.getoption("--db-password"),
+            'options':  {'schema': request.config.getoption("--db-schema")},
+        }  # type: DATABASE_FIXTURE
+    else:
+        ap = request.getfixturevalue('ap')
+        db = request.getfixturevalue('db')
+        request.getfixturevalue('te')
+        connect_args = {'database': db[0],
+                        'host': ap[1],
+                        'user': db[1],
+                        'password': db[2],
+                        'options': {'schema': 'test'}}
+
     end = time.time() + 30
     conn = None
-    _log.info("Creating a SQL connection to %s as user %s with schema 'test'",
-              db[0], db[1])
+    _log.info("Creating a SQL connection to %s as user %s",
+              connect_args['database'], connect_args['user'])
 
-    connect_args = {'database': db[0],
-                    'host': ap[1],
-                    'user': db[1],
-                    'password': db[2],
-                    'options': {'schema': 'test'}}  # type: DATABASE_FIXTURE
     system_information = {'effective_version': 0}
 
     try:
@@ -343,6 +377,6 @@ def database(ap, db, te):
         if conn:
             conn.close()
 
-    _log.info("Database %s is available", db[0])
+    _log.info("Database %s is available", connect_args['database'])
 
     return {'connect_args': connect_args, 'system_information': system_information}
