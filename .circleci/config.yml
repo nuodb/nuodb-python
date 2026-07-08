@@ -75,10 +75,88 @@ jobs:
       - after_failure:
           when : "on_fail"
 
+  perf_bench:
+    description: "Run insert/select performance benchmarks on master and on this branch, print the diff"
+    docker:
+      - image: nuodb/nuodb:latest
+        user: root
+    resource_class: xlarge
+    environment:
+      TZ : America/New_York
+      NUO_SET_TLS : disable
+      NUOCMD_CLIENT_KEY : ""
+      NUOCMD_VERIFY_SERVER : ""
+      NUOCMD_PLUGINS : ""
+    steps:
+      - checkout
+      - run:
+          name: Install build tools
+          command: |
+            PYVER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+            dnf install -y git make gcc "python${PYVER}-devel"
+      - run:
+          name: Install pip
+          command: |
+            curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+            python3 /tmp/get-pip.py --user
+      - run:
+          name: Make artifact directories
+          command: mkdir -p artifacts results
+      - run:
+          name: Start NuoDB Admin
+          command: |
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin tls $NUO_SET_TLS
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin tls status
+            sudo -u nuodb /opt/nuodb/etc/nuoadmin start
+            sudo -u nuodb /opt/nuodb/bin/nuocmd --show-json get effective-license
+      # Run master then this branch on the same runner and let compare.py
+      # print a delta table.  Hardware noise mostly cancels because both
+      # runs share the container; xlarge gives us dedicated cores.
+      - run:
+          name: Baseline benchmarks on master
+          command: |
+            GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+                git fetch --no-tags --depth=1 origin master
+            git worktree add /tmp/base FETCH_HEAD
+            # Copy the perf suite + conftest hooks from this branch so the
+            # master worktree's driver is exercised by the same benchmarks.
+            cp -a tests/perf /tmp/base/tests/
+            cp tests/conftest.py /tmp/base/tests/conftest.py
+            cd /tmp/base
+            make PYTHON=python3 install
+            $HOME/.local/bin/pip install pytest-benchmark
+            python3 -m pytest tests/perf --run-perf --benchmark-only \
+                --benchmark-json=/tmp/master.json \
+                --benchmark-columns=min,mean,median,stddev,rounds
+      - run:
+          name: Reset DB
+          command: |
+            sudo -u nuodb /opt/nuodb/bin/nuocmd shutdown database \
+                --db-name pynuodb_test 2>/dev/null || true
+      - run:
+          name: Branch benchmarks + diff vs master
+          command: |
+            make PYTHON=python3 install
+            $HOME/.local/bin/pip install pytest-benchmark
+            python3 -m pytest tests/perf --run-perf --benchmark-only \
+                --benchmark-json=artifacts/branch.json \
+                --benchmark-columns=min,mean,median,stddev,rounds
+            python3 tests/perf/compare.py \
+                /tmp/master.json artifacts/branch.json \
+                | tee artifacts/perf_diff.txt
+      - store_artifacts:
+          path: artifacts
+      - after_failure:
+          when : "on_fail"
+
 workflows:
   build-project:
     jobs:
       - build_n_run:
           name: "Build and run regression tests"
+          context:
+            - common-config
+      - perf_bench:
+          name: "Run performance benchmarks, comparing results to master"
           context:
             - common-config

@@ -30,6 +30,26 @@ except ImportError:
 
 from . import nuocmd, cvtjson
 
+
+def pytest_addoption(parser):
+    parser.addoption("--run-perf", action="store_true", default=False,
+                     help="run performance benchmarks under tests/perf")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "perf: performance benchmark; skipped unless --run-perf is passed")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run-perf"):
+        return
+    skip = pytest.mark.skip(reason="need --run-perf to run performance tests")
+    for item in items:
+        if "perf" in item.keywords:
+            item.add_marker(skip)
+
 _log = logging.getLogger("pynuodbtest")
 
 DB_OPTIONS = []  # type: List[str]
