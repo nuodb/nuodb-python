@@ -126,6 +126,30 @@ cdef extern from *:
             PyObject *t, Py_ssize_t i, PyObject *o) {
         PyTuple_SET_ITEM(t, i, o);
     }
+    /* Ordinary Python tuple literals (BUILD_TUPLE) get an automatic
+       optimization: if every element is either a non-container type or an
+       already-untracked container, the tuple can never participate in a
+       reference cycle, so CPython removes it from GC tracking on the spot
+       (_PyTuple_MaybeUntrack in tupleobject.c). PyTuple_New + PyTuple_SET_ITEM
+       -- what the fast decode path uses -- does NOT get this optimization:
+       every row tuple stays GC-tracked for its entire lifetime even when it
+       only holds ints/strs/floats. For a large fetchall(), that's millions
+       of needlessly-tracked tuples sitting in the collector's scan set,
+       making every periodic GC pass (triggered by allocation activity
+       *anywhere* in the process, not just here) progressively more
+       expensive.
+
+       Unlike CPython's generic _PyTuple_MaybeUntrack (which must inspect
+       every element after the fact, since BUILD_TUPLE has no idea what went
+       into the tuple), the decode loop already knows exactly which wire
+       codes can ever produce a GC-trackable container (only VECTOR, via the
+       exotic_fn fallback -- every inline-decoded type here is a plain
+       int/str/float/Decimal/date/time/UUID/bytes, none of which are
+       containers). So the caller just passes a single bint decided during
+       decode instead of paying an O(columns) rescan on every row. */
+    static CYTHON_INLINE void _pynuodb_untrack_if_safe(PyObject *tup, int had_container) {
+        if (!had_container) PyObject_GC_UnTrack(tup);
+    }
     static CYTHON_INLINE PyObject *_pynuodb_long_from_long(long v) {
         return PyLong_FromLong(v);
     }
@@ -270,6 +294,7 @@ cdef extern from *:
     }
     """
     void _pynuodb_tuple_steal(PyObject *t, Py_ssize_t i, PyObject *o) nogil
+    void _pynuodb_untrack_if_safe(PyObject *tup, int had_container)
     PyObject *_pynuodb_long_from_long(long v) nogil
     PyObject *_pynuodb_long_from_longlong(long long v) nogil
     PyObject *_pynuodb_decode_utf8(const char *s, Py_ssize_t n) nogil
@@ -580,6 +605,7 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
         Py_ssize_t        length
         long long         ival
         bint              complete = False
+        bint              row_has_container
         object            marker_obj, val, value_obj
         object            row_tup
         # NOTE: Cython evaluates <PyObject*>True / <PyObject*>False at compile
@@ -624,6 +650,7 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
         # with no extra refcount bumps.
         row_tup = PyTuple_New(col_count)
         row_ptr = <PyObject*>row_tup
+        row_has_container = False
         for col in range(col_count):
             code = base[pos]
 
@@ -856,10 +883,16 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
                 # Anything we don't handle inline (VECTOR, SCALEDCOUNT2/3,
                 # LOBSTREAM, ARRAY, DEBUGBARRIER, or new wire codes from a
                 # future protocol bump) goes through the Python fallback.
+                # VECTOR is the only wire type that can produce a mutable,
+                # GC-trackable container (a Vector/list); conservatively
+                # treat every exotic value as possibly-a-container rather
+                # than checking val's type, since this path is already rare.
                 val, pos = exotic_fn(pos)
+                row_has_container = True
                 _pynuodb_tuple_steal(row_ptr, col,
                     _pynuodb_incref(<PyObject*>val))
 
+        _pynuodb_untrack_if_safe(row_ptr, row_has_container)
         results.append(row_tup)
 
     return pos, complete
