@@ -37,6 +37,16 @@ from . import statement
 from . import result_set
 from .datatype import LOCALZONE_NAME
 
+# When the compiled extension is present we hand row-batch decoding off to
+# the Cython implementation; otherwise this module falls back to the pure
+# Python loop below.  The tests flip _HAVE_FETCH_ACCEL to False at runtime
+# to assert that both paths produce identical results.
+try:
+    from . import _fetch as _fetch_accel
+    _HAVE_FETCH_ACCEL = True
+except ImportError:
+    _HAVE_FETCH_ACCEL = False
+
 # ZoneInfo is preferred but not introduced until 3.9
 if sys.version_info >= (3, 9):
     # preferred python >= 3.9
@@ -465,32 +475,40 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         """Batch the prepared statement with the given parameters."""
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
-        for parameters in param_lists:
-            plen = len(parameters)
-            if prepared_statement.parameter_count != plen:
-                raise ProgrammingError("Incorrect number of parameters specified,"
-                                       " expected %d, got %d"
-                                       % (prepared_statement.parameter_count,
-                                          plen))
-            self.putInt(plen)
-            for param in parameters:
-                self.putValue(param)
+        expected = prepared_statement.parameter_count
+        if _HAVE_FETCH_ACCEL:
+            _fetch_accel.encode_batch_rows(
+                self.__output, param_lists, expected, self._cython_exotic_encode)
+        else:
+            for parameters in param_lists:
+                plen = len(parameters)
+                if expected != plen:
+                    raise ProgrammingError("Incorrect number of parameters specified,"
+                                           " expected %d, got %d"
+                                           % (expected, plen))
+                self.putInt(plen)
+                for param in parameters:
+                    self.putValue(param)
         self.putInt(-1)
         self.putInt(len(param_lists))
         self._exchangeMessages()
 
-        results = []  # type: List[int]
-        error_string = None
+        if _HAVE_FETCH_ACCEL:
+            results, self.__inpos, error_string = _fetch_accel.decode_batch_results(
+                self.__input, self.__inpos, len(param_lists), protocol.stringifyError)
+        else:
+            results = []  # type: List[int]
+            error_string = None
 
-        for _ in param_lists:
-            result = self.getInt()
-            results.append(result)
-            if result == -3:
-                ec = self.getInt()
-                es = self.getString()
-                # only report first
-                if error_string is None:
-                    error_string = '%s:%s' % (protocol.stringifyError[ec], es)
+            for _ in param_lists:
+                result = self.getInt()
+                results.append(result)
+                if result == -3:
+                    ec = self.getInt()
+                    es = self.getString()
+                    # only report first
+                    if error_string is None:
+                        error_string = '%s:%s' % (protocol.stringifyError[ec], es)
 
         if error_string is not None:
             raise BatchError(error_string, results)
@@ -515,6 +533,14 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         complete = False
         init_results = []  # type: List[result_set.Row]
 
+        if _HAVE_FETCH_ACCEL:
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, colcount,
+                init_results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+            return result_set.ResultSet(handle, colcount, init_results, complete)
+
         # If we hit the end of the stream without next==0, there are more
         # results to fetch.
         while self._hasBytes(1):
@@ -531,6 +557,29 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         return result_set.ResultSet(handle, colcount, init_results, complete)
 
+    def _cython_exotic_decode(self, pos):
+        # type: (int) -> tuple
+        """Bridge: _fetch_accel hands wire types it doesn't fast-path back here."""
+        self.__inpos = pos
+        val = self.getValue()
+        return val, self.__inpos
+
+    def _cython_exotic_encode(self, value):
+        # type: (Any) -> bytes
+        """Bridge: _fetch_accel.encode_batch_rows hands values it doesn't fast-path back here.
+
+        Runs `value` through the existing putValue() dispatch into a scratch
+        buffer and returns the resulting wire bytes, so Decimal/datetime/
+        Binary/Vector/oversized-int encoding logic lives in exactly one place.
+        """
+        saved_output = self.__output
+        self.__output = bytearray()
+        try:
+            self.putValue(value)
+            return bytes(self.__output)
+        finally:
+            self.__output = saved_output
+
     def fetch_result_set_next(self, resultset):
         # type: (result_set.ResultSet) -> None
         """Get more rows from this result set."""
@@ -538,6 +587,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._exchangeMessages()
 
         resultset.clear_results()
+
+        if _HAVE_FETCH_ACCEL:
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, resultset.col_count,
+                resultset.results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+            resultset.complete = complete
+            return
 
         while self._hasBytes(1):
             if self.getInt() == 0:
@@ -869,6 +927,24 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if value is None:
             return self.putNull()
 
+        # Fast paths: `type(v) is X` is a C-level pointer compare; isinstance
+        # walks the MRO and is markedly slower.  These hit on the bulk of
+        # bound parameters (plain int / str / float).
+        tv = type(value)
+        if tv is int:
+            return self.putInt(value)
+        if tv is str:
+            return self.putString(value)
+        if tv is float:
+            return self.putDouble(value)
+        if tv is bool:
+            # Preserve historic wire behaviour: bools encode as integers
+            # because the original isinstance(value, int) chain matched True
+            # and False before reaching the (dead) bool branch below.
+            return self.putInt(value)
+
+        # Subclass-aware fallback for the long tail (int/str subclasses,
+        # Decimal, datetime types, Binary, Vector, etc.).
         if isinstance(value, int):
             return self.putInt(value)
 
@@ -890,9 +966,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         if isinstance(value, datatype.Binary):
             return self.putOpaque(value)
-
-        if isinstance(value, bool):
-            return self.putBoolean(value)
 
         # we don't want to autodetect lists as being VECTOR, so we
         # only bind double if it is the explicit type
@@ -918,6 +991,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             return crypt.fromSignedByteString(self._takeBytes(code - protocol.INTLEN0))
 
         raise DataError('Not an integer: %d' % (code))
+
 
     # Does not preserve E notation
     def getScaledInt(self):
@@ -1311,7 +1385,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
             resp = self.recv(timeout=None)
             if resp is None:
                 db_error_handler(protocol.OPERATION_TIMEOUT, "timed out")
-            self.__input = crypt.bytesToArray(resp)
+            # recv() now returns bytearray directly; no copy needed.
+            self.__input = resp
 
             error = self.getInt()
             if error != 0:
@@ -1351,11 +1426,18 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def _getTypeCode(self):
         # type: () -> int
-        """Read the next Type Code off the session."""
-        try:
-            return self._peekTypeCode()
-        finally:
-            self.__inpos += 1
+        """Read the next Type Code off the session.
+
+        Inlined rather than delegating to _peekTypeCode/_hasBytes: this is
+        the single hottest call in value decoding (once per value read),
+        and skipping the extra function calls and try/finally measurably
+        helps on large result sets / batch results.
+        """
+        inpos = self.__inpos
+        if inpos >= len(self.__input):
+            raise EndOfStream('end of stream reached')
+        self.__inpos = inpos + 1
+        return self.__input[inpos]
 
     def _takeBytes(self, length):
         # type: (int) -> bytearray

@@ -60,3 +60,12 @@ class ResultSet(object):
         res = self.results[self.results_idx]
         self.results_idx += 1
         return res
+
+
+# Replace the Python implementation above with the Cython cdef class when the
+# extension has been built.  The interface is identical; fetchone() and
+# is_complete() become near-C-speed cpdef calls.
+try:
+    from ._fetch import ResultSet  # noqa: F811  pylint: disable=unused-import
+except ImportError:
+    pass
