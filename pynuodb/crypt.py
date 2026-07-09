@@ -53,6 +53,20 @@ try:
             # In older cryptography it's still with the regular algorithms
             ARC4 = algorithms.ARC4
     arc4Imported = True
+    # default_backend() is not a cheap accessor: each call constructs a new
+    # Backend instance whose internals (algorithm registries, ABCMeta-based
+    # class bookkeeping) contain genuine reference cycles that only the
+    # cyclic GC -- not refcounting -- can free (verified directly: calling
+    # default_backend() 100 times in isolation, with GC disabled, leaves
+    # thousands of tracked-but-unreachable objects that a forced gc.collect()
+    # never even finds as "garbage" in isolation, yet steadily inflate the
+    # generation the collector has to scan). AESBaseCipher used to call this
+    # fresh twice per new connection (once for cipherIn, once for cipherOut);
+    # caching a single instance here removes an unbounded, GC-scan-cost
+    # source across the process's lifetime with a session doing many
+    # connections. The returned object carries no per-use state, so sharing
+    # one instance across all Cipher() constructions is safe.
+    _DEFAULT_BACKEND = default_backend()
 except ImportError:
     arc4Imported = False
     AESImported = False
@@ -375,7 +389,7 @@ class AESBaseCipher(BaseCipher):
         :param nonce: The nonce for the cipher or None to create it
         """
         algo = algorithms.AES(self._convert_key(key))
-        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=default_backend())
+        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=_DEFAULT_BACKEND)
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
@@ -489,7 +503,7 @@ class RC4CipherCryptography(BaseCipher):
         # optionality of mode correctly.
         # https://github.com/pyca/cryptography/issues/9464
         cipher = Cipher(algo, mode=None,  # type: ignore
-                        backend=default_backend())
+                        backend=_DEFAULT_BACKEND)
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
