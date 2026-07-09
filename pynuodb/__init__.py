@@ -6,7 +6,7 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-__version__ = '5.0.0b3'
+__version__ = '5.0.0b4'
 
 from .connection import *  # pylint: disable=wildcard-import
 from .datatype import *    # pylint: disable=wildcard-import
