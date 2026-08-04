@@ -53,6 +53,11 @@ try:
             # In older cryptography it's still with the regular algorithms
             ARC4 = algorithms.ARC4
     arc4Imported = True
+    # default_backend() is an expensive call that carries no per-use
+    # state, so sharing one across all Cipher constructions is safe and
+    # reduces memory usage/accelerates GC for python programs that use a lot
+    # of connections (each connection calls this twice)
+    _DEFAULT_BACKEND = default_backend()
 except ImportError:
     arc4Imported = False
     AESImported = False
@@ -371,7 +376,7 @@ class AESBaseCipher(BaseCipher):
         :param nonce: The nonce for the cipher or None to create it
         """
         algo = algorithms.AES(self._convert_key(key))
-        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=default_backend())
+        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=_DEFAULT_BACKEND)
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
@@ -485,7 +490,7 @@ class RC4CipherCryptography(BaseCipher):
         # optionality of mode correctly.
         # https://github.com/pyca/cryptography/issues/9464
         cipher = Cipher(algo, mode=None,  # type: ignore
-                        backend=default_backend())
+                        backend=_DEFAULT_BACKEND)
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
