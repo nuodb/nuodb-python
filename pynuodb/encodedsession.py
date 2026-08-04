@@ -1368,11 +1368,13 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
     def _getTypeCode(self):
         # type: () -> int
-        """Read the next Type Code off the session."""
-        try:
-            return self._peekTypeCode()
-        finally:
-            self.__inpos += 1
+        """Read the next Type Code off the session. Don't delegate to _peekTypeCode
+        for performance reasons."""
+        inpos = self.__inpos
+        if inpos >= len(self.__input):
+            raise EndOfStream('end of stream reached')
+        self.__inpos = inpos + 1
+        return self.__input[inpos]
 
     def _takeBytes(self, length):
         # type: (int) -> bytearray
