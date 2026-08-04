@@ -529,8 +529,7 @@ class Session(object):
         """Pull the next complete message from the socket.
 
         Pre-allocates a bytearray of the exact required size and fills it with
-        recv_into(), avoiding the repeated bytearray concatenations and the
-        final bytes() copy that the previous implementation performed.
+        recv_into()
         """
         if msgLength == 0:
             return bytearray()
