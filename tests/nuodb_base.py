@@ -31,10 +31,16 @@ class NuoBase(object):
     lower_func = 'lower'  # For stored procedure test
 
     @pytest.fixture(autouse=True)
-    def _setup(self, database):
+    def _setup(self, database, request):
         # Preserve the options we'll need to create a connection to the DB
         self.connect_args = database['connect_args']
         self.system_information = database['system_information']
+
+        # In --use-existing-db mode we trust the caller and skip the
+        # nuocmd process check: the successful connection made in the
+        # `database` fixture is already proof the DB and a TE are up.
+        if request.config.getoption("--use-existing-db"):
+            return
 
         # Verify the database is up and has a running TE
         dbname = self.connect_args['database']
