@@ -8,15 +8,14 @@ Requirements
 
 Developers should use virtualenv to maintain multiple side-by-side
 environments to test with. Specifically, all contributions must be
-tested with both 2.7.6 and 3.4.3 to ensure the library is syntax
-compatible between the two versions.
+tested with Python >= 3.6 to ensure the library remains compatible.
 
 Dependencies
 ~~~~~~~~~~~~
 
 Here was my basic setup on Mac OS X:
 
-    | virtualenv --python=/usr/bin/python2.7 ~/.venv/pynuodb
+    | virtualenv --python=/usr/bin/python3 ~/.venv/pynuodb
     | source ~/.venv/pynuodb/bin/activate
     | pip install mock
     | pip install nose

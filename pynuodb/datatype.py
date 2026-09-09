@@ -81,7 +81,6 @@ else:
         """Return a Timestamp that uses the provided timezone."""
         return tz_info.localize(tstamp, is_dst=None)  # type: ignore[attr-defined]
 
-isP2 = sys.version[0] == '2'
 TICKSDAY = 86400
 LOCALZONE = tzlocal.get_localzone()
 
@@ -104,8 +103,7 @@ class Binary(bytes):
         # I can't figure out how to get mypy to be OK with this.
         if isinstance(data, bytearray):
             return bytes.__new__(cls, data)  # type: ignore
-        # In Python2 there's no distinction between str and bytes :(
-        if isinstance(data, str) and not isP2:
+        if isinstance(data, str):
             return bytes.__new__(cls, data.encode('latin-1'))  # type: ignore
         return bytes.__new__(cls, data)  # type: ignore
 
@@ -114,9 +112,9 @@ class Binary(bytes):
         # This is pretty terrible but it's what the old version did.
         # What does it really mean to run str(Binary)?  That should probably
         # be illegal, but I'm sure lots of code does "%s" % (Binary(x)) or
-        # the equivalent.  In Python 3 we have to remove the 'b' prefix too.
+        # the equivalent.  We have to remove the 'b' prefix too.
         # I'll leave this for consideration at some future time.
-        return repr(self)[1:-1] if isP2 else repr(self)[2:-1]
+        return repr(self)[2:-1]
 
     @property
     def string(self):

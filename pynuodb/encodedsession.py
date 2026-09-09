@@ -45,7 +45,6 @@ else:
     # fallback to pytz if python < 3.9
     from pytz import timezone as ZoneInfo
 
-isP2 = sys.version[0] == '2'
 REMOVE_FORMAT = 0
 
 
@@ -98,8 +97,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     closed = False
 
     __output = None  # type: bytearray
-    # If we did not need to be compatible with Python 2 this should be bytes
-    # But in Python 2, bytes is just another name for str, so use bytearray
     __input = None   # type: bytearray
     __inpos = 0      # type: int
     __encryption = True
@@ -645,7 +642,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         :type value: str
         """
-        data = bytes(value) if isP2 else value.encode('utf-8')  # type: ignore
+        data = value.encode('utf-8')
         length = len(data)
         if length < 40:
             self.__output.append(protocol.UTF8LEN0 + length)

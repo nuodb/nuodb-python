@@ -6,8 +6,6 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
-import sys
-
 try:
     from typing import Iterable, NoReturn  # pylint: disable=unused-import
 except ImportError:
@@ -20,34 +18,20 @@ __all__ = ['Warning', 'Error', 'InterfaceError', 'DatabaseError', 'BatchError',
            'ProgrammingError', 'NotSupportedError', 'EndOfStream',
            'db_error_handler']
 
-isP2 = sys.version[0] == '2'
-
 
 # These exceptions are defined by PEP 249.
 # See the PEP for a fuller description of each one.
 
-if isP2:
-    class Warning(StandardError):  # type: ignore # pylint: disable=redefined-builtin
-        """Raised for important warnings."""
+class Warning(Exception):  # pylint: disable=redefined-builtin
+    """Raised for important warnings."""
 
-        pass
+    pass
 
-    class Error(StandardError):  # type: ignore
-        """The base class of all other error exceptions."""
 
-        pass
-else:
-    # Mypy is not smart enough to realize we'll only define one set of classes
-    # so disable type checking
-    class Warning(Exception):  # type: ignore # pylint: disable=redefined-builtin
-        """Raised for important warnings."""
+class Error(Exception):
+    """The base class of all other error exceptions."""
 
-        pass
-
-    class Error(Exception):  # type: ignore
-        """The base class of all other error exceptions."""
-
-        pass
+    pass
 
 
 class InterfaceError(Error):
