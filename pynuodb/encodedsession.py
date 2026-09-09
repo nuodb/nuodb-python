@@ -15,9 +15,9 @@ __all__ = ['EncodedSession']
 import uuid
 import struct
 import decimal
-import sys
 import threading
 import datetime  # pylint: disable=unused-import
+from zoneinfo import ZoneInfo  # pylint: disable=import-error
 
 try:
     from typing import Any, Collection, Dict, List  # pylint: disable=unused-import
@@ -36,14 +36,6 @@ from . import session
 from . import statement
 from . import result_set
 from .datatype import LOCALZONE_NAME
-
-# ZoneInfo is preferred but not introduced until 3.9
-if sys.version_info >= (3, 9):
-    # preferred python >= 3.9
-    from zoneinfo import ZoneInfo  # pylint: disable=import-error
-else:
-    # fallback to pytz if python < 3.9
-    from pytz import timezone as ZoneInfo
 
 REMOVE_FORMAT = 0
 

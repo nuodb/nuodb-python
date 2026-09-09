@@ -30,10 +30,10 @@ __all__ = ['Date', 'Time', 'Timestamp', 'DateFromTicks', 'TimeFromTicks',
            'TimestampToTicks', 'Binary', 'Vector', 'STRING', 'BINARY', 'NUMBER',
            'DATETIME', 'ROWID', 'VECTOR_DOUBLE', 'TypeObjectFromNuodb']
 
-import sys
 import decimal
 from datetime import datetime as Timestamp, date as Date, time as Time
 from datetime import timedelta as TimeDelta
+from datetime import timezone
 from datetime import tzinfo  # pylint: disable=unused-import
 
 from pynuodb import protocol
@@ -47,39 +47,22 @@ import tzlocal
 from .exception import DataError
 from .calendar import ymd2day, day2ymd
 
-# zoneinfo.ZoneInfo is preferred but not introduced until python3.9
-if sys.version_info >= (3, 9):
-    # used for python>=3.9 with support for zoneinfo.ZoneInfo
-    from datetime import timezone  # pylint: disable=no-name-in-module,ungrouped-imports
-    UTC = timezone.utc
+UTC = timezone.utc
 
-    def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
-        # type: (int, int, int, int, int, int, int) -> Timestamp
-        """Return a Timestamp UTC timezone."""
-        return Timestamp(year=year, month=month, day=day,
-                         hour=hour, minute=minute, second=second,
-                         microsecond=microsecond, tzinfo=UTC)
 
-    def timezone_aware(tstamp, tz_info):
-        # type: (Timestamp, tzinfo) -> Timestamp
-        """Return a Timestamp that uses the provided timezone."""
-        return tstamp.replace(tzinfo=tz_info)
+def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
+    # type: (int, int, int, int, int, int, int) -> Timestamp
+    """Return a Timestamp UTC timezone."""
+    return Timestamp(year=year, month=month, day=day,
+                     hour=hour, minute=minute, second=second,
+                     microsecond=microsecond, tzinfo=UTC)
 
-else:
-    # used for python<3.9 without support for zoneinfo.ZoneInfo
-    from pytz import utc as UTC
 
-    def utc_TimeStamp(year, month, day, hour=0, minute=0, second=0, microsecond=0):
-        # type: (int, int, int, int, int, int, int) -> Timestamp
-        """Return a Timestamp UTC timezone."""
-        dt = Timestamp(year=year, month=month, day=day,
-                       hour=hour, minute=minute, second=second, microsecond=microsecond)
-        return UTC.localize(dt, is_dst=None)
+def timezone_aware(tstamp, tz_info):
+    # type: (Timestamp, tzinfo) -> Timestamp
+    """Return a Timestamp that uses the provided timezone."""
+    return tstamp.replace(tzinfo=tz_info)
 
-    def timezone_aware(tstamp, tz_info):
-        # type: (Timestamp, tzinfo) -> Timestamp
-        """Return a Timestamp that uses the provided timezone."""
-        return tz_info.localize(tstamp, is_dst=None)  # type: ignore[attr-defined]
 
 TICKSDAY = 86400
 LOCALZONE = tzlocal.get_localzone()

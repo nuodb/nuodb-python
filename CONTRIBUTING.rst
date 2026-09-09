@@ -8,7 +8,7 @@ Requirements
 
 Developers should use virtualenv to maintain multiple side-by-side
 environments to test with. Specifically, all contributions must be
-tested with Python >= 3.6 to ensure the library remains compatible.
+tested with Python >= 3.9 to ensure the library remains compatible.
 
 Dependencies
 ~~~~~~~~~~~~
