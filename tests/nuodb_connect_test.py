@@ -82,3 +82,23 @@ class TestNuoDBConnect(nuodb_base.NuoBase):
             conn.testConnection()
         finally:
             conn.close()
+
+    def test_rc4cipher_pure_python_fallback(self):
+        """Exercise RC4CipherNuoDB directly, bypassing cryptography's RC4."""
+        original = pynuodb.crypt.RC4Cipher
+        pynuodb.crypt.RC4Cipher = pynuodb.crypt.RC4CipherNuoDB
+        try:
+            conn = self._connect(options={'ciphers': 'RC4'})
+        finally:
+            pynuodb.crypt.RC4Cipher = original
+        try:
+            config = conn.connection_config()
+            assert config['cipher'] == 'RC4-local'
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM DUAL")
+            assert cursor.fetchone() == (1,)
+            text = 'exercising the RC4 transform loop over more than a few bytes'
+            cursor.execute("SELECT '%s' FROM DUAL" % text)
+            assert cursor.fetchone() == (text,)
+        finally:
+            conn.close()
