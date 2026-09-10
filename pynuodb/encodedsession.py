@@ -37,6 +37,15 @@ from . import statement
 from . import result_set
 from .datatype import LOCALZONE_NAME
 
+# When the cython implementation is available, we will use it.
+# tests toggle _HAVE_FETCH_ACCEL to do comparison tests between the
+# two implementations
+try:
+    from . import _fetch as _fetch_accel
+    _HAVE_FETCH_ACCEL = True
+except ImportError:
+    _HAVE_FETCH_ACCEL = False
+
 REMOVE_FORMAT = 0
 
 
@@ -504,6 +513,14 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         complete = False
         init_results = []  # type: List[result_set.Row]
 
+        if _HAVE_FETCH_ACCEL:
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, colcount,
+                init_results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+            return result_set.ResultSet(handle, colcount, init_results, complete)
+
         # If we hit the end of the stream without next==0, there are more
         # results to fetch.
         while self._hasBytes(1):
@@ -520,6 +537,13 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         return result_set.ResultSet(handle, colcount, init_results, complete)
 
+    def _cython_exotic_decode(self, pos):
+        # type: (int) -> tuple
+        """Bridge: _fetch_accel hands wire types it doesn't fast-path back here."""
+        self.__inpos = pos
+        val = self.getValue()
+        return val, self.__inpos
+
     def fetch_result_set_next(self, resultset):
         # type: (result_set.ResultSet) -> None
         """Get more rows from this result set."""
@@ -527,6 +551,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self._exchangeMessages()
 
         resultset.clear_results()
+
+        if _HAVE_FETCH_ACCEL:
+            pos, complete = _fetch_accel.decode_next_batch(
+                self.__input, self.__inpos, resultset.col_count,
+                resultset.results, self._cython_exotic_decode,
+                self.timezone_info)
+            self.__inpos = pos
+            resultset.complete = complete
+            return
 
         while self._hasBytes(1):
             if self.getInt() == 0:
