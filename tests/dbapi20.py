@@ -15,21 +15,14 @@ __version__ = '1.15.0'
 
 import unittest
 import time
-import sys
 
-if sys.version[0] >= '3': #python 3.x
-    _BaseException = Exception
-    def _failUnless(self, expr, msg=None):
-        self.assertTrue(expr, msg)
-else:                   #python 2.x
-    from exceptions import StandardError as _BaseException
-    def _failUnless(self, expr, msg=None):
-        self.failUnless(expr, msg)  ## deprecated since Python 2.6
+_BaseException = Exception
+
+def _failUnless(self, expr, msg=None):
+    self.assertTrue(expr, msg)
 
 def str2bytes(sval):
-    if sys.version_info < (3,0) and isinstance(sval, str):
-        sval = sval.decode("latin1")
-    return sval.encode("latin1") #python 3 make unicode into bytes
+    return sval.encode("latin1")
 
 class DatabaseAPI20Test(unittest.TestCase):
     ''' Test a database self.driver for DB API 2.0 compatibility.
@@ -149,12 +142,8 @@ class DatabaseAPI20Test(unittest.TestCase):
     def test_Exceptions(self):
         # Make sure required exceptions exist, and are in the
         # defined heirarchy.
-        if sys.version[0] == '3': #under Python 3 StardardError no longer exists
-            self.assertTrue(issubclass(self.driver.Warning,Exception))
-            self.assertTrue(issubclass(self.driver.Error,Exception))
-        else:
-            self.failUnless(issubclass(self.driver.Warning,StandardError))
-            self.failUnless(issubclass(self.driver.Error,StandardError))
+        self.assertTrue(issubclass(self.driver.Warning,Exception))
+        self.assertTrue(issubclass(self.driver.Error,Exception))
 
         _failUnless(self,
             issubclass(self.driver.InterfaceError,self.driver.Error)

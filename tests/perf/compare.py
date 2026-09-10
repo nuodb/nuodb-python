@@ -6,8 +6,6 @@ delta per test.  Exits non-zero if any test regressed by more than
 --fail-threshold (default 10%), so CI turns a real regression into a
 failed build.  Improvements never fail the build.
 """
-from __future__ import print_function
-
 import argparse
 import json
 import sys

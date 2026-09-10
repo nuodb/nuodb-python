@@ -16,14 +16,9 @@ __all__ = ["checkForError", "SessionException", "Session"]
 
 import socket
 import struct
-import sys
 from ipaddress import ip_address
+from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
-
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse  # type: ignore
 
 try:
     from typing import Dict, Generator, Iterable, Mapping  # pylint: disable=unused-import
@@ -34,8 +29,6 @@ except ImportError:
 from .exception import Error, OperationalError, InterfaceError
 
 from . import crypt
-
-isP2 = sys.version[0] == '2'
 
 NUODB_PORT = 48004
 
@@ -81,7 +74,7 @@ def strToBool(s):
 def xmlToString(root):
     # type: (ET.Element) -> str
     """Convert an XML Element to a str."""
-    return ET.tostring(root, encoding='utf-8' if isP2 else 'unicode')
+    return ET.tostring(root, encoding='unicode')
 
 
 class Session(object):
@@ -180,10 +173,7 @@ class Session(object):
     @staticmethod
     def _to_ipaddr(addr):
         # type: (str) -> Tuple[str, int]
-        if isP2 and not isinstance(addr, unicode):  # type: ignore
-            ipaddr = ip_address(unicode(addr, 'utf_8'))  # type: ignore
-        else:
-            ipaddr = ip_address(addr)
+        ipaddr = ip_address(addr)
         return (str(ipaddr), ipaddr.version)
 
     def _parse_addr(self, addr, ipver):
@@ -464,8 +454,8 @@ class Session(object):
 
         if isinstance(message, bytearray):
             data = bytes(message)
-        elif isinstance(message, bytes) or isP2:
-            data = message  # type: ignore
+        elif isinstance(message, bytes):
+            data = message
         elif isinstance(message, str):
             data = message.encode('utf-8')
         else:

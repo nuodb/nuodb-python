@@ -14,11 +14,9 @@ with limited support and testing from NuoDB.
 Requirements
 ------------
 
-* Python >= 2.7
+* Python >= 3.9
 
-  - Recommended Python version >= 3.8
-
-  - Tested with CPython_ 2.7 and 3.6
+  - Tested with CPython_ 3.9
 
 * NuoDB_ >= 6.0.2
 

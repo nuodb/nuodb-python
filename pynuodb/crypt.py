@@ -32,7 +32,6 @@ See the LICENSE file provided with this software.
 import hashlib
 import random
 import binascii
-import sys
 
 try:
     from typing import Optional  # pylint: disable=unused-import
@@ -57,8 +56,6 @@ except ImportError:
     arc4Imported = False
     AESImported = False
 
-isP2 = sys.version[0] == '2'
-
 
 def get_ciphers():
     # type: () -> str
@@ -66,68 +63,28 @@ def get_ciphers():
     return ("AES-256-CTR,AES-128-CTR," if AESImported else '') + "RC4"
 
 
-# We use a bytearray for our sending buffer because we need to construct it.
-# If we were using only Python3, then our received data could be stored in a
-# bytes object which might be slightly more efficient.  But in Python2 a bytes
-# object is the same as a string so it can't be portable: if use bytes we need
-# different code to extract it on P2 vs. P3.
-#
-# Instead, we'll use a bytearray for the received data as well as the sending
-# data for as long as we need to support Python 2.
+def bytesToArray(data):
+    # type: (bytes) -> bytearray
+    """Convert bytes to a bytearray."""
+    return bytearray(data)
 
-if isP2:
-    def bytesToArray(data):
-        # type: (bytes) -> bytearray
-        """Convert bytes to a bytearray.
 
-        On Python 2 bytes is a string so we have to ord each character.
-        """
-        return bytearray([ord(c) for c in data])  # type: ignore
+def arrayToStr(data):
+    # type: (bytearray) -> str
+    """Convert a bytearray to a str: assume UTF-8 always."""
+    return data.decode('utf-8')
 
-    def arrayToStr(data):
-        # type: (bytearray) -> str
-        """Convert a bytearray to a str.
 
-        On Python 2 we can just use the str() constructor.  If we use decode
-        we get back a unicode string not a string..
-        """
-        return str(data)
-
-    def hexstrToBytes(hexstr):
-        # type: (Optional[str]) -> Optional[bytes]
-        """Convert a hex string to bytes."""
-        return binascii.unhexlify(hexstr) if hexstr is not None else None
-else:
-    def bytesToArray(data):
-        # type: (bytes) -> bytearray
-        """Convert bytes to a bytearray.
-
-        On Python 3 bytes is a binary string so we can just convert it.
-        """
-        return bytearray(data)
-
-    def arrayToStr(data):
-        # type: (bytearray) -> str
-        """Convert a bytearray to a str.
-
-        On Python 3 we must decode: assume UTF-8 always.
-        """
-        return data.decode('utf-8')
-
-    def hexstrToBytes(hexstr):
-        # type: (Optional[str]) -> Optional[bytes]
-        """Convert a hex string to bytes."""
-        return bytes.fromhex(hexstr) if hexstr is not None else None  # pylint: disable=no-member
+def hexstrToBytes(hexstr):
+    # type: (Optional[str]) -> Optional[bytes]
+    """Convert a hex string to bytes."""
+    return bytes.fromhex(hexstr) if hexstr is not None else None
 
 
 def toHex(bigInt):
     # type: (int) -> str
     """Convert an integer into a hex string."""
-    if isP2:
-        hexStr = (hex(bigInt)[2:])[:-1]
-    else:
-        # Python 3 will no longer insert an L for type formatting
-        hexStr = hex(bigInt)[2:]
+    hexStr = hex(bigInt)[2:]
     # Some platforms assume hex strings are even length: add padding if needed
     if len(hexStr) % 2 == 1:
         hexStr = '0' + hexStr
@@ -435,13 +392,8 @@ class RC4CipherNuoDB(BaseCipher):
         # type: (bytes) -> bytes
         """Perform a byte by byte RC4 transform on the stream.
 
-        Python 2:
-            automatically handles encoding bytes into an extended ASCII
-            encoding [0,255] w/ 1 byte per character
-
-        Python 3:
-            bytes objects must be converted into extended ASCII, latin-1 uses
-            the desired range of [0,255]
+        bytes objects must be converted into extended ASCII, latin-1 uses
+        the desired range of [0,255].
 
         For utf-8 strings (characters consisting of more than 1 byte) the
         values are broken into 1 byte sections and shifted.  The RC4 stream

@@ -8,10 +8,7 @@ See the LICENSE file provided with this software.
 import struct
 
 import pynuodb
-import sys
 from . import nuodb_base
-
-systemVersion = sys.version[0]
 
 
 class TestNuoDBBlob(nuodb_base.NuoBase):
@@ -24,9 +21,7 @@ class TestNuoDBBlob(nuodb_base.NuoBase):
         cursor.execute("SELECT ? FROM DUAL", [pynuodb.Binary(binary_data)])
         row = cursor.fetchone()
 
-        currentRow = str(row[0])
-        if systemVersion == '3':
-            currentRow = bytes(currentRow, 'latin-1')
+        currentRow = bytes(str(row[0]), 'latin-1')
         array2 = struct.unpack('hhl', currentRow)
         assert len(array2) == 3
         assert array2[2] == 3
