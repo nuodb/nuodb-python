@@ -45,7 +45,7 @@ setup(
     long_description=open(readme).read(),
     python_requires='>=3.9',
     install_requires=['tzlocal', 'jdcal'],
-    extras_require=dict(crypto='cryptography>=2.6.1'),
+    extras_require=dict(crypto='cryptography>=36.0'),
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',

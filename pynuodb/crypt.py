@@ -42,7 +42,6 @@ try:
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
         AESImported = True
         try:
@@ -99,62 +98,59 @@ def fromHex(hexStr):
 
 def toSignedByteString(value):
     # type: (int) -> bytearray
-    """Convert an integer into bytes."""
-    result = bytearray()
-    if value == 0 or value == -1:
-        result.append(value & 0xFF)
+    """Convert an integer into the minimal big-endian two's-complement bytes.
+
+    For negative values that are not exact -2**k, (-value-1).bit_length()
+    gives the number of magnitude bits needed; adding 8 and floor-dividing
+    by 8 yields the minimal byte width including the sign bit.
+    """
+    if value == 0:
+        return bytearray(b'\x00')
+    if value == -1:
+        return bytearray(b'\xff')
+    if value > 0:
+        nbytes = (value.bit_length() + 8) // 8
     else:
-        while value != 0 and value != -1:
-            result.append(value & 0xFF)
-            value >>= 8
-        # Zero pad if positive
-        if value == 0 and (result[-1] & 0x80) == 0x80:
-            result.append(0x00)
-        elif value == -1 and (result[-1] & 0x80) == 0x00:
-            result.append(0xFF)
-        result.reverse()
-    return result
+        nbytes = ((-value - 1).bit_length() + 8) // 8
+    return bytearray(value.to_bytes(nbytes, 'big', signed=True))
 
 
 def fromSignedByteString(data):
     # type: (bytearray) -> int
     """Convert bytes into a signed integer."""
-    if data:
-        is_neg = (data[0] & 0x80) >> 7
-    else:
-        is_neg = 0
-    result = 0
-    shiftCount = 0
-    for b in reversed(data):
-        result = result | (((b & 0xFF) ^ (is_neg * 0xFF)) << shiftCount)
-        shiftCount += 8
-
-    return ((-1)**is_neg) * (result + is_neg)
+    return int.from_bytes(data, 'big', signed=True)
 
 
 def toByteString(bigInt):
     # type: (int) -> bytearray
-    """Convert an integer into bytes."""
+    """Convert an integer into the minimal big-endian bytes.
+
+    Zero and -1 are each a single 0x00 / 0xff byte. Positive values use
+    bit_length to compute the minimal byte count. Values less than -1 are
+    not used by any current caller (lengths, scales, message IDs, and SRP
+    primes are all non-negative); that path is a plain shift-and-reverse
+    loop, which is not a two's-complement encoding.
+    """
+    if bigInt == 0:
+        return bytearray(b'\x00')
+    if bigInt == -1:
+        return bytearray(b'\xff')
+    if bigInt > 0:
+        nbytes = (bigInt.bit_length() + 7) // 8
+        return bytearray(bigInt.to_bytes(nbytes, 'big'))
+    # Negative-other-than-(-1) fallback (unused in practice).
     result = bytearray()
-    if bigInt == -1 or bigInt == 0:
+    while bigInt != 0 and bigInt != -1:
         result.append(bigInt & 0xFF)
-    else:
-        while bigInt != 0 and bigInt != -1:
-            result.append(bigInt & 0xFF)
-            bigInt >>= 8
-        result.reverse()
+        bigInt >>= 8
+    result.reverse()
     return result
 
 
 def fromByteString(data):
     # type: (bytearray) -> int
     """Convert bytes into an integer."""
-    result = 0
-    shiftCount = 0
-    for b in reversed(data):
-        result = result | ((b & 0xff) << shiftCount)
-        shiftCount += 8
-    return result
+    return int.from_bytes(data, 'big')
 
 
 class RemoteGroup(object):
@@ -328,7 +324,7 @@ class AESBaseCipher(BaseCipher):
         :param nonce: The nonce for the cipher or None to create it
         """
         algo = algorithms.AES(self._convert_key(key))
-        cipher = Cipher(algo, mode=modes.CTR(nonce), backend=default_backend())
+        cipher = Cipher(algo, mode=modes.CTR(nonce))
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
@@ -405,13 +401,18 @@ class RC4CipherNuoDB(BaseCipher):
         """
         transformed = bytearray()
         state = self.__state
+        idx1 = self.__idx1
+        idx2 = self.__idx2
 
-        for char in bytesToArray(data):
-            self.__idx1 = (self.__idx1 + 1) % 256
-            self.__idx2 = (self.__idx2 + state[self.__idx1]) % 256
-            state[self.__idx1], state[self.__idx2] = state[self.__idx2], state[self.__idx1]
-            cipherByte = char ^ state[(state[self.__idx1] + state[self.__idx2]) % 256]
+        for char in data:
+            idx1 = (idx1 + 1) % 256
+            idx2 = (idx2 + state[idx1]) % 256
+            state[idx1], state[idx2] = state[idx2], state[idx1]
+            cipherByte = char ^ state[(state[idx1] + state[idx2]) % 256]
             transformed.append(cipherByte)
+
+        self.__idx1 = idx1
+        self.__idx2 = idx2
         return bytes(transformed)
 
 
@@ -436,8 +437,7 @@ class RC4CipherCryptography(BaseCipher):
         # There's a bug in older versions of mypy where they don't infer the
         # optionality of mode correctly.
         # https://github.com/pyca/cryptography/issues/9464
-        cipher = Cipher(algo, mode=None,  # type: ignore
-                        backend=default_backend())
+        cipher = Cipher(algo, mode=None)  # type: ignore
         self.cipher = cipher.encryptor() if encrypt else cipher.decryptor()
 
     def transform(self, data):
