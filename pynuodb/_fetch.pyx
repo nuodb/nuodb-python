@@ -111,7 +111,7 @@ cdef inline object _unpack_time_scale(int scale, time_val):
 
 
 cdef inline object _make_scaled_date(date_val, int scale):
-    return _DateFromTicks(date_val // ((<object>10) ** scale))
+    return _DateFromTicks(date_val // _POW10[scale])
 
 
 cdef inline object _make_scaled_time(int scale, time_val, tz):
