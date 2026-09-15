@@ -31,7 +31,7 @@ PYTEST_COV ?= --cov=pynuodb --cov-report=html:$(ARTIFACTDIR) --cov-report=term-m
 SUDO ?= sudo -n
 NUODB_HOME ?= /opt/nuodb
 
-_INSTALL_CMD =	$(PIP) install '.[crypto]'
+_INSTALL_CMD =	$(PIP) install '.'
 _BUILD_EXT_CMD = $(PIP) install 'setuptools>=40.8.0' 'Cython>=3.0' \
 			&& $(PYTHON) setup.py build_ext --inplace
 _VERIFY_CMD =	$(NUODB_HOME)/bin/nuocmd show domain

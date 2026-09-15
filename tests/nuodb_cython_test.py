@@ -7,6 +7,7 @@ This software is licensed under a BSD 3-Clause License.
 See the LICENSE file provided with this software.
 """
 
+import datetime
 import decimal
 import random
 import struct
@@ -37,6 +38,19 @@ def test_decode_next_batch_exported():
     """The batch decoder used by EncodedSession must be exported."""
     import pynuodb._fetch as _fetch
     assert callable(getattr(_fetch, 'decode_next_batch', None))
+
+
+def test_encode_batch_rows_exported():
+    """The batch encoder used by EncodedSession must be exported."""
+    import pynuodb._fetch as _fetch
+    assert callable(getattr(_fetch, 'encode_batch_rows', None))
+
+
+def test_decode_batch_results_exported():
+    """The batch result-code decoder used by EncodedSession must be
+    exported."""
+    import pynuodb._fetch as _fetch
+    assert callable(getattr(_fetch, 'decode_batch_results', None))
 
 
 def _no_exotic(pos):
@@ -353,6 +367,455 @@ def test_decode_next_batch_scaled_decimal_matches_reference():
             assert got == expected
 
 
+# --- encode_batch_rows() / decode_batch_results(): the write-side
+# counterpart to decode_next_batch(), used by
+# EncodedSession.execute_batch_prepared_statement(). Expected wire bytes are
+# built directly from the same putInt()/putString()/putDouble()/putNull()
+# rules _encode_int/_encode_str/_encode_double/_encode_null already model
+# above, independent of encode_batch_rows() itself. Note bool is NOT
+# _encode_bool() here: putValue()'s historic behaviour (and encode_batch_rows'
+# fast path, matching it) encodes bool parameters as plain integers (0/1),
+# not the TRUE/FALSE wire codes _encode_bool() produces for decoded values.
+
+def _no_exotic_encode(value):
+    raise AssertionError("exotic_fn should not be called for this value")
+
+
+def _reference_encode_row(row):
+    out = _encode_int(len(row))
+    for value in row:
+        if value is None:
+            out += _encode_null()
+        elif isinstance(value, bool):
+            out += _encode_int(1 if value else 0)
+        elif isinstance(value, str):
+            out += _encode_str(value)
+        elif isinstance(value, float):
+            out += _encode_double(value)
+        else:
+            out += _encode_int(value)
+    return out
+
+
+def test_encode_batch_rows_matches_reference():
+    """A batch of plain int/str/float/bool/None rows must encode to exactly
+    the same bytes the pure-Python putInt()/putString()/putDouble()/
+    putNull() rules would produce, with no trailing garbage from the
+    growable buffer's over-allocation."""
+    import pynuodb._fetch as _fetch
+
+    rows = [
+        (1, 'hello', 3.5, True, None),
+        (-12345, 'x' * 80, -2.25, False, None),
+        (0, '', 0.0, True, -1),
+    ]
+    expected = bytearray()
+    for row in rows:
+        expected += _reference_encode_row(row)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 5, _no_exotic_encode)
+    assert bytes(output) == bytes(expected)
+
+
+def test_encode_batch_rows_preserves_output_prefix():
+    """`output` is EncodedSession.__output, which already holds the message
+    header (message id, statement handle, etc.) by the time
+    execute_batch_prepared_statement() calls in -- encode_batch_rows must
+    append, never overwrite or truncate what's already there."""
+    import pynuodb._fetch as _fetch
+
+    prefix = bytearray(b'\x01\x02\x03')
+    output = bytearray(prefix)
+    _fetch.encode_batch_rows(output, [(7,)], 1, _no_exotic_encode)
+    assert bytes(output[:3]) == bytes(prefix)
+    assert bytes(output[3:]) == bytes(_encode_int(1) + _encode_int(7))
+
+
+def test_encode_batch_rows_rejects_wrong_param_count():
+    """A row whose length doesn't match expected_param_count must raise
+    ProgrammingError, matching execute_batch_prepared_statement()'s own
+    check."""
+    import pynuodb._fetch as _fetch
+    from pynuodb.exception import ProgrammingError
+
+    with pytest.raises(ProgrammingError):
+        _fetch.encode_batch_rows(bytearray(), [(1, 2)], 3, _no_exotic_encode)
+
+
+def test_encode_batch_rows_truncates_on_exception():
+    """If a row fails the parameter-count check partway through a batch,
+    the rows encoded before it must still be present and the buffer must
+    still be truncated to exactly that many bytes (no leftover capacity
+    from the growable buffer's over-allocation) -- _Buf.finalize() runs in
+    a `finally`, not only on a clean return."""
+    import pynuodb._fetch as _fetch
+    from pynuodb.exception import ProgrammingError
+
+    output = bytearray()
+    with pytest.raises(ProgrammingError):
+        _fetch.encode_batch_rows(output, [(1,), (2, 3)], 1, _no_exotic_encode)
+    assert bytes(output) == bytes(_encode_int(1) + _encode_int(1))
+
+
+def test_encode_batch_rows_routes_exotic_types_through_bridge():
+    """Anything that isn't None/bool/int/str/float/Binary/Decimal/Date/
+    Time/Timestamp (Vector, an oversized int, ...) must be routed through
+    exotic_fn(value), and the bytes it returns spliced in verbatim at that
+    column's position. Vector here, not Decimal: Decimal now has its own
+    fast path (_put_scaled_decimal), so it's no longer an example of the
+    exotic case -- Vector still is."""
+    import pynuodb._fetch as _fetch
+    from pynuodb.datatype import Vector
+
+    seen = []
+
+    def exotic_fn(value):
+        seen.append(value)
+        return b'\xEE\xEE'
+
+    vec = Vector(Vector.DOUBLE, [1.0, 2.0])
+    rows = [(1, vec, 'x')]
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 3, exotic_fn)
+
+    expected = _encode_int(3) + _encode_int(1) + b'\xEE\xEE' + _encode_str('x')
+    assert bytes(output) == bytes(expected)
+    assert seen == [vec]
+
+
+def test_encode_batch_rows_oversized_int_routes_through_exotic():
+    """An int outside the signed-64-bit range that putInt()/
+    toSignedByteString would still encode fine in pure Python (Python ints
+    are arbitrary precision) can't go through the C `long long` fast path
+    (PyLong_AsLongLongAndOverflow), so it must fall back to exotic_fn
+    instead of silently truncating."""
+    import pynuodb._fetch as _fetch
+
+    huge = 2 ** 100
+    seen = []
+
+    def exotic_fn(value):
+        seen.append(value)
+        return b'\xAB'
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, [(huge,)], 1, exotic_fn)
+    assert bytes(output) == bytes(_encode_int(1) + b'\xAB')
+    assert seen == [huge]
+
+
+def test_encode_batch_rows_bool_uses_int_path_not_exotic():
+    """bool encodes as an integer (True/False -> 1/0) on the fast path, not
+    through exotic_fn -- matching putValue()'s documented historic
+    behaviour that bools encode as integers, not the TRUE/FALSE wire
+    codes."""
+    import pynuodb._fetch as _fetch
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, [(True, False)], 2, _no_exotic_encode)
+    assert bytes(output) == bytes(_encode_int(2) + _encode_int(1) + _encode_int(0))
+
+
+def test_encode_batch_rows_large_batch_matches_reference():
+    """A batch large/varied enough to force several _Buf growth doublings
+    (long strings crossing the inline/counted 39/40-byte boundary, many
+    rows) must still match the reference encoding exactly -- this is the
+    write-side counterpart to the decode truncation/fuzz tests above, aimed
+    at the growable-buffer bookkeeping (ensure/put_byte/put_bytes/finalize)
+    rather than the wire-format rules themselves."""
+    import pynuodb._fetch as _fetch
+
+    rng = random.Random(20260915)
+    rows = []
+    for i in range(200):
+        length = rng.choice([0, 5, 39, 40, 41, 300])
+        rows.append((
+            rng.randint(-(2 ** 40), 2 ** 40),
+            ''.join(rng.choice('abcdef ') for _ in range(length)),
+            rng.uniform(-1e6, 1e6),
+            rng.choice([True, False]),
+            None if rng.random() < 0.2 else i,
+        ))
+
+    expected = bytearray()
+    for row in rows:
+        expected += _reference_encode_row(row)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 5, _no_exotic_encode)
+    assert bytes(output) == bytes(expected)
+
+
+# --- encode_batch_rows(): Binary/Decimal/Date/Time/Timestamp fast paths.
+#
+# These were added after the original None/bool/int/str/float/Binary pass:
+# decode_next_batch() already fast-pathed SCALEDLEN/SCALEDDATE/SCALEDTIME/
+# SCALEDTIMESTAMP; encode_batch_rows() did not, so Decimal/Date/Time/
+# Timestamp parameters went through the exotic_fn bridge (a full
+# EncodedSession.putValue() round-trip per value) even though the
+# underlying wire encoding is simple once the Python-level ticks/scale
+# value has been computed. Reference bytes below are built from the same
+# ground-truth primitives (crypt.toSignedByteString, datatype.*ToTicks)
+# the pure-Python EncodedSession methods use -- independent of the new
+# Cython code, not a copy of it.
+
+def test_encode_batch_rows_binary_uses_opaque_fast_path_not_exotic():
+    """A datatype.Binary parameter must encode via OPAQUELEN/OPAQUECOUNT
+    (putOpaque()'s wire rule) without ever calling exotic_fn -- both the
+    short/inline (<40 bytes) and long/counted (>=40 bytes) cases."""
+    import pynuodb._fetch as _fetch
+    import pynuodb
+
+    short = pynuodb.Binary(b'\x00\x01\x02short')
+    long_ = pynuodb.Binary(b'\xff' * 80)
+    rows = [(short,), (long_,)]
+    expected = (_encode_int(1) + _encode_bytes(short)
+               + _encode_int(1) + _encode_bytes(long_))
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 1, _no_exotic_encode)
+    assert bytes(output) == bytes(expected)
+
+
+def _reference_scaled_decimal(value):
+    """Ground truth for putScaledInt()'s wire bytes, built independently
+    of _put_scaled_decimal: same formula, but via crypt.toSignedByteString
+    and decimal.Decimal directly rather than the Cython encoder."""
+    import decimal
+    from pynuodb import crypt
+
+    normalized = value + 0
+    scale = abs(normalized.as_tuple()[2])
+    data = crypt.toSignedByteString(int(normalized * decimal.Decimal(10 ** scale)))
+    return bytes([_protocol.SCALEDLEN0 + len(data), scale & 0xFF]) + bytes(data)
+
+
+def test_encode_batch_rows_decimal_matches_reference():
+    """Decimal parameters across a range of magnitudes/scales/signs must
+    match putScaledInt()'s wire bytes exactly, and never call exotic_fn."""
+    import decimal
+    import pynuodb._fetch as _fetch
+
+    values = [
+        decimal.Decimal('0'), decimal.Decimal('-0'),
+        decimal.Decimal('1.5'), decimal.Decimal('-1.5'),
+        decimal.Decimal('99.95'), decimal.Decimal('0.0001'),
+        decimal.Decimal('123456789.4321'), decimal.Decimal('-123456789.4321'),
+        decimal.Decimal('1E+10'), decimal.Decimal('1E-10'),
+    ]
+    rows = [(v,) for v in values]
+    expected = bytearray()
+    for v in values:
+        expected += _encode_int(1) + _reference_scaled_decimal(v)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 1, _no_exotic_encode)
+    assert bytes(output) == bytes(expected)
+
+
+def test_encode_batch_rows_decimal_special_value_falls_back_to_exotic():
+    """NaN/Infinity have a non-integer exponent ('n'/'N'/'F'); putScaledInt()
+    raises ValueError for these. The fast path must recognize it can't
+    handle them and defer to exotic_fn (which reaches that same error)
+    instead of misinterpreting the exponent."""
+    import decimal
+    import pynuodb._fetch as _fetch
+
+    seen = []
+
+    def exotic_fn(value):
+        seen.append(value)
+        return b'\xAA'
+
+    nan = decimal.Decimal('NaN')
+    output = bytearray()
+    _fetch.encode_batch_rows(output, [(nan,)], 1, exotic_fn)
+    assert bytes(output) == bytes(_encode_int(1) + b'\xAA')
+    assert seen == [nan]
+
+
+def test_encode_batch_rows_decimal_overflow_falls_back_to_exotic():
+    """A Decimal whose scaled integer needs more than 8 bytes must fall
+    back to exotic_fn (which reaches putScaledCount2()'s unbounded wire
+    format) rather than truncating or misencoding."""
+    import decimal
+    import pynuodb._fetch as _fetch
+
+    huge = decimal.Decimal('1' + '0' * 30)  # far beyond signed-64-bit range
+    seen = []
+
+    def exotic_fn(value):
+        seen.append(value)
+        return b'\xCC'
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, [(huge,)], 1, exotic_fn)
+    assert bytes(output) == bytes(_encode_int(1) + b'\xCC')
+    assert seen == [huge]
+
+
+def test_encode_batch_rows_date_matches_reference():
+    """Date parameters must match putScaledDate()'s wire bytes exactly
+    (DateToTicks() + crypt.toSignedByteString, scale always 0), and never
+    call exotic_fn."""
+    import datetime
+    from pynuodb import crypt
+    from pynuodb.datatype import DateToTicks
+    import pynuodb._fetch as _fetch
+
+    dates = [
+        datetime.date(1970, 1, 1), datetime.date(1969, 12, 31),
+        datetime.date(2024, 3, 15), datetime.date(1, 1, 1),
+        datetime.date(9999, 12, 31),
+    ]
+    rows = [(d,) for d in dates]
+    expected = bytearray()
+    for d in dates:
+        data = crypt.toSignedByteString(DateToTicks(d))
+        expected += _encode_int(1) + bytes([_protocol.SCALEDDATELEN0 + len(data), 0]) + bytes(data)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, rows, 1, _no_exotic_encode)
+    assert bytes(output) == bytes(expected)
+
+
+def test_encode_batch_rows_time_and_timestamp_match_reference():
+    """Time and Timestamp parameters must match putScaledTime()/
+    putScaledTimestamp()'s wire bytes exactly (TimeToTicks()/
+    TimestampToTicks() + crypt.toSignedByteString), given the same tz_info
+    passed to both the reference computation and encode_batch_rows(), and
+    never call exotic_fn."""
+    import datetime
+    from zoneinfo import ZoneInfo
+    from pynuodb import crypt
+    from pynuodb.datatype import TimeToTicks, TimestampToTicks
+    import pynuodb._fetch as _fetch
+
+    tz = ZoneInfo('America/New_York')
+    times = [datetime.time(0, 0, 0), datetime.time(23, 59, 59, 123456),
+            datetime.time(12, 30, 45)]
+    stamps = [datetime.datetime(1970, 1, 1, 0, 0, 0),
+             datetime.datetime(2024, 3, 15, 12, 34, 56, 789000),
+             datetime.datetime(2024, 1, 1, tzinfo=ZoneInfo('UTC'))]
+
+    time_rows = [(t,) for t in times]
+    expected = bytearray()
+    for t in times:
+        ticks, scale = TimeToTicks(t, tz)
+        data = crypt.toSignedByteString(ticks)
+        expected += _encode_int(1) + bytes([_protocol.SCALEDTIMELEN0 + len(data), scale & 0xFF]) + bytes(data)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, time_rows, 1, _no_exotic_encode, tz)
+    assert bytes(output) == bytes(expected)
+
+    stamp_rows = [(s,) for s in stamps]
+    expected = bytearray()
+    for s in stamps:
+        ticks, scale = TimestampToTicks(s, tz)
+        data = crypt.toSignedByteString(ticks)
+        expected += _encode_int(1) + bytes([_protocol.SCALEDTIMESTAMPLEN0 + len(data), scale & 0xFF]) + bytes(data)
+
+    output = bytearray()
+    _fetch.encode_batch_rows(output, stamp_rows, 1, _no_exotic_encode, tz)
+    assert bytes(output) == bytes(expected)
+
+
+def test_encode_batch_rows_timestamp_checked_before_date():
+    """datetime.datetime subclasses datetime.date, so a Timestamp value
+    must be checked (and encoded as SCALEDTIMESTAMP) before the Date
+    isinstance check, or it would be misencoded as a Date and silently
+    drop its time-of-day. Regression test for that ordering."""
+    import datetime
+    from zoneinfo import ZoneInfo
+    import pynuodb._fetch as _fetch
+
+    tz = ZoneInfo('UTC')
+    stamp = datetime.datetime(2024, 3, 15, 12, 34, 56)
+    output = bytearray()
+    _fetch.encode_batch_rows(output, [(stamp,)], 1, _no_exotic_encode, tz)
+
+    code = output[1]  # output[0] is the plen prefix (INT0+1)
+    assert _protocol.SCALEDTIMESTAMPLEN0 < code <= _protocol.SCALEDTIMESTAMPLEN8, (
+        "Timestamp encoded with code %d, expected a SCALEDTIMESTAMP code"
+        " (%d, %d] -- looks like it fell through to the Date branch instead"
+        % (code, _protocol.SCALEDTIMESTAMPLEN0, _protocol.SCALEDTIMESTAMPLEN8))
+
+
+# --- decode_batch_results(): result-code readback for a batch execute.
+
+def _encode_batch_result_ok(count):
+    return _encode_int(count)
+
+
+def _encode_batch_result_error(ec, message):
+    return _encode_int(-3) + _encode_int(ec) + _encode_str(message)
+
+
+def test_decode_batch_results_matches_reference():
+    """A run of successful per-statement result codes must decode to the
+    same list of ints the pure-Python getInt() loop would produce, with no
+    error string and pos left exactly after the last code."""
+    import pynuodb._fetch as _fetch
+
+    counts = [1, 1, 0, 1, -2]
+    buf = bytearray()
+    for c in counts:
+        buf += _encode_batch_result_ok(c)
+
+    results, pos, error_string = _fetch.decode_batch_results(buf, 0, len(counts), {})
+    assert results == counts
+    assert pos == len(buf)
+    assert error_string is None
+
+
+def test_decode_batch_results_reports_first_error_only():
+    """Matches the pure-Python "only report first" behaviour: every error
+    payload (-3 result code, error code, error message) must be fully
+    consumed off the wire so the stream stays in sync, but only the first
+    error's formatted message ends up in error_string."""
+    import pynuodb._fetch as _fetch
+
+    stringify_error = {7: 'first-kind', 9: 'second-kind'}
+    buf = bytearray()
+    buf += _encode_batch_result_ok(1)
+    buf += _encode_batch_result_error(7, 'boom')
+    buf += _encode_batch_result_error(9, 'kaboom')
+    buf += _encode_batch_result_ok(1)
+
+    results, pos, error_string = _fetch.decode_batch_results(buf, 0, 4, stringify_error)
+    assert results == [1, -3, -3, 1]
+    assert error_string == 'first-kind:boom'
+    assert pos == len(buf)
+
+
+def test_decode_batch_results_rejects_truncated_buffer():
+    """A buffer truncated mid-error-message must raise EndOfStream, not
+    read past the end -- same bounds-checking contract as
+    decode_next_batch()."""
+    import pynuodb._fetch as _fetch
+    from pynuodb.exception import EndOfStream
+
+    full = bytearray()
+    full += _encode_batch_result_error(3, 'a message')
+    for trunc_len in range(len(full)):
+        buf = bytearray(full[:trunc_len])
+        with pytest.raises(EndOfStream):
+            _fetch.decode_batch_results(buf, 0, 1, {3: 'kind'})
+
+
+def test_decode_batch_results_non_integer_code_raises():
+    """A result code that isn't an integer-shaped wire code (10-59) must
+    raise DataError, matching getInt()'s own behaviour."""
+    import pynuodb._fetch as _fetch
+    from pynuodb.exception import DataError
+
+    buf = bytearray([200])   # UUID code: not integer-shaped
+    with pytest.raises(DataError):
+        _fetch.decode_batch_results(buf, 0, 1, {})
+
+
 _MIXED_TYPES_QUERY = """
     select cast(42 as int),
            cast('hello' as varchar(16)),
@@ -462,6 +925,118 @@ class TestNuoDBCython(nuodb_base.NuoBase):
                 con.commit()
             finally:
                 con.close()
+
+    def test_cython_matches_pure_python_executemany(self):
+        """executemany()'s encode path (encode_batch_rows/_cython_exotic_
+        encode) must produce the same server-visible result -- both
+        cursor.executemany()'s own return value and the row set actually
+        inserted -- whether or not the Cython accelerator is active.
+        Covers every type encode_batch_rows fast-paths (int/str/float/
+        bool/None/Binary/Decimal/Date/Time/Timestamp) plus the exotic
+        bridge (still reached for None values embedded in typed columns
+        via cursor.setinputsizes-free NULLs, exercised implicitly here)."""
+        from pynuodb import encodedsession
+
+        if not getattr(encodedsession, '_HAVE_FETCH_ACCEL', False):
+            pytest.skip("Cython extension not loaded; nothing to compare")
+
+        rows = [
+            (1, 'hello', 3.5, True, decimal.Decimal('1.25'),
+             datetime.date(2024, 3, 15), datetime.time(12, 34, 56, 789000),
+             datetime.datetime(2024, 3, 15, 12, 34, 56, 789000),
+             pynuodb.Binary(b'\x00\x01\x02short')),
+            (2, 'x' * 80, -2.25, False, decimal.Decimal('-9.99'),
+             datetime.date(1970, 1, 1), datetime.time(0, 0, 0),
+             datetime.datetime(1970, 1, 1, 0, 0, 0),
+             pynuodb.Binary(b'\xff' * 80)),
+            (3, '', 0.0, True, decimal.Decimal('0.00'),
+             datetime.date(9999, 12, 31), datetime.time(23, 59, 59, 999999),
+             datetime.datetime(9999, 12, 31, 23, 59, 59, 999999),
+             pynuodb.Binary(b'')),
+            (4, None, None, None, None, None, None, None, None),
+        ]
+
+        def run(use_accel):
+            encodedsession._HAVE_FETCH_ACCEL = use_accel
+            con = self._connect()
+            try:
+                cursor = con.cursor()
+                cursor.execute("DROP TABLE IF EXISTS cython_batch_write")
+                cursor.execute(
+                    "CREATE TABLE cython_batch_write ("
+                    "id INTEGER, s VARCHAR(100), d DOUBLE,"
+                    " b BOOLEAN, dec DECIMAL(10,2),"
+                    " dt DATE, tm TIME, ts TIMESTAMP, bin BINARY VARYING(200))")
+                results = cursor.executemany(
+                    "INSERT INTO cython_batch_write"
+                    " (id, s, d, b, dec, dt, tm, ts, bin)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+                con.commit()
+                cursor.execute(
+                    "SELECT id, s, d, b, dec, dt, tm, ts, bin"
+                    " FROM cython_batch_write ORDER BY id")
+                return results, cursor.fetchall()
+            finally:
+                con.close()
+
+        try:
+            cython_results, cython_rows = run(True)
+            python_results, python_rows = run(False)
+        finally:
+            encodedsession._HAVE_FETCH_ACCEL = True
+            con = self._connect()
+            try:
+                con.cursor().execute("DROP TABLE IF EXISTS cython_batch_write")
+                con.commit()
+            finally:
+                con.close()
+
+        assert cython_results == python_results
+        assert cython_rows == python_rows
+
+    def test_executemany_batch_error_matches_pure_python(self):
+        """A batch that fails partway (duplicate primary key) must raise
+        BatchError with the same message and per-statement results list
+        whether decode_batch_results (Cython) or the pure-Python getInt()
+        loop decoded the result codes."""
+        from pynuodb import encodedsession
+        from pynuodb.exception import BatchError
+
+        if not getattr(encodedsession, '_HAVE_FETCH_ACCEL', False):
+            pytest.skip("Cython extension not loaded; nothing to compare")
+
+        def run(use_accel):
+            encodedsession._HAVE_FETCH_ACCEL = use_accel
+            con = self._connect()
+            try:
+                cursor = con.cursor()
+                cursor.execute("DROP TABLE IF EXISTS cython_batch_err")
+                cursor.execute(
+                    "CREATE TABLE cython_batch_err (id INTEGER PRIMARY KEY)")
+                try:
+                    cursor.executemany(
+                        "INSERT INTO cython_batch_err (id) VALUES (?)",
+                        [(1,), (1,), (2,)])
+                    raise AssertionError("expected BatchError")
+                except BatchError as exc:
+                    return str(exc), list(exc.results)
+            finally:
+                con.close()
+
+        try:
+            cython_msg, cython_results = run(True)
+            python_msg, python_results = run(False)
+        finally:
+            encodedsession._HAVE_FETCH_ACCEL = True
+            con = self._connect()
+            try:
+                con.cursor().execute("DROP TABLE IF EXISTS cython_batch_err")
+                con.commit()
+            finally:
+                con.close()
+
+        assert cython_results == python_results
+        assert cython_msg == python_msg
 
     def test_cython_matches_pure_python_multi_batch(self):
         """A result set big enough to span several server batches must
