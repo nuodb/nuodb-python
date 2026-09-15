@@ -41,8 +41,10 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install make
-          command: dnf install make -y
+          name: Install build tools
+          command: |
+            PYVER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+            dnf install -y make gcc "python${PYVER}-devel"
       - run:
           name: Install pip
           command: |

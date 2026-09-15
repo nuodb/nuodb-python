@@ -9,6 +9,9 @@
 
 *.so
 
+# Cython-generated C source (rebuilt from .pyx by setup.py)
+pynuodb/_fetch.c
+
 /.virttemp
 /.testtemp
 

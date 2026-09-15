@@ -25,6 +25,7 @@ import time
 
 import pytest
 
+import pynuodb
 from tests import nuodb_base
 
 
@@ -254,5 +255,36 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
 
             result = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
             assert len(result) == _LARGE
+        finally:
+            con.close()
+
+    def test_fetchall_binary_types(self, benchmark):
+        """SELECT over BLOB / CLOB / BINARY VARYING columns.
+
+        Exercises the OPAQUE/BLOB/CLOB decode branches specifically (the
+        ones that build a bytearray/bytes object per cell), which the other
+        benchmarks above don't touch at all.
+        """
+        con = self._connect()
+        try:
+            cur = con.cursor()
+            cur.execute("DROP TABLE IF EXISTS perf_binary")
+            cur.execute(
+                "CREATE TABLE perf_binary (b BLOB, c CLOB, v BINARY VARYING(200))")
+            con.commit()
+            rows = [(pynuodb.Binary(('blob-%d-' % i).encode() * 20),
+                     ('clob-%d-' % i) * 20,
+                     pynuodb.Binary(('var-%d-' % i).encode() * 5))
+                    for i in range(_SMALL)]
+            cur.executemany(
+                "INSERT INTO perf_binary (b, c, v) VALUES (?, ?, ?)", rows)
+            con.commit()
+
+            def target():
+                cur.execute("SELECT b, c, v FROM perf_binary")
+                return cur.fetchall()
+
+            result = benchmark.pedantic(target, warmup_rounds=2, rounds=100, iterations=1)
+            assert len(result) == _SMALL
         finally:
             con.close()

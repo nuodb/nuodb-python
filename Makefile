@@ -32,6 +32,8 @@ SUDO ?= sudo -n
 NUODB_HOME ?= /opt/nuodb
 
 _INSTALL_CMD =	$(PIP) install '.[crypto]'
+_BUILD_EXT_CMD = $(PIP) install 'setuptools>=40.8.0' 'Cython>=3.0' \
+			&& $(PYTHON) setup.py build_ext --inplace
 _VERIFY_CMD =	$(NUODB_HOME)/bin/nuocmd show domain
 _PYTEST_CMD =	$(MKDIR) $(ARTIFACTDIR) $(RESULTSDIR) \
 		&& TMPDIR='$(TMPDIR)' PATH="$(NUODB_HOME)/bin:$$PATH" \
@@ -43,11 +45,13 @@ all:
 
 install:
 	$(_INSTALL_CMD)
+	$(_BUILD_EXT_CMD)
 
 check: mypy pylint fulltest
 
 fulltest:
 	$(_INSTALL_CMD)
+	$(_BUILD_EXT_CMD)
 	$(PIP) install -r test_requirements.txt
 	$(_VERIFY_CMD)
 	$(_PYTEST_CMD)

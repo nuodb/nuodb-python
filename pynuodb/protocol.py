@@ -41,6 +41,9 @@ UTF8LEN0                          = 109
 UTF8LEN39                         = 148
 OPAQUELEN0                        = 149
 OPAQUELEN39                       = 188
+# BLOBLEN*/CLOBLEN* are deprecated for encoding: the driver writes Binary
+# values via OPAQUE (putOpaque) instead of putBlob/putClob. They are still
+# recognized when decoding values from the server.
 BLOBLEN0                          = 189
 BLOBLEN4                          = 193
 CLOBLEN0                          = 194
