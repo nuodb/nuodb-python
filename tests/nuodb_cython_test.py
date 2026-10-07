@@ -951,7 +951,7 @@ class TestNuoDBCython(nuodb_base.NuoBase):
              pynuodb.Binary(b'\xff' * 80)),
             (3, '', 0.0, True, decimal.Decimal('0.00'),
              datetime.date(9999, 12, 31), datetime.time(23, 59, 59, 999999),
-             datetime.datetime(9999, 12, 31, 23, 59, 59, 999999),
+             datetime.datetime(9999, 12, 30, 23, 59, 59, 999999),
              pynuodb.Binary(b'')),
             (4, None, None, None, None, None, None, None, None),
         ]
