@@ -415,3 +415,45 @@ class TestNuoDBDateTime(nuodb_base.NuoBase):
             assert rows[0][0].minute == 0
             assert rows[0][0].second == 1
             assert rows[0][0].microsecond == 200000
+
+    @pytest.mark.parametrize('timezone', [
+        'UTC', 'America/New_York', 'Pacific/Pago_Pago',   # at or west of UTC
+        'Europe/Dublin', 'Asia/Tokyo', 'Pacific/Kiritimati',  # east of UTC
+    ])
+    @pytest.mark.parametrize('use_accel', [True, False])
+    def test_date_in_session_timezone(self, timezone, use_accel):
+        # type: (str, bool) -> None
+        """A DATE reads back as the same date in every session time zone.
+
+        The server sends a DATE as local midnight in the session time zone;
+        east of UTC that moment is on the previous UTC day, which used to be
+        decoded as the previous date.
+        """
+        from pynuodb import encodedsession
+
+        if use_accel and not getattr(encodedsession, '_HAVE_FETCH_ACCEL', False):
+            pytest.skip("Cython extension not loaded")
+        dates = [datetime.date(1970, 1, 1), datetime.date(2024, 1, 15),
+                 datetime.date(2024, 6, 1), datetime.date(1865, 4, 14),
+                 datetime.date(9999, 12, 31)]
+        saved = encodedsession._HAVE_FETCH_ACCEL
+        encodedsession._HAVE_FETCH_ACCEL = use_accel
+        try:
+            with self._connect(options={'TimeZone': timezone}) as con:
+                cursor = con.cursor()
+                cursor.execute("create temporary table SESSION_DATES(n int, day date)")
+                cursor.executemany("insert into SESSION_DATES VALUES (?, ?)",
+                                   list(enumerate(dates)))
+                cursor.execute("insert into SESSION_DATES VALUES (?, ?)",
+                               (len(dates), datetime.date(2000, 2, 29)))
+                cursor.execute("insert into SESSION_DATES VALUES (%d, DATE '2024-06-01')"
+                               % (len(dates) + 1))
+                cursor.execute("select day, cast(day as string) from SESSION_DATES order by n")
+                rows = cursor.fetchall()
+        finally:
+            encodedsession._HAVE_FETCH_ACCEL = saved
+
+        expected = dates + [datetime.date(2000, 2, 29), datetime.date(2024, 6, 1)]
+        assert [r[0] for r in rows] == expected
+        # and the server agrees about what was stored
+        assert [r[1] for r in rows] == [d.isoformat() for d in expected]

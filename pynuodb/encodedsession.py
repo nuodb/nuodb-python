@@ -1205,7 +1205,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             date = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
-            return datatype.DateFromTicks(date // (10 ** scale))
+            return datatype.SessionDateFromTicks(date // (10 ** scale),
+                                                 self.timezone_info)
 
         raise DataError('Not a scaled date')
 
