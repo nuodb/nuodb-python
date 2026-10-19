@@ -45,7 +45,7 @@ _Binary             = _datatype.Binary
 _Timestamp          = _datatype.Timestamp
 _Date               = _datatype.Date
 _Time               = _datatype.Time
-_DateFromTicks      = _datatype.DateFromTicks
+_SessionDateFromTicks = _datatype.SessionDateFromTicks
 _TimeFromTicks      = _datatype.TimeFromTicks
 _TimestampFromTicks = _datatype.TimestampFromTicks
 _DateToTicks        = _datatype.DateToTicks
@@ -139,8 +139,8 @@ cdef inline object _unpack_time_scale(int scale, time_val):
     return ticks, micros
 
 
-cdef inline object _make_scaled_date(date_val, int scale):
-    return _DateFromTicks(date_val // _POW10[scale])
+cdef inline object _make_scaled_date(date_val, int scale, tz):
+    return _SessionDateFromTicks(date_val // _POW10[scale], tz)
 
 
 cdef inline object _make_scaled_time(int scale, time_val, tz):
@@ -173,9 +173,10 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
         BufferError) or reassigned: `self.__input = ...` elsewhere is not
         blocked by anything and would leave `base` pointing at the old
         buffer with no error at all.
-    :param tz_info: tzinfo for SCALEDTIME / SCALEDTIMESTAMP construction.
-        tz_info=None with a tz-bearing code produces a naive value, not the
-        local zone.
+    :param tz_info: session tzinfo for SCALEDDATE / SCALEDTIME /
+        SCALEDTIMESTAMP construction. tz_info=None with a tz-bearing code
+        produces a naive value, not the local zone, and takes a SCALEDDATE's
+        date in UTC.
     :returns: (new_pos, complete)
     """
     cdef:
@@ -408,7 +409,7 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
 
             elif SCALEDDATELEN0 < code <= SCALEDDATELEN8:
                 value_obj = _read_scaled_operand(base, &pos, SCALEDDATELEN0, code, n, &scale, b'SCALEDDATE')
-                val = _make_scaled_date(value_obj, scale)
+                val = _make_scaled_date(value_obj, scale, tz_info)
                 _pynuodb_tuple_steal(row_ptr, col,
                     _pynuodb_incref(<PyObject*>val))
 
