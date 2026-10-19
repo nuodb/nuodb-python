@@ -524,12 +524,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         prepared_statement.handle = self.getInt()
         prepared_statement.parameter_count = self.getInt()
-        # The server rejects a wrong parameter count itself; this mirrors the
-        # JDBC driver's updateNumberParameters() check on the reply.
-        if prepared_statement.parameter_count < len(parameters):
-            raise ProgrammingError(
-                "Incorrect number of parameters: expected %d, got %d" %
-                (prepared_statement.parameter_count, len(parameters)))
 
         result = self.getInt()
         rowcount = self.getInt()
