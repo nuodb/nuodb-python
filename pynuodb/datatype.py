@@ -81,6 +81,19 @@ def _fast_ymd2day(year, month, day):
         return (d - _EPOCH_DATE).days
     return ymd2day(year, month, day)
 
+
+# Fast paths for the *FromTicks / *ToTicks conversions below.  Within the
+# Gregorian range python's proleptic calendar matches the NuoDB calendar, so
+# C-level datetime arithmetic gives identical results to the jdcal-based
+# code, which is kept as the _*_slow fallbacks for everything else.
+_EPOCH_ORDINAL = _EPOCH_DATE.toordinal()
+_GREGORIAN_START_DAY = (_GREGORIAN_START_DATE - _EPOCH_DATE).days
+_LAST_DAY = (Date(9999, 12, 31) - _EPOCH_DATE).days
+_EPOCH_UTC = Timestamp(1970, 1, 1, tzinfo=UTC)
+_EPOCH_NAIVE = Timestamp(1970, 1, 1)
+_ONE_DAY = TimeDelta(days=1)
+_ZERO_DELTA = TimeDelta(0)
+
 try:
     LOCALZONE_NAME = tzlocal.get_localzone_name()  # type: ignore
 except AttributeError:
@@ -123,6 +136,14 @@ class Binary(bytes):
 def DateFromTicks(ticks):
     # type: (int) -> Date
     """Convert ticks to a Date object."""
+    day = ticks // TICKSDAY
+    if _GREGORIAN_START_DAY <= day <= _LAST_DAY:
+        return Date.fromordinal(day + _EPOCH_ORDINAL)
+    return _DateFromTicks_slow(ticks)
+
+
+def _DateFromTicks_slow(ticks):
+    # type: (int) -> Date
     y, m, d = day2ymd(ticks // TICKSDAY)
     return Date(year=y, month=m, day=d)
 
@@ -160,6 +181,17 @@ def TimeFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
 def TimestampFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
     # type: (int, int, Optional[tzinfo]) -> Timestamp
     """Convert ticks to a Timestamp object."""
+    if (_GREGORIAN_START_DAY <= ticks // TICKSDAY <= _LAST_DAY
+            and 0 <= micro < 1000000):
+        dt = _EPOCH_UTC + TimeDelta(seconds=ticks, microseconds=micro)
+        if zoneinfo is None:
+            return dt.replace(tzinfo=None)
+        return dt.astimezone(zoneinfo)
+    return _TimestampFromTicks_slow(ticks, micro, zoneinfo)
+
+
+def _TimestampFromTicks_slow(ticks, micro=0, zoneinfo=LOCALZONE):
+    # type: (int, int, Optional[tzinfo]) -> Timestamp
     day = ticks // TICKSDAY
     y, m, d = day2ymd(day)
     timeticks = ticks % TICKSDAY
@@ -213,6 +245,32 @@ def _packtime(seconds, microseconds):
 def TimeToTicks(value, zoneinfo=LOCALZONE):
     # type: (Time, tzinfo) -> Tuple[int, int]
     """Convert a Time object to ticks."""
+    tz_info = value.tzinfo
+    if not tz_info:
+        tz_info = zoneinfo
+    local = Timestamp(1970, 1, 1, value.hour, value.minute, value.second,
+                      value.microsecond)
+    offset = tz_info.utcoffset(local)
+    if offset is None:
+        return _TimeToTicks_slow(value, zoneinfo)
+
+    td = (local - _EPOCH_NAIVE) - offset
+    # fence time within a day range
+    if td < _ZERO_DELTA:
+        td += _ONE_DAY
+    if td > _ONE_DAY:
+        td -= _ONE_DAY
+
+    seconds = td.days * TICKSDAY + td.seconds
+    if td.microseconds == 0:
+        # The original encoding went through Decimal(str(float)), which
+        # renders whole seconds as "N.0": keep sending them with scale 1.
+        return (seconds * 10, 1)
+    return _packtime(seconds, td.microseconds)
+
+
+def _TimeToTicks_slow(value, zoneinfo=LOCALZONE):
+    # type: (Time, tzinfo) -> Tuple[int, int]
     epoch = Date(1970, 1, 1)
     tz_info = value.tzinfo
     if not tz_info:
