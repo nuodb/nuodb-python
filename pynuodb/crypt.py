@@ -30,7 +30,7 @@ See the LICENSE file provided with this software.
 # byte values.
 
 import hashlib
-import random
+import secrets
 import binascii
 
 try:
@@ -250,7 +250,7 @@ class ClientPassword(RemotePassword):
         """Return the client key."""
         group = self._getGroup()
 
-        self.__privateKey = random.getrandbits(256)
+        self.__privateKey = secrets.randbits(256)
         self.__publicKey = pow(group.getGenerator(), self.__privateKey, group.getPrime())
 
         return toHex(self.__publicKey)
