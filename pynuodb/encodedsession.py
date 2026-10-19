@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass
 
-from .exception import DataError, EndOfStream, ProgrammingError
+from .exception import DatabaseError, DataError, EndOfStream, ProgrammingError
 from .exception import db_error_handler, BatchError
 from .session import SessionException
 
@@ -497,6 +497,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         Mirrors RemPreparedStatement.prepareAndExecute() in the JDBC driver.
         If the server rejects the statement it stays unprepared, so its next
         execution simply tries again.
+
+        PEP 249 requires a wrong number of parameters to raise
+        ProgrammingError, but here the server reports it as a DataError.  So,
+        only when the execution fails, prepare the statement to learn its
+        real parameter count and raise ProgrammingError if that was the cause.
         """
         assert prepared_statement.query is not None
         self._putMessageId(protocol.PREPAREANDEXECUTETOGETHER)
@@ -511,7 +516,11 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         for param in parameters:
             self.putValue(param)
 
-        self._exchangeMessages()
+        try:
+            self._exchangeMessages()
+        except DataError:
+            self._check_parameter_count(prepared_statement, len(parameters))
+            raise
 
         prepared_statement.handle = self.getInt()
         prepared_statement.parameter_count = self.getInt()
@@ -527,6 +536,20 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         self.__execute_postfix()
 
         return statement.ExecutionResult(prepared_statement, result, rowcount)
+
+    def _check_parameter_count(self, prepared_statement, count):
+        # type: (statement.PreparedStatement, int) -> None
+        """Raise ProgrammingError if the statement does not take `count`
+        parameters; do nothing if it can't be prepared, so the caller reports
+        its original error instead."""
+        try:
+            self.ensure_prepared(prepared_statement)
+        except DatabaseError:
+            return
+        if prepared_statement.parameter_count != count:
+            raise ProgrammingError(
+                "Incorrect number of parameters: expected %d, got %d" %
+                (prepared_statement.parameter_count, count))
 
     def execute_batch_prepared_statement(self, prepared_statement, param_lists):
         # type: (statement.PreparedStatement, Collection[Collection[result_set.Value]]) -> List[int]

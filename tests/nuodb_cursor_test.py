@@ -41,16 +41,18 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         assert cursor.rowcount == -1
         assert cursor.query == statement
 
-    # As in the JDBC driver, a statement's first execution prepares it on the
-    # server (PREPAREANDEXECUTETOGETHER), so a wrong parameter count is only
-    # caught client-side (ProgrammingError) once the statement is prepared;
-    # before that the server rejects it (DataError).
+    # A statement's first execution prepares it on the server
+    # (PREPAREANDEXECUTETOGETHER), so the first wrong parameter count is
+    # detected by the server and later ones client-side; PEP 249 requires
+    # ProgrammingError either way.
 
     def test_insufficient_parameters(self):
         con = self._connect()
         cursor = con.cursor()
 
-        with pytest.raises(DataError):
+        with pytest.raises(ProgrammingError):
+            cursor.execute("SELECT ?, ? FROM DUAL", [1])
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT ?, ? FROM DUAL", [1])
 
         cursor.execute("SELECT ?, ? FROM DUAL", [1, 2])
@@ -61,10 +63,10 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         con = self._connect()
         cursor = con.cursor()
 
-        with pytest.raises(DataError):
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT 1 FROM DUAL", [1])
 
-        with pytest.raises(DataError):
+        with pytest.raises(ProgrammingError):
             cursor.execute("SELECT ? FROM DUAL", [1, 2])
 
         cursor.execute("SELECT ? FROM DUAL", [1])
@@ -78,9 +80,9 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         cursor.execute("DROP TABLE IF EXISTS paet_param_table")
         cursor.execute("CREATE TABLE paet_param_table (f1 INTEGER)")
 
-        with pytest.raises(DataError):
+        with pytest.raises(ProgrammingError):
             cursor.execute("INSERT INTO paet_param_table VALUES (?)", [1, 2])
-        with pytest.raises(DataError):
+        with pytest.raises(ProgrammingError):
             cursor.execute("INSERT INTO paet_param_table VALUES (?)", [])
 
         cursor.execute("SELECT COUNT(*) FROM paet_param_table")
@@ -144,13 +146,25 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         assert cursor.description is None
         cursor.execute("DROP TABLE paet_desc_table")
 
-    def test_failed_first_execution_retries_prepare(self):
-        """A rejected first execution leaves the statement unprepared, so a
-        later good execution still works and closing never sends handle -1."""
+    def test_failed_first_execution_keeps_its_error(self):
+        """A first execution that fails for some other reason still raises
+        the server's error, and the statement remains usable."""
         con = self._connect()
         cursor = con.cursor()
         with pytest.raises(DataError):
-            cursor.execute("SELECT ? FROM DUAL", [])
+            cursor.execute("SELECT CAST(? AS INTEGER) FROM DUAL", ['abc'])
+        cursor.execute("SELECT CAST(? AS INTEGER) FROM DUAL", ['5'])
+        assert cursor.fetchone()[0] == 5
+        cursor.close()
+        con.close()
+
+    def test_failed_first_execution_retries_prepare(self):
+        """A first execution that can't even be prepared leaves the statement
+        unprepared, and closing it never sends handle -1."""
+        con = self._connect()
+        cursor = con.cursor()
+        with pytest.raises(ProgrammingError):
+            cursor.execute("SELECT ? FROM no_such_table_paet", [1])
         cursor.execute("SELECT ? FROM DUAL", ['ok'])
         assert cursor.fetchone()[0] == 'ok'
         cursor.close()
