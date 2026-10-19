@@ -1,3 +1,14 @@
 [build-system]
 requires = ["setuptools>=40.8.0", "wheel", "Cython>=3.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+# PyPy: untested; the extension relies on CPython C-API details (e.g. GC
+# tracking of row tuples) that PyPy's cpyext only emulates.
+# win32/*_i686: untested 32-bit targets; the MSVC portability shim in
+# _cutil.h also only implements the 64-bit _BitScanReverse64 intrinsic.
+skip = ["pp*", "*-win32", "*-manylinux_i686", "*-musllinux_i686"]
+
+# Smoke-test the compiled extension. setup.py builds it with optional=True,
+# so a wheel whose compile failed would otherwise silently ship pure Python.
+test-command = "python -c \"import pynuodb; import pynuodb._fetch\""

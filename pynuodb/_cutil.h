@@ -42,6 +42,23 @@ NUODB_INLINE void _pynuodb_tuple_steal(PyObject *t, Py_ssize_t i, PyObject *o)
     PyTuple_SET_ITEM(t, i, o);
 }
 
+/* PyTuple_New + PyTuple_SET_ITEM tuples start out GC-tracked. CPython only
+   untracks a tuple of untracked items the first time a collection scans
+   it, so a large fetchall() pays for every row tuple to be scanned once
+   by the young-generation collector. Untracking at creation skips that
+   scan. Like CPython's own rule, untrack only when no item is tracked:
+   UUID, Binary and (on 3.13+) Decimal are, so a row holding one of those
+   could be part of a cycle and must stay visible to the collector. */
+NUODB_INLINE void _pynuodb_untrack_row(PyObject *t, Py_ssize_t n)
+{
+    Py_ssize_t i;
+    for (i = 0; i < n; i++) {
+        if (PyObject_GC_IsTracked(PyTuple_GET_ITEM(t, i)))
+            return;
+    }
+    PyObject_GC_UnTrack(t);
+}
+
 NUODB_INLINE PyObject *_pynuodb_long_from_long(long v)
 {
     return PyLong_FromLong(v);
