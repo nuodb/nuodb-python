@@ -257,6 +257,31 @@ def _encode_batch(rows):
     return bytearray(body + end_marker)
 
 
+def test_decode_next_batch_untracks_only_rows_without_tracked_values():
+    """Rows holding only untracked values (int/str/float/None/bool) are
+    removed from GC tracking, the way CPython treats BUILD_TUPLE tuples.
+    Rows holding a GC-tracked value (UUID, Binary) must stay tracked, or a
+    cycle through that value could never be collected."""
+    import gc
+    import pynuodb._fetch as _fetch
+
+    buf = _encode_batch([
+        [_encode_int(7), _encode_str('abc'), _encode_double(1.5),
+         _encode_null(), _encode_bool(True)],
+        [_encode_int(8), _encode_uuid(bytes(range(16))), _encode_null(),
+         _encode_null(), _encode_null()],
+        [_encode_int(9), _encode_bytes(b'\x00\x01'), _encode_null(),
+         _encode_null(), _encode_null()],
+    ])
+    results = []
+    _fetch.decode_next_batch(buf, 0, 5, results, _no_exotic, None)
+
+    assert len(results) == 3
+    assert not gc.is_tracked(results[0])
+    assert gc.is_tracked(results[1])
+    assert gc.is_tracked(results[2])
+
+
 def test_decode_next_batch_truncation_never_misbehaves():
     """Truncating a valid multi-row, multi-type buffer at every possible
     length must never do anything but raise a clean exception or return
