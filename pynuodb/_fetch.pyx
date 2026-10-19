@@ -8,23 +8,49 @@ Replaces result_set.ResultSet and the decode loop in
 EncodedSession.fetch_result_set_next(). decode_next_batch() handles common
 wire types inline; anything else goes through exotic_fn back into
 EncodedSession.getValue().
+
+encode_batch_rows() and decode_batch_results() are the write-side
+counterpart, used by EncodedSession.execute_batch_prepared_statement():
+encoding every row of an executemany() batch (None/bool/int/str/float/
+datatype.Binary/decimal.Decimal/datatype.Date/Time/Timestamp inline,
+anything else through exotic_fn back into EncodedSession.putValue() via
+_cython_exotic_encode) and decoding the per-statement result codes read
+back afterwards.
 """
 
-from cpython.bytes     cimport PyBytes_FromStringAndSize
-from cpython.bytearray cimport PyByteArray_FromStringAndSize
+from cpython.bytes     cimport (
+    PyBytes_FromStringAndSize,
+    PyBytes_AS_STRING,
+    PyBytes_GET_SIZE,
+)
+from cpython.bytearray cimport (
+    PyByteArray_FromStringAndSize,
+    PyByteArray_AS_STRING,
+    PyByteArray_GET_SIZE,
+    PyByteArray_Resize,
+)
+from cpython.unicode   cimport PyUnicode_AsUTF8String, PyUnicode_DecodeUTF8
+from cpython.long      cimport PyLong_AsLongLongAndOverflow
 from cpython.tuple     cimport PyTuple_New
 from cpython.ref       cimport PyObject
+from libc.string       cimport memcpy
 
 import decimal as _decimal
 import uuid as _uuid
 from . import datatype as _datatype
-from .exception import DataError, EndOfStream
+from .exception import DataError, EndOfStream, ProgrammingError
 
 _Decimal            = _decimal.Decimal
 _Binary             = _datatype.Binary
+_Timestamp          = _datatype.Timestamp
+_Date               = _datatype.Date
+_Time               = _datatype.Time
 _DateFromTicks      = _datatype.DateFromTicks
 _TimeFromTicks      = _datatype.TimeFromTicks
 _TimestampFromTicks = _datatype.TimestampFromTicks
+_DateToTicks        = _datatype.DateToTicks
+_TimeToTicks        = _datatype.TimeToTicks
+_TimestampToTicks   = _datatype.TimestampToTicks
 _UUID               = _uuid.UUID
 
 cdef tuple _POW10 = tuple(10 ** i for i in range(256))
@@ -43,6 +69,9 @@ cdef extern from "_cutil.h":
     unsigned long long _pynuodb_be_u64(const unsigned char *p, int n) nogil
     object _pynuodb_pylong_be_signed(const unsigned char *p, Py_ssize_t n)
     int _pynuodb_avail_ok(Py_ssize_t pos, Py_ssize_t need, Py_ssize_t n) nogil
+    int _pynuodb_encode_signed(long long v, unsigned char *out) nogil
+    int _pynuodb_encode_unsigned(unsigned long long n, unsigned char *out) nogil
+    void _pynuodb_double_to_be(double d, unsigned char *out) nogil
 
 
 include "_codes.pxi"
@@ -410,3 +439,439 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
         results.append(row_tup)
 
     return pos, complete
+
+
+# ----- Batch-execute result readback -----------------------------------------
+#
+# execute_batch_prepared_statement() sends one row-count-or-error-code int
+# per statement in the batch, then reads them all back in a loop (getInt()
+# per row, occasionally followed by an error int + string on failure). This
+# mirrors that loop in C, reusing the same bounds-checked primitives
+# decode_next_batch() uses (_check_avail, _pynuodb_be_i64/_be_u64).
+
+cdef inline long long _decode_wire_int(const unsigned char* base, Py_ssize_t* pos,
+                                       Py_ssize_t n) except? -1:
+    """Read one getInt()-shaped value (codes 10-59) and advance *pos."""
+    _check_avail(pos[0], 1, n, b'batch result code')
+    cdef int code = base[pos[0]]
+    cdef int nbytes
+    cdef long long ival
+    if INTMINUS10 <= code <= INT31:
+        pos[0] += 1
+        return code - INT0
+    if code > INT31 and code <= INTLEN8:      # INTLEN1..INTLEN8: 52..59
+        nbytes = code - INTLEN0
+        _check_avail(pos[0] + 1, nbytes, n, b'batch result code')
+        pos[0] += 1
+        ival = _pynuodb_be_i64(base + pos[0], nbytes)
+        pos[0] += nbytes
+        return ival
+    raise DataError('Not an integer: batch result code at offset %d' % pos[0])
+
+
+cdef inline object _decode_wire_string(const unsigned char* base, Py_ssize_t* pos,
+                                       Py_ssize_t n):
+    """Read one getString()-shaped value (codes 69-72, 109-148) and advance
+    *pos. Only reachable for a batch error message, so only those two ranges
+    need handling here (not the full getValue() dispatch)."""
+    _check_avail(pos[0], 1, n, b'batch error message')
+    cdef int code = base[pos[0]]
+    cdef int nbytes
+    cdef Py_ssize_t length
+    if UTF8LEN0 <= code <= UTF8LEN39:
+        length = code - UTF8LEN0
+        pos[0] += 1
+        if length == 0:
+            return u''
+        _check_avail(pos[0], length, n, b'batch error message')
+        val = PyUnicode_DecodeUTF8(<char*>(base + pos[0]), length, NULL)
+        pos[0] += length
+        return val
+    if UTF8COUNT1 <= code <= UTF8COUNT4:
+        nbytes = code - UTF8COUNT0
+        _check_avail(pos[0] + 1, nbytes, n, b'batch error message')
+        pos[0] += 1
+        length = <Py_ssize_t>_pynuodb_be_u64(base + pos[0], nbytes)
+        pos[0] += nbytes
+        if length == 0:
+            return u''
+        _check_avail(pos[0], length, n, b'batch error message')
+        val = PyUnicode_DecodeUTF8(<char*>(base + pos[0]), length, NULL)
+        pos[0] += length
+        return val
+    raise DataError('getString: Invalid type code: %d' % code)
+
+
+def decode_batch_results(bytearray data, Py_ssize_t pos, Py_ssize_t count,
+                         dict stringify_error):
+    """Decode the `count` per-statement result codes of a batch execute.
+
+    Mirrors the pure-Python loop in
+    EncodedSession.execute_batch_prepared_statement:
+
+        result = getInt()
+        if result == -3:
+            ec = getInt(); es = getString()   # error code + message
+
+    Every error payload is fully consumed off the wire (so the stream stays
+    in sync) even though only the *first* error's formatted message is kept,
+    matching the existing "only report first" behaviour exactly.
+
+    :param data: bytearray holding the raw server message (self.__input).
+    :param pos: read cursor (self.__inpos) at entry.
+    :param count: number of statements in the batch (len(param_lists)).
+    :param stringify_error: protocol.stringifyError, used to format the
+        first error the same way the pure-Python path does.
+    :returns: (results: list[int], new_pos: int, error_string: str or None).
+    """
+    cdef:
+        Py_ssize_t   n = len(data)
+        unsigned char[:] mv = data
+        const unsigned char* base
+        Py_ssize_t   i
+        long long    ival
+        int          ec
+        object       es
+        list         results = []
+        object       error_string = None
+
+    if count == 0:
+        return results, pos, None
+
+    # An empty buffer with count > 0 is a truncated response, not "nothing
+    # to decode": fall through so the first _check_avail (inside
+    # _decode_wire_int) raises EndOfStream instead of silently returning no
+    # results. &mv[0] itself is unsafe on an empty memoryview, so it's only
+    # taken when there's at least one byte.
+    base = &mv[0] if n > 0 else NULL
+
+    for i in range(count):
+        ival = _decode_wire_int(base, &pos, n)
+        results.append(ival)
+        if ival == -3:
+            ec = <int>_decode_wire_int(base, &pos, n)
+            es = _decode_wire_string(base, &pos, n)
+            if error_string is None:
+                error_string = '%s:%s' % (stringify_error[ec], es)
+
+    return results, pos, error_string
+
+
+# ----- Batch parameter encoding -----------------------------------------------
+#
+# The write-side counterpart to decode_next_batch(): the inner loop of
+# EncodedSession.execute_batch_prepared_statement (encode every row of an
+# executemany() batch into the wire message). Fast-paths None/bool/int/str/
+# float inline in C; everything else goes through exotic_fn, which should be
+# EncodedSession._cython_exotic_encode -- it runs the value through the
+# existing putValue() dispatch into a scratch buffer and hands back the
+# resulting wire bytes, so Decimal/datetime/Binary/Vector/oversized-int
+# encoding logic lives in exactly one place.
+
+cdef class _Buf:
+    """Growable wrapper around a Python bytearray with amortized-doubling
+    resize, so the batch encoder doesn't pay a realloc on every value."""
+
+    cdef bytearray obj
+    cdef Py_ssize_t used
+    cdef Py_ssize_t cap
+
+    def __cinit__(self, bytearray initial):
+        self.obj = initial
+        self.used = PyByteArray_GET_SIZE(initial)
+        self.cap = self.used
+
+    cdef inline void ensure(self, Py_ssize_t extra):
+        cdef Py_ssize_t need = self.used + extra
+        cdef Py_ssize_t newcap
+        if need > self.cap:
+            newcap = self.cap * 2 if self.cap > 0 else 64
+            if newcap < need:
+                newcap = need
+            PyByteArray_Resize(self.obj, newcap)
+            self.cap = newcap
+
+    cdef inline void put_byte(self, unsigned char b):
+        self.ensure(1)
+        (<unsigned char*> PyByteArray_AS_STRING(self.obj))[self.used] = b
+        self.used += 1
+
+    cdef inline void put_bytes(self, const unsigned char* p, Py_ssize_t n):
+        if n == 0:
+            return
+        self.ensure(n)
+        memcpy(<unsigned char*> PyByteArray_AS_STRING(self.obj) + self.used, p, n)
+        self.used += n
+
+    cdef finalize(self):
+        # ensure() over-allocates capacity ahead of what's actually used;
+        # this truncates back to the exact byte count written, matching the
+        # pure-Python loop's repeated bytearray.append()/+= (no trailing
+        # garbage), whether called after a clean finish or via `finally`
+        # after an exception mid-batch.
+        PyByteArray_Resize(self.obj, self.used)
+
+
+cdef inline void _put_int(_Buf buf, long long v):
+    """Encode a C long long using the putInt() wire rule."""
+    cdef unsigned char data[8]
+    cdef int nbytes
+    if v > -11 and v < 32:
+        buf.put_byte(<unsigned char>(INT0 + v))
+    else:
+        nbytes = _pynuodb_encode_signed(v, data)
+        buf.put_byte(<unsigned char>(INTLEN0 + nbytes))
+        buf.put_bytes(data, nbytes)
+
+
+cdef inline void _put_string(_Buf buf, str value):
+    """Encode a str using the putString() wire rule."""
+    cdef bytes data = PyUnicode_AsUTF8String(value)
+    cdef Py_ssize_t length = PyBytes_GET_SIZE(data)
+    cdef unsigned char lenbuf[8]
+    cdef int nbytes
+    if length < 40:
+        buf.put_byte(<unsigned char>(UTF8LEN0 + length))
+    else:
+        nbytes = _pynuodb_encode_unsigned(<unsigned long long> length, lenbuf)
+        buf.put_byte(<unsigned char>(UTF8COUNT0 + nbytes))
+        buf.put_bytes(lenbuf, nbytes)
+    buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(data), length)
+
+
+cdef inline void _put_double(_Buf buf, double value):
+    """Encode a float using the putDouble() wire rule (always 8 bytes)."""
+    cdef unsigned char data[8]
+    _pynuodb_double_to_be(value, data)
+    buf.put_byte(<unsigned char>(DOUBLELEN0 + 8))
+    buf.put_bytes(data, 8)
+
+
+cdef inline void _put_opaque(_Buf buf, bytes value):
+    """Encode a datatype.Binary value using the putOpaque() wire rule.
+
+    Binary is always written as OPAQUE (OPAQUELEN0-39 / OPAQUECOUNT1-4),
+    never BLOBLEN/CLOBLEN -- those are deprecated for encoding (see
+    protocol.py), and putValue()/putOpaque() never emit them for a Binary
+    parameter regardless of the target column's BLOB/CLOB/BINARY VARYING
+    type. Binary subclasses bytes without adding fields (datatype.py's
+    Binary.__new__ is just bytes.__new__(cls, data)), so the PyBytes_*
+    macros below read its buffer directly, same as for a plain bytes/str
+    value.
+    """
+    cdef Py_ssize_t length = PyBytes_GET_SIZE(value)
+    cdef unsigned char lenbuf[8]
+    cdef int nbytes
+    if length < 40:
+        buf.put_byte(<unsigned char>(OPAQUELEN0 + length))
+    else:
+        nbytes = _pynuodb_encode_unsigned(<unsigned long long> length, lenbuf)
+        buf.put_byte(<unsigned char>(OPAQUECOUNT0 + nbytes))
+        buf.put_bytes(lenbuf, nbytes)
+    buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(value), length)
+
+
+cdef inline void _put_exotic(_Buf buf, object exotic_fn, object param):
+    """Route `param` through exotic_fn(value) -> bytes and splice the
+    result in verbatim. Shared by every fast-path branch's overflow/
+    fallback case, and by the final catch-all else."""
+    cdef bytes exotic_bytes = exotic_fn(param)
+    buf.put_bytes(<const unsigned char*> PyBytes_AS_STRING(exotic_bytes),
+                 PyBytes_GET_SIZE(exotic_bytes))
+
+
+cdef inline bint _put_scaled_date(_Buf buf, object value):
+    """Encode a datatype.Date using the putScaledDate() wire rule.
+
+    DateToTicks() is unavoidably Python-level (calendar/Julian-Gregorian
+    math via jdcal, or the datetime-subtraction fast path in datatype.py);
+    this only skips the exotic_fn round-trip and uses the fast C signed-
+    int encoder for the final ticks bytes instead of
+    crypt.toSignedByteString. Returns False (writes nothing) if the ticks
+    value needs more than 8 bytes -- the caller falls back to exotic_fn,
+    same pattern as the oversized-int fast path above.
+    """
+    cdef object ticks_obj = _DateToTicks(value)
+    cdef long long ticks
+    cdef int overflow, nbytes
+    cdef unsigned char data[8]
+    ticks = PyLong_AsLongLongAndOverflow(ticks_obj, &overflow)
+    if overflow:
+        return False
+    nbytes = _pynuodb_encode_signed(ticks, data)
+    buf.put_byte(<unsigned char>(SCALEDDATELEN0 + nbytes))
+    buf.put_byte(0)  # Date's scale is always 0 (whole days)
+    buf.put_bytes(data, nbytes)
+    return True
+
+
+cdef inline bint _put_scaled_time(_Buf buf, object value, object tz_info):
+    """Encode a datatype.Time using the putScaledTime() wire rule.
+
+    TimeToTicks()'s scale is always 0-6 (microsecond precision), so it
+    always fits the wire format's single scale byte; only the ticks value
+    itself can overflow 8 bytes, same fallback as _put_scaled_date.
+    """
+    cdef object ticks_obj
+    cdef int scale
+    ticks_obj, scale = _TimeToTicks(value, tz_info)
+    cdef long long ticks
+    cdef int overflow, nbytes
+    cdef unsigned char data[8]
+    ticks = PyLong_AsLongLongAndOverflow(ticks_obj, &overflow)
+    if overflow:
+        return False
+    nbytes = _pynuodb_encode_signed(ticks, data)
+    buf.put_byte(<unsigned char>(SCALEDTIMELEN0 + nbytes))
+    buf.put_byte(<unsigned char> scale)
+    buf.put_bytes(data, nbytes)
+    return True
+
+
+cdef inline bint _put_scaled_timestamp(_Buf buf, object value, object tz_info):
+    """Encode a datatype.Timestamp using the putScaledTimestamp() wire
+    rule. Same shape/fallback as _put_scaled_time."""
+    cdef object ticks_obj
+    cdef int scale
+    ticks_obj, scale = _TimestampToTicks(value, tz_info)
+    cdef long long ticks
+    cdef int overflow, nbytes
+    cdef unsigned char data[8]
+    ticks = PyLong_AsLongLongAndOverflow(ticks_obj, &overflow)
+    if overflow:
+        return False
+    nbytes = _pynuodb_encode_signed(ticks, data)
+    buf.put_byte(<unsigned char>(SCALEDTIMESTAMPLEN0 + nbytes))
+    buf.put_byte(<unsigned char> scale)
+    buf.put_bytes(data, nbytes)
+    return True
+
+
+cdef inline bint _put_scaled_decimal(_Buf buf, object value):
+    """Encode a decimal.Decimal using the putScaledInt() wire rule.
+
+    Mirrors EncodedSession.putScaledInt() exactly, including the `+ 0`
+    normalization (its own comment: folds e-notation/context artifacts
+    into a plain Decimal) and computing the scale factor as
+    decimal.Decimal(10 ** scale) -- a native Python int power wrapped in
+    Decimal, deliberately *not* Decimal(10) ** scale, which would round
+    to the current context's precision instead of being exact. All of
+    that is unavoidably Python-level (arbitrary-precision decimal
+    arithmetic); this only skips the exotic_fn round-trip and uses the
+    fast C signed-int encoder for the final bytes.
+
+    Returns False (writes nothing), falling back to exotic_fn, for:
+      * a non-integer exponent (NaN/sNaN/Infinity) -- putScaledInt()
+        raises ValueError for these; let that exact error come from the
+        proven Python path instead of duplicating it here.
+      * scale > 255 -- doesn't fit the wire format's single scale byte;
+        putScaledInt()'s plain bytearray.append(scale) would raise
+        ValueError, but `<unsigned char> scale` would silently truncate.
+      * a scaled value needing more than 8 bytes -- putScaledInt() itself
+        falls back to putScaledCount2() (a different, unbounded wire
+        format) for this; exotic_fn reaches the same code unmodified.
+    """
+    cdef object normalized = value + 0
+    cdef object exponent = normalized.as_tuple()[2]
+    if type(exponent) is not int:
+        return False
+    cdef int scale = abs(exponent)
+    if scale > 255:
+        return False
+    cdef object scaled = int(normalized * _Decimal(10 ** scale))
+    cdef long long ival
+    cdef int overflow, nbytes
+    cdef unsigned char data[8]
+    ival = PyLong_AsLongLongAndOverflow(scaled, &overflow)
+    if overflow:
+        return False
+    nbytes = _pynuodb_encode_signed(ival, data)
+    buf.put_byte(<unsigned char>(SCALEDLEN0 + nbytes))
+    buf.put_byte(<unsigned char> scale)
+    buf.put_bytes(data, nbytes)
+    return True
+
+
+def encode_batch_rows(bytearray output, list param_lists,
+                      Py_ssize_t expected_param_count, object exotic_fn,
+                      object tz_info=None):
+    """Encode every row of a batch (plen + each param's value) into `output`.
+
+    :param output: bytearray to append to (self.__output); mutated in
+        place, matching the pure-Python loop's behaviour of repeatedly
+        appending to the same buffer.
+    :param param_lists: the executemany() sequence of parameter tuples.
+    :param expected_param_count: prepared_statement.parameter_count; every
+        row must match or ProgrammingError is raised (same message as the
+        pure-Python path).
+    :param exotic_fn: callable(value) -> bytes for anything not fast-pathed
+        here (Vector, oversized ints/Decimals, unknown objects). Should be
+        EncodedSession._cython_exotic_encode.
+    :param tz_info: tzinfo for SCALEDTIME/SCALEDTIMESTAMP construction --
+        should be EncodedSession.timezone_info, evaluated once by the
+        caller rather than per-value (that property builds a fresh
+        ZoneInfo each access). Required whenever a Time or Timestamp
+        parameter is present; None is only safe if none are.
+    """
+    cdef _Buf buf = _Buf(output)
+    cdef Py_ssize_t plen
+    cdef object row, param, tv
+    cdef long long ival
+    cdef int overflow
+    cdef bint ok
+
+    try:
+        for row in param_lists:
+            plen = len(row)
+            if plen != expected_param_count:
+                raise ProgrammingError(
+                    "Incorrect number of parameters specified,"
+                    " expected %d, got %d" % (expected_param_count, plen))
+            _put_int(buf, plen)
+
+            for param in row:
+                if param is None:
+                    buf.put_byte(NULL_V)
+                    continue
+
+                tv = type(param)
+                if tv is int or tv is bool:
+                    ival = PyLong_AsLongLongAndOverflow(param, &overflow)
+                    if overflow:
+                        _put_exotic(buf, exotic_fn, param)
+                    else:
+                        _put_int(buf, ival)
+                elif tv is str:
+                    _put_string(buf, <str> param)
+                elif tv is float:
+                    _put_double(buf, <double> param)
+                elif isinstance(param, _Binary):
+                    # isinstance, not `tv is _Binary`: putValue() itself
+                    # dispatches on isinstance(value, datatype.Binary), so
+                    # a Binary subclass must hit this fast path too, not
+                    # silently fall through to the slower exotic_fn bridge.
+                    _put_opaque(buf, <bytes> param)
+                elif isinstance(param, _Timestamp):
+                    # Checked before _Date: datetime.datetime subclasses
+                    # datetime.date, so a Timestamp would also match the
+                    # _Date isinstance check below -- same ordering
+                    # putValue() itself documents and relies on.
+                    ok = _put_scaled_timestamp(buf, param, tz_info)
+                    if not ok:
+                        _put_exotic(buf, exotic_fn, param)
+                elif isinstance(param, _Date):
+                    ok = _put_scaled_date(buf, param)
+                    if not ok:
+                        _put_exotic(buf, exotic_fn, param)
+                elif isinstance(param, _Time):
+                    ok = _put_scaled_time(buf, param, tz_info)
+                    if not ok:
+                        _put_exotic(buf, exotic_fn, param)
+                elif isinstance(param, _Decimal):
+                    ok = _put_scaled_decimal(buf, param)
+                    if not ok:
+                        _put_exotic(buf, exotic_fn, param)
+                else:
+                    _put_exotic(buf, exotic_fn, param)
+    finally:
+        buf.finalize()

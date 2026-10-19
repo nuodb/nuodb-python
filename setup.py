@@ -11,12 +11,11 @@ This package can be installed using pip as follows:
 
     pip install pynuodb
 
-To install with cryptography:
-
-    pip install 'pynuodb[crypto]'
-
-Note cryptography improves performance, but sessions are encrypted even if it
-is not intalled.
+`cryptography` is a required dependency: sessions are always encrypted, and
+without it the driver falls back to a pure-Python RC4 implementation that is
+dramatically slower (an O(n) Python byte loop over every wire message) --
+slow enough to dominate the cost of any batch insert/select, masking
+unrelated performance work. Installing pynuodb always pulls it in.
 """
 
 import glob
@@ -110,8 +109,7 @@ setup(
     license='BSD License',
     long_description=open(readme).read(),
     python_requires='>=3.9',
-    install_requires=['tzlocal', 'jdcal'],
-    extras_require=dict(crypto='cryptography>=36.0'),
+    install_requires=['tzlocal', 'jdcal', 'cryptography>=36.0'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',

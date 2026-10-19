@@ -20,6 +20,8 @@ median / stddev.  Numbers move meaningfully with the crypt, session,
 cursor and Cython PRs; that's the point.
 """
 
+import datetime
+import decimal
 import math
 import time
 
@@ -68,6 +70,37 @@ def _rows(n):
     return [(i, 'A dark and stormy night %d' % i) for i in range(n)]
 
 
+_SCALED_DDL_DROP     = "DROP TABLE IF EXISTS perf_bench_scaled"
+_SCALED_DDL_CREATE   = ("CREATE TABLE perf_bench_scaled "
+                        "(a INT, d DECIMAL(12,4), dt DATE, tm TIME, ts TIMESTAMP)")
+_SCALED_DDL_TRUNCATE = "TRUNCATE TABLE perf_bench_scaled"
+
+
+def _scaled_rows(n):
+    base = datetime.datetime(2024, 1, 1)
+    return [
+        (i,
+         decimal.Decimal('%d.%04d' % (i, i % 10000)),
+         (base + datetime.timedelta(days=i)).date(),
+         (base + datetime.timedelta(seconds=i)).time(),
+         base + datetime.timedelta(seconds=i))
+        for i in range(n)
+    ]
+
+
+_BINARY_DDL_DROP     = "DROP TABLE IF EXISTS perf_bench_binary"
+_BINARY_DDL_CREATE   = "CREATE TABLE perf_bench_binary (v BINARY VARYING(200))"
+_BINARY_DDL_TRUNCATE = "TRUNCATE TABLE perf_bench_binary"
+
+
+def _binary_rows(n):
+    # Lengths straddle the OPAQUELEN/OPAQUECOUNT inline-vs-counted boundary
+    # (40 bytes) across the range, like _encode_bytes' callers in the
+    # correctness suite -- exercises both encode_batch_rows' OPAQUELEN and
+    # OPAQUECOUNT branches, and decode_next_batch's matching pair.
+    return [(pynuodb.Binary(('bin-%d-' % i).encode() * 6),) for i in range(n)]
+
+
 class TestInsertSelectPerf(nuodb_base.NuoBase):
 
     def _reset(self, con):
@@ -76,9 +109,27 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
         cur.execute(_DDL_CREATE)
         con.commit()
 
+    def _reset_scaled(self, con):
+        cur = con.cursor()
+        cur.execute(_SCALED_DDL_DROP)
+        cur.execute(_SCALED_DDL_CREATE)
+        con.commit()
+
+    def _reset_binary(self, con):
+        cur = con.cursor()
+        cur.execute(_BINARY_DDL_DROP)
+        cur.execute(_BINARY_DDL_CREATE)
+        con.commit()
+
     def _seed(self, con, n):
         self._reset(con)
         con.cursor().executemany("INSERT INTO perf_bench (a, b) VALUES (?, ?)", _rows(n))
+        con.commit()
+
+    def _seed_binary(self, con, n):
+        self._reset_binary(con)
+        con.cursor().executemany(
+            "INSERT INTO perf_bench_binary (v) VALUES (?)", _binary_rows(n))
         con.commit()
 
     # -- INSERT ---------------------------------------------------------
@@ -125,6 +176,67 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
         finally:
             con.close()
 
+    def test_insert_scaled_types(self, benchmark):
+        """1000 rows of Decimal/Date/Time/Timestamp via executemany.
+
+        test_insert_small/test_insert_large only cover int/str.
+        encode_batch_rows() fast-paths these scaled types too (each has its
+        own C-level encoder -- _put_scaled_decimal/_put_scaled_date/_put_
+        scaled_time/_put_scaled_timestamp -- calling the same Python-level
+        datatype.*ToTicks()/decimal arithmetic the pure-Python path uses,
+        but skipping the _cython_exotic_encode round-trip and using the
+        fast C signed-int encoder for the resulting bytes). Binary has its
+        own dedicated test_insert_binary below.
+        """
+        con = self._connect()
+        try:
+            self._reset_scaled(con)
+            cur = con.cursor()
+            rows = _scaled_rows(_SMALL)
+
+            def target():
+                cur.executemany(
+                    "INSERT INTO perf_bench_scaled (a, d, dt, tm, ts)"
+                    " VALUES (?, ?, ?, ?, ?)", rows)
+                con.commit()
+
+            def setup():
+                cur.execute(_SCALED_DDL_TRUNCATE)
+                con.commit()
+
+            rounds = _rounds_for(target, min_rounds=200, min_seconds=10.0, setup=setup)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=5, rounds=rounds, iterations=1)
+        finally:
+            con.close()
+
+    def test_insert_binary(self, benchmark):
+        """1000 Binary-typed rows via executemany, into a BINARY VARYING
+        column (not BLOB/CLOB). Binary values always encode via putOpaque()
+        (OPAQUELEN/OPAQUECOUNT), never BLOBLEN/CLOBLEN -- those are
+        deprecated for encoding regardless of the target column's type.
+        encode_batch_rows() fast-paths this with _put_opaque(), same tier
+        as int/str/float/bool, not the exotic bridge.
+        """
+        con = self._connect()
+        try:
+            self._reset_binary(con)
+            cur = con.cursor()
+            rows = _binary_rows(_SMALL)
+
+            def target():
+                cur.executemany(
+                    "INSERT INTO perf_bench_binary (v) VALUES (?)", rows)
+                con.commit()
+
+            def setup():
+                cur.execute(_BINARY_DDL_TRUNCATE)
+                con.commit()
+
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0, setup=setup)
+            benchmark.pedantic(target, setup=setup, warmup_rounds=5, rounds=rounds, iterations=1)
+        finally:
+            con.close()
+
     # -- SELECT ---------------------------------------------------------
 
     def test_fetchall_small(self, benchmark):
@@ -136,6 +248,27 @@ class TestInsertSelectPerf(nuodb_base.NuoBase):
 
             def target():
                 cur.execute("SELECT a, b FROM perf_bench")
+                return cur.fetchall()
+
+            rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)
+            rows = benchmark.pedantic(target, warmup_rounds=5, rounds=rounds, iterations=1)
+            assert len(rows) == _SMALL
+        finally:
+            con.close()
+
+    def test_fetchall_binary(self, benchmark):
+        """fetchall over 1000 Binary-typed rows (BINARY VARYING, not BLOB/
+        CLOB) -- decode_next_batch()'s OPAQUELEN/OPAQUECOUNT branches, kept
+        separate from test_fetchall_binary_types (which mixes in BLOB/CLOB)
+        so this benchmark isolates Binary specifically, matching
+        test_insert_binary on the write side."""
+        con = self._connect()
+        try:
+            self._seed_binary(con, _SMALL)
+            cur = con.cursor()
+
+            def target():
+                cur.execute("SELECT v FROM perf_bench_binary")
                 return cur.fetchall()
 
             rounds = _rounds_for(target, min_rounds=500, min_seconds=10.0)

@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #if defined(_MSC_VER)
+#include <intrin.h>
 #include <stdlib.h>
 #define NUODB_INLINE static __inline
 #define NUODB_LIKELY(x) (x)
@@ -16,6 +17,12 @@
 #define NUODB_BSWAP16(x) _byteswap_ushort(x)
 #define NUODB_BSWAP32(x) _byteswap_ulong(x)
 #define NUODB_BSWAP64(x) _byteswap_uint64(x)
+NUODB_INLINE int _pynuodb_clz64(unsigned long long x)
+{
+    unsigned long idx;
+    _BitScanReverse64(&idx, x);
+    return 63 - (int)idx;
+}
 #else
 #define NUODB_INLINE static inline
 #define NUODB_LIKELY(x) __builtin_expect(!!(x), 1)
@@ -23,6 +30,7 @@
 #define NUODB_BSWAP16(x) __builtin_bswap16(x)
 #define NUODB_BSWAP32(x) __builtin_bswap32(x)
 #define NUODB_BSWAP64(x) __builtin_bswap64(x)
+#define _pynuodb_clz64(x) __builtin_clzll(x)
 #endif
 
 /* Build a value as a raw PyObject* for decode_next_batch to steal into a
@@ -130,6 +138,57 @@ NUODB_INLINE PyObject *_pynuodb_pylong_be_signed(const unsigned char *p, Py_ssiz
         return NULL;
     }
     return PyLong_FromLongLong(_pynuodb_be_i64(p, (int)n));
+}
+
+/* Encode `v` as the minimal big-endian two's-complement byte string (same
+   rule as crypt.toSignedByteString), writing into `out` (must have room for
+   8 bytes) and returning the byte count used (1-8). Uniform for every v,
+   0 and -1 included: taking the low N bytes of the native 64-bit two's
+   complement representation is exactly the minimal encoding when N is the
+   minimal byte length, so no special-casing is needed. */
+NUODB_INLINE int _pynuodb_encode_signed(long long v, unsigned char *out)
+{
+    uint64_t be = NUODB_BSWAP64((uint64_t)v);
+    unsigned char full[8];
+    memcpy(full, &be, 8);
+
+    int bitlen;
+    if (v >= 0) {
+        bitlen = (v == 0) ? 0 : (64 - _pynuodb_clz64((unsigned long long)v));
+    } else {
+        unsigned long long mag = (unsigned long long)(-(v + 1));
+        bitlen = (mag == 0) ? 0 : (64 - _pynuodb_clz64(mag));
+    }
+    int nbytes = (bitlen + 8) / 8;
+    memcpy(out, full + (8 - nbytes), nbytes);
+    return nbytes;
+}
+
+/* Encode `n` as the minimal big-endian *unsigned* byte string (same rule
+   as crypt.toByteString for non-negative input, which is the only case any
+   caller needs -- counted-string/BLOB/CLOB length prefixes). Always emits
+   at least 1 byte, so n == 0 becomes a single 0x00 byte. */
+NUODB_INLINE int _pynuodb_encode_unsigned(unsigned long long n, unsigned char *out)
+{
+    uint64_t be = NUODB_BSWAP64((uint64_t)n);
+    unsigned char full[8];
+    memcpy(full, &be, 8);
+    int bitlen = (n == 0) ? 0 : (64 - _pynuodb_clz64(n));
+    int nbytes = (bitlen + 7) / 8;
+    if (nbytes == 0) {
+        nbytes = 1;
+    }
+    memcpy(out, full + (8 - nbytes), nbytes);
+    return nbytes;
+}
+
+/* Big-endian IEEE-754 double bytes, matching struct.pack('!d', value). */
+NUODB_INLINE void _pynuodb_double_to_be(double d, unsigned char *out)
+{
+    uint64_t v;
+    memcpy(&v, &d, 8);
+    uint64_t be = NUODB_BSWAP64(v);
+    memcpy(out, &be, 8);
 }
 
 #endif /* PYNUODB_CUTIL_H */
