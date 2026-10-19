@@ -41,10 +41,26 @@ class Cursor(object):
     setoutputsize -- Currently not supported.
     """
 
-    description = None  # type: Optional[List[Any]]
-
     _result_set = None  # type: Optional[result_set.ResultSet]
+    _description = None  # type: Optional[List[Any]]
+    _description_pending = False
     __query = None      # type: Optional[str]
+
+    @property
+    def description(self):
+        # type: () -> Optional[List[Any]]
+        """Column descriptions for the current result set (PEP 249).
+
+        Like the JDBC driver's ResultSet.getMetaData(), the metadata is only
+        requested from the server the first time it is asked for, saving a
+        round trip for every query whose description is never read.
+        """
+        if self._description_pending:
+            self._description_pending = False
+            if self._result_set is not None and not self.session.closed:
+                self._description = self.session.fetch_result_set_description(
+                    self._result_set)
+        return self._description
 
     @property
     def query(self):
@@ -108,7 +124,8 @@ class Cursor(object):
     def _reset(self):
         # type: () -> None
         """Reset the Cursor to a default state."""
-        self.description = None
+        self._description = None
+        self._description_pending = False
         self.rowcount = -1
         self.colcount = -1
         self._close_result_set()
@@ -141,7 +158,7 @@ class Cursor(object):
         self.rowcount = exec_result.row_count
         if exec_result.result > 0:
             self._result_set = self.session.fetch_result_set(exec_result.statement)
-            self.description = self.session.fetch_result_set_description(self._result_set)
+            self._description_pending = True
 
         # TODO: ???
         if self.rowcount < 0:
@@ -165,7 +182,9 @@ class Cursor(object):
         :raises ProgrammingError: Incorrect number of parameters
         """
         p_statement = self._statement_cache.get_prepared_statement(operation)
-        if p_statement.parameter_count != len(parameters):
+        # An unprepared statement's parameter count is only known once its
+        # first execution (PREPAREANDEXECUTETOGETHER) has prepared it.
+        if p_statement.is_prepared and p_statement.parameter_count != len(parameters):
             raise ProgrammingError(
                 "Incorrect number of parameters: expected %d, got %d" %
                 (p_statement.parameter_count, len(parameters)))
@@ -292,7 +311,7 @@ class StatementCache(object):
             self._ps_key_queue.append(query)
             return stmt
 
-        stmt = self._session.create_prepared_statement(query)
+        stmt = self._session.new_prepared_statement(query)
 
         while len(self._ps_cache) >= self._ps_cache_size:
             lru_statement_key = self._ps_key_queue.popleft()

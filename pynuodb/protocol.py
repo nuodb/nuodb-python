@@ -91,6 +91,7 @@ SETCURSORNAME                     = 21
 EXECUTEPREPAREDSTATEMENT          = 22
 EXECUTEPREPAREDQUERY              = 23
 EXECUTEPREPAREDUPDATE             = 24
+PREPAREANDEXECUTETOGETHER         = 25
 GETMETADATA                       = 26
 NEXT                              = 27
 CLOSERESULTSET                    = 28
@@ -168,6 +169,10 @@ PREPARECALLHOLD                   = 129
 SETCONNECTIONHOLDABILITY          = 130
 GETCONNECTIONHOLDABILITY          = 131
 GETRESULTSETHOLDABILITY           = 132
+
+# PREPAREANDEXECUTETOGETHER sub-types; must match RemPreparedStatement.java
+PAET_SUBTYPE_PREPARE              = 0
+PAET_SUBTYPE_EXECUTE              = 5
 
 # Error code values
 SYNTAX_ERROR                      = -1

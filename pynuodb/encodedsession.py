@@ -25,7 +25,7 @@ try:
 except ImportError:
     pass
 
-from .exception import DataError, EndOfStream, ProgrammingError
+from .exception import DatabaseError, DataError, EndOfStream, ProgrammingError
 from .exception import db_error_handler, BatchError
 from .session import SessionException
 
@@ -412,6 +412,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
     def close_statement(self, stmt):
         # type: (statement.Statement) -> None
         """Close the statement."""
+        if stmt.handle == statement.PreparedStatement.UNPREPARED_HANDLE:
+            return
         self._putMessageId(protocol.CLOSESTATEMENT).putInt(stmt.handle)
         self._exchangeMessages(False)
 
@@ -430,7 +432,7 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         handle = self.getInt()
         param_count = self.getInt()
 
-        stmt = statement.PreparedStatement(handle, param_count)
+        stmt = statement.PreparedStatement(handle, param_count, query)
 
         if self.__sessionVersion >= protocol.SEND_PREPARE_STMT_RESULT_SET_METADATA_TO_CLIENT:
             if self.getBoolean():
@@ -438,12 +440,39 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         return stmt
 
+    def new_prepared_statement(self, query):
+        # type: (str) -> statement.PreparedStatement
+        """Return a PreparedStatement for the query.
+
+        As the JDBC driver does, when the server supports
+        PREPAREANDEXECUTETOGETHER the statement is only created locally: its
+        first execution prepares it, saving the PREPARE round trip.
+        """
+        if self.__sessionVersion >= protocol.PREPARE_AND_EXECUTE_TOGETHER:
+            return statement.PreparedStatement(
+                statement.PreparedStatement.UNPREPARED_HANDLE, None, query)
+        return self.create_prepared_statement(query)
+
+    def ensure_prepared(self, prepared_statement):
+        # type: (statement.PreparedStatement) -> None
+        """Prepare a locally-created statement on the server if needed."""
+        if prepared_statement.is_prepared:
+            return
+        assert prepared_statement.query is not None
+        prepared = self.create_prepared_statement(prepared_statement.query)
+        prepared_statement.handle = prepared.handle
+        prepared_statement.parameter_count = prepared.parameter_count
+        prepared_statement.description = prepared.description
+
     def execute_prepared_statement(
             self, prepared_statement,  # type: statement.PreparedStatement
             parameters                 # type: Collection[result_set.Value]
     ):
         # type: (...) -> statement.ExecutionResult
         """Execute a prepared statement with the given parameters."""
+        if not prepared_statement.is_prepared:
+            return self._prepare_and_execute(prepared_statement, parameters)
+
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEPREPAREDSTATEMENT)
 
         self.putInt(len(parameters))
@@ -458,9 +487,68 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
 
         return statement.ExecutionResult(prepared_statement, result, rowcount)
 
+    def _prepare_and_execute(
+            self, prepared_statement,  # type: statement.PreparedStatement
+            parameters                 # type: Collection[result_set.Value]
+    ):
+        # type: (...) -> statement.ExecutionResult
+        """Prepare and execute an unprepared statement in one round trip.
+
+        Mirrors RemPreparedStatement.prepareAndExecute() in the JDBC driver.
+        If the server rejects the statement it stays unprepared, so its next
+        execution simply tries again.
+
+        PEP 249 requires a wrong number of parameters to raise
+        ProgrammingError, but here the server reports it as a DataError.  So,
+        only when the execution fails, prepare the statement to learn its
+        real parameter count and raise ProgrammingError if that was the cause.
+        """
+        assert prepared_statement.query is not None
+        self._putMessageId(protocol.PREPAREANDEXECUTETOGETHER)
+        self.putInt(protocol.PAET_SUBTYPE_EXECUTE)
+        self.putInt(protocol.PAET_SUBTYPE_PREPARE)
+        self.putString(prepared_statement.query)
+        self.putInt(0)  # query timeout in microseconds: none
+        self.putInt(0)  # fetch size: server default
+        self._putCommitInfo()
+
+        self.putInt(len(parameters))
+        for param in parameters:
+            self.putValue(param)
+
+        try:
+            self._exchangeMessages()
+        except DataError:
+            self._check_parameter_count(prepared_statement, len(parameters))
+            raise
+
+        prepared_statement.handle = self.getInt()
+        prepared_statement.parameter_count = self.getInt()
+
+        result = self.getInt()
+        rowcount = self.getInt()
+        self.__execute_postfix()
+
+        return statement.ExecutionResult(prepared_statement, result, rowcount)
+
+    def _check_parameter_count(self, prepared_statement, count):
+        # type: (statement.PreparedStatement, int) -> None
+        """Raise ProgrammingError if the statement does not take `count`
+        parameters; do nothing if it can't be prepared, so the caller reports
+        its original error instead."""
+        try:
+            self.ensure_prepared(prepared_statement)
+        except DatabaseError:
+            return
+        if prepared_statement.parameter_count != count:
+            raise ProgrammingError(
+                "Incorrect number of parameters: expected %d, got %d" %
+                (prepared_statement.parameter_count, count))
+
     def execute_batch_prepared_statement(self, prepared_statement, param_lists):
         # type: (statement.PreparedStatement, Collection[Collection[result_set.Value]]) -> List[int]
         """Batch the prepared statement with the given parameters."""
+        self.ensure_prepared(prepared_statement)
         self._setup_statement(prepared_statement.handle, protocol.EXECUTEBATCHPREPAREDSTATEMENT)
 
         expected = prepared_statement.parameter_count
@@ -1205,7 +1293,8 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         if code >= protocol.SCALEDDATELEN1 and code <= protocol.SCALEDDATELEN8:
             scale = crypt.fromByteString(self._takeBytes(1))
             date = crypt.fromSignedByteString(self._takeBytes(code - protocol.SCALEDDATELEN0))
-            return datatype.DateFromTicks(date // (10 ** scale))
+            return datatype.SessionDateFromTicks(date // (10 ** scale),
+                                                 self.timezone_info)
 
         raise DataError('Not a scaled date')
 
@@ -1392,6 +1481,15 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
         :type msgId: int
         """
         self._putMessageId(msgId)
+        self._putCommitInfo()
+        self.putInt(handle)
+
+        return self
+
+    def _putCommitInfo(self):
+        # type: () -> None
+        """Send the last commit seen on each engine, so this request waits
+        until those commits are visible."""
         if self.__sessionVersion >= protocol.LAST_COMMIT_INFO:
             with EncodedSession.__dblock:
                 self.putInt(len(self.__dbinfo))
@@ -1399,9 +1497,6 @@ class EncodedSession(session.Session):  # pylint: disable=too-many-public-method
                     self.putInt(sid)
                     self.putInt(tup[0])
                     self.putInt(tup[1])
-        self.putInt(handle)
-
-        return self
 
     def _hasBytes(self, length):
         # type: (int) -> bool

@@ -148,6 +148,23 @@ def _DateFromTicks_slow(ticks):
     return Date(year=y, month=m, day=d)
 
 
+def SessionDateFromTicks(ticks, zoneinfo):
+    # type: (int, Optional[tzinfo]) -> Date
+    """Convert the ticks of a DATE sent by the server to a Date object.
+
+    Before protocol TIMESTAMP_WITH_TZ the server sends a DATE as the moment
+    of local midnight in the session time zone, not UTC midnight: e.g.
+    2024-06-01 in Asia/Tokyo arrives as 2024-05-31 15:00 UTC.  As the JDBC
+    driver does, take the date in the session time zone; shifting the ticks
+    by its UTC offset keeps DateFromTicks' Julian/Gregorian calendar.
+    """
+    if zoneinfo is not None:
+        offset = TimestampFromTicks(ticks, 0, zoneinfo).utcoffset()
+        if offset:
+            ticks += offset // TimeDelta(seconds=1)
+    return DateFromTicks(ticks)
+
+
 def TimeFromTicks(ticks, micro=0, zoneinfo=LOCALZONE):
     # type: (int, int, tzinfo) -> Time
     """Convert ticks to a Time object."""
