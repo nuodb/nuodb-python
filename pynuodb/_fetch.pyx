@@ -57,6 +57,7 @@ cdef tuple _POW10 = tuple(10 ** i for i in range(256))
 
 cdef extern from "_cutil.h":
     void _pynuodb_tuple_steal(PyObject *t, Py_ssize_t i, PyObject *o)
+    void _pynuodb_untrack_row(PyObject *t, Py_ssize_t n)
     PyObject *_pynuodb_long_from_long(long v) except NULL
     PyObject *_pynuodb_long_from_longlong(long long v) except NULL
     PyObject *_pynuodb_decode_utf8(const char *s, Py_ssize_t n) except NULL
@@ -437,6 +438,7 @@ def decode_next_batch(bytearray data, Py_ssize_t pos, int col_count,
                 _pynuodb_tuple_steal(row_ptr, col,
                     _pynuodb_incref(<PyObject*>val))
 
+        _pynuodb_untrack_row(row_ptr, col_count)
         results.append(row_tup)
 
     return pos, complete
