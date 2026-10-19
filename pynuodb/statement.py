@@ -25,18 +25,33 @@ class Statement(object):
 
 
 class PreparedStatement(Statement):
-    """A SQL prepared statement."""
+    """A SQL prepared statement.
 
-    def __init__(self, handle, parameter_count):
-        # type: (int, int) -> None
+    A statement created with UNPREPARED_HANDLE has not been sent to the
+    server yet: like the JDBC driver, it is prepared by its first execution
+    (PREPAREANDEXECUTETOGETHER), so its parameter count is unknown until then.
+    """
+
+    UNPREPARED_HANDLE = -1
+
+    def __init__(self, handle, parameter_count, query=None):
+        # type: (int, Optional[int], Optional[str]) -> None
         """Create a prepared statement.
 
-        :param handle: Handle of the connection.
-        :param parameter_count: Number of parameters needed.
+        :param handle: Handle of the connection, or UNPREPARED_HANDLE.
+        :param parameter_count: Number of parameters needed (None if unprepared).
+        :param query: The SQL text, needed to prepare an unprepared statement.
         """
         super(PreparedStatement, self).__init__(handle)
         self.parameter_count = parameter_count
         self.description = None  # type: Optional[List[List[Any]]]
+        self.query = query
+
+    @property
+    def is_prepared(self):
+        # type: () -> bool
+        """True once the server has assigned this statement a handle."""
+        return self.handle != PreparedStatement.UNPREPARED_HANDLE
 
 
 class ExecutionResult(object):
