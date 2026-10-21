@@ -795,7 +795,7 @@ cdef inline bint _put_scaled_decimal(_Buf buf, object value):
     return True
 
 
-def encode_batch_rows(bytearray output, list param_lists,
+def encode_batch_rows(bytearray output, object param_lists,
                       Py_ssize_t expected_param_count, object exotic_fn,
                       object tz_info=None):
     """Encode every row of a batch (plen + each param's value) into `output`.

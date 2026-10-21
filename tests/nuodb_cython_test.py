@@ -422,7 +422,8 @@ def _reference_encode_row(row):
     return out
 
 
-def test_encode_batch_rows_matches_reference():
+@pytest.mark.parametrize('row_type', [list, tuple])
+def test_encode_batch_rows_matches_reference(row_type):
     """A batch of plain int/str/float/bool/None rows must encode to exactly
     the same bytes the pure-Python putInt()/putString()/putDouble()/
     putNull() rules would produce, with no trailing garbage from the
@@ -439,7 +440,7 @@ def test_encode_batch_rows_matches_reference():
         expected += _reference_encode_row(row)
 
     output = bytearray()
-    _fetch.encode_batch_rows(output, rows, 5, _no_exotic_encode)
+    _fetch.encode_batch_rows(output, row_type(rows), 5, _no_exotic_encode)
     assert bytes(output) == bytes(expected)
 
 

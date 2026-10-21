@@ -203,6 +203,30 @@ class TestNuoDBCursor(nuodb_base.NuoBase):
         assert [r[0] for r in cursor.fetchall()] == [1, 2, 3, 4]
         cursor.execute("DROP TABLE paet_batch_table")
 
+    @pytest.mark.parametrize('row_type', [list, tuple])
+    @pytest.mark.parametrize('accelerated', [False, True])
+    def test_executemany_parameter_sequences(self, monkeypatch, row_type, accelerated):
+        """List and tuple batches work with either encoder."""
+        from pynuodb import encodedsession
+
+        if accelerated and not encodedsession._HAVE_FETCH_ACCEL:
+            pytest.skip("Cython extension not loaded")
+        monkeypatch.setattr(encodedsession, '_HAVE_FETCH_ACCEL', accelerated)
+
+        con = self._connect()
+        try:
+            cursor = con.cursor()
+            cursor.execute("DROP TABLE IF EXISTS sequence_batch_table")
+            cursor.execute("CREATE TABLE sequence_batch_table (f1 INTEGER)")
+            rows = row_type([(1,), (2,)])
+            assert cursor.executemany(
+                "INSERT INTO sequence_batch_table VALUES (?)", rows) == [1, 1]
+            cursor.execute("SELECT f1 FROM sequence_batch_table ORDER BY f1")
+            assert cursor.fetchall() == [(1,), (2,)]
+            cursor.execute("DROP TABLE sequence_batch_table")
+        finally:
+            con.close()
+
     def test_incorrect_parameters(self):
         con = self._connect()
         cursor = con.cursor()
