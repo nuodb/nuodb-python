@@ -24,11 +24,3 @@ Changes since 4.1.0
 * Use ``secrets`` instead of ``random`` for client authentication private keys.
 * Add opt-in insert/select performance benchmarks and binary-wheel build
   configuration.
-
-Known issues
-~~~~~~~~~~~~
-
-* The accelerated ``executemany()`` encoder rejects a tuple of parameter rows,
-  although the pure-Python implementation accepts it. The existing README
-  example uses this form. A fix and regression tests are proposed in
-  `PR #215 <https://github.com/nuodb/nuodb-python/pull/215>`_.
