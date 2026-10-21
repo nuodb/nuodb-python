@@ -27,6 +27,9 @@ Requirements
     every wheel combination.
 
 * NuoDB_ >= 6.0.2
+* Runtime dependencies: ``tzlocal``, ``jdcal``, and ``cryptography>=36.0``.
+  These are installed automatically by pip. Cryptography is required in 5.0;
+  the former ``[crypto]`` extra is no longer needed.
 
 | If you don't have a NuoDB domain available you can create one using the Docker
   image on DockerHub.
@@ -64,6 +67,25 @@ To install a development snapshot from GitHub instead of a released version::
     $ cd nuodb-python*
     $ python -m pip install .
     # The extracted source folder can be removed after installation.
+
+Cython acceleration
+~~~~~~~~~~~~~~~~~~~
+
+When available, the optional native extension accelerates result decoding and
+batch parameter encoding for ``executemany()``. Building the extension from
+source requires a C compiler and the development headers for the Python
+interpreter being used. Pip installs the build dependencies, including Cython,
+from ``pyproject.toml``.
+
+To check whether the extension is available::
+
+    $ python -c "from pynuodb import _fetch; print(_fetch.__file__)"
+
+An import error means that the pure-Python fallback is being used. The extension
+uses the CPython C API; PyPy is untested.
+
+See `Release notes`_ for changes since 4.1.0 and the `Contributor guide`_ for
+development and testing instructions.
 
 Example
 -------
@@ -131,3 +153,4 @@ PyNuoDB is licensed under a `BSD 3-Clause License`_.
 .. _Quick Start Guides / Docker: https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/
 .. _BSD 3-Clause License: https://github.com/nuodb/nuodb-python/blob/master/LICENSE
 .. _Contributor guide: https://github.com/nuodb/nuodb-python/blob/master/CONTRIBUTING.rst
+.. _Release notes: https://github.com/nuodb/nuodb-python/blob/master/CHANGES.rst
