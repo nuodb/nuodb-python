@@ -55,8 +55,13 @@ jobs:
           name: Make test directories
           command: mkdir -p artifacts results
       - run:
-          name: Install Python dependencies
-          command: make PYTHON=python3 install
+          name: Build, validate, and install the regression wheel
+          command: |
+            python3 -m pip install 'build>=1.2,<2' 'twine>=6,<8' -r test_requirements.txt
+            # The default build creates an sdist, then builds the wheel from it.
+            python3 -m build --outdir artifacts/dist
+            python3 -m twine check --strict artifacts/dist/*
+            python3 -m pip install --force-reinstall artifacts/dist/*.whl
       - run:
           name: Start NuoDB Admin
           command: |
@@ -65,8 +70,19 @@ jobs:
             sudo -u nuodb /opt/nuodb/etc/nuoadmin start
             sudo -u nuodb /opt/nuodb/bin/nuocmd --show-json get effective-license
       - run:
-          name: Run test
-          command: make PYTHON=python3 fulltest
+          name: Run regressions against the installed wheel
+          command: |
+            PROJECT_DIR="$PWD"
+            TEST_DIR=$(mktemp -d)
+            trap 'rm -rf "$TEST_DIR"' EXIT
+            cp -a tests "$TEST_DIR/"
+            cd "$TEST_DIR"
+            # A failed optional extension build must not pass release testing.
+            python3 -c 'import pynuodb; import pynuodb._fetch; print(pynuodb.__file__)'
+            PATH="/opt/nuodb/bin:$PATH" python3 -m pytest tests \
+                --show-capture=stdout \
+                --junitxml="$PROJECT_DIR/results/result.xml" \
+                --log-file="$PROJECT_DIR/artifacts/testlog.out" --log-file-level=INFO
       - store_artifacts:
           path: artifacts
       - store_test_results:

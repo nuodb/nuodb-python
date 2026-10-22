@@ -1,2 +1,4 @@
 include README.rst LICENSE
 recursive-include pynuodb *.pyx *.pxd *.pxi *.c *.h
+# cibuildwheel builds and tests from this same source archive on every platform.
+recursive-include tests *.py

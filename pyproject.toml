@@ -3,12 +3,24 @@ requires = ["setuptools>=40.8.0", "wheel", "Cython>=3.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
+# Keep the release matrix explicit: new Python ABIs need testing before shipping.
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 # PyPy: untested; the extension relies on CPython C-API details (e.g. GC
 # tracking of row tuples) that PyPy's cpyext only emulates.
 # win32/*_i686: untested 32-bit targets; the MSVC portability shim in
 # _cutil.h also only implements the 64-bit _BitScanReverse64 intrinsic.
-skip = ["pp*", "*-win32", "*-manylinux_i686", "*-musllinux_i686"]
+skip = ["pp*", "*-win32", "*-manylinux_i686", "*-musllinux_*"]
 
-# Smoke-test the compiled extension. setup.py builds it with optional=True,
-# so a wheel whose compile failed would otherwise silently ship pure Python.
-test-command = "python -c \"import pynuodb; import pynuodb._fetch\""
+# Test the installed wheel outside the checkout, not an in-place extension.
+# tzdata supplies the IANA database on Windows. No database/server is needed.
+test-requires = ["pytest>=8,<9", "tzdata"]
+test-sources = ["tests"]
+test-command = [
+    'python -c "import pynuodb._fetch"',
+    'python -m pytest -v -m "not integration" tests/nuodb_cython_test.py tests/nuodb_crypt_test.py tests/nuodb_datatype_ticks_test.py',
+]
+
+[tool.cibuildwheel.linux]
+# glibc >= 2.17; Alpine/musl wheels are not part of the initial release matrix.
+manylinux-x86_64-image = "manylinux2014"
+manylinux-aarch64-image = "manylinux2014"

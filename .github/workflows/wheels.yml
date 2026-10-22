@@ -1,0 +1,121 @@
+name: Build distribution artifacts
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+# No publishing credentials or OIDC permissions belong in this workflow.
+permissions:
+  contents: read
+
+jobs:
+  sdist:
+    name: Build source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Install release tooling
+        run: python -m pip install build==1.6.1 twine==7.0.0 packaging 'pytest>=8,<9'
+      - name: Test release-bundle validation
+        run: python -m pytest -v ci/test_release_bundle.py
+      - name: Build and check source distribution
+        run: |
+          python -m build --sdist
+          python -m twine check --strict dist/*
+      - name: Check source installation without a compiler
+        shell: bash
+        run: |
+          CC=/no-c-compiler python -m pip install --no-cache-dir dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          python -c 'import pynuodb; from pynuodb import encodedsession; assert not encodedsession._HAVE_FETCH_ACCEL'
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
+  wheels:
+    name: Wheels (${{ matrix.target }})
+    needs: sdist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-24.04
+            arch: x86_64
+          - target: linux-aarch64
+            os: ubuntu-24.04-arm
+            arch: aarch64
+          - target: macos-x86_64
+            os: macos-15-intel
+            arch: x86_64
+          - target: macos-arm64
+            os: macos-15
+            arch: arm64
+          - target: windows-amd64
+            os: windows-2022
+            arch: AMD64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: sdist
+          path: dist
+      - name: Install wheel tooling
+        run: python -m pip install cibuildwheel==4.3.4
+      - name: Build and test wheels from the source distribution
+        shell: bash
+        env:
+          CIBW_ARCHS: ${{ matrix.arch }}
+        run: python -m cibuildwheel --output-dir wheelhouse dist/*.tar.gz
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: wheels-${{ matrix.target }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 90
+
+  release-bundle:
+    name: Validate and assemble release bundle
+    needs: [sdist, wheels]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: sdist
+          path: release-bundle/dist
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: release-bundle/dist
+      - name: Validate distributions and record provenance
+        run: |
+          python -m pip install twine==7.0.0 packaging
+          python -m twine check --strict release-bundle/dist/*
+          python ci/release_bundle.py release-bundle
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-bundle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-bundle/
+          if-no-files-found: error
+          retention-days: 90
