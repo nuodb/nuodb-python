@@ -81,17 +81,20 @@ Maintain the list of changes per release in CHANGES.rst. Also note the known def
 Building distribution artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``.github/workflows/wheels.yml`` builds distribution artifacts on pull requests,
-pushes to ``master``, version tags matching ``v*``, and manual workflow runs.
-It does **not** publish to PyPI, request an OIDC token, or use PyPI credentials.
-The internal deployment process remains responsible for authorizing a release
-and publishing it.
+``.circleci/config.yml`` owns the complete build, test, and artifact workflow.
+It runs on branch builds and version tags matching ``v*``, subject to the
+project's CircleCI trigger settings, and can be triggered manually in CircleCI.
+It does **not** publish to PyPI or use PyPI credentials. The internal deployment
+process remains responsible for authorizing a release and publishing it.
+There is no separate GitHub Actions build workflow.
 
 The initial wheel matrix is CPython 3.9 through 3.13 (standard, GIL-enabled
 builds) on:
 
 * Linux x86-64 and ARM64, using ``manylinux2014`` (glibc >= 2.17).
 * macOS Intel and Apple Silicon, using separate architecture-specific wheels.
+  Both jobs use Apple Silicon runners; Intel wheel tests execute under Rosetta.
+  Rosetta installation and x86-64 execution are checked explicitly, not skipped.
 * Windows x86-64.
 
 PyPy, free-threaded Python, 32-bit targets, Windows ARM64, and Alpine/musl
@@ -108,17 +111,27 @@ The tests import the installed wheel, not the source checkout, and fail if the
 compiled extension is missing. Windows tests install ``tzdata`` for IANA time
 zones.
 
-CircleCI continues to run the full database regression suite and performance
-comparison. Its regression job now builds and installs a wheel from an sdist
-and runs the tests outside the checkout. The job saves its native wheel and
-source archive under ``artifacts/dist`` for diagnosis; that native Linux wheel
-is **not** a portable manylinux release artifact.
+The database regression job builds and installs a wheel from that same source
+archive and runs the full suite outside the checkout. It saves its native wheel
+and source archive under ``artifacts/dist`` for diagnosis; that native Linux
+wheel is **not** a portable manylinux release artifact. The existing performance
+comparison also runs in the same workflow.
+
+Linux wheel jobs use x86-64 and ARM64 machine executors with Docker for
+manylinux builds. macOS jobs use ``m4pro.medium`` and Windows uses
+``windows.medium``. These resource classes must be enabled for the CircleCI
+organization and consume the corresponding credits. Only the existing database
+and performance jobs use the ``common-config`` context; source/wheel building
+and bundle assembly do not use a secret context.
 
 Release bundle
 ^^^^^^^^^^^^^^
 
-Only after all GitHub wheel jobs pass does the workflow assemble the artifact
-``release-bundle-<run-id>-<run-attempt>``. It contains::
+Only after all five wheel jobs, database regressions, and performance tests
+pass does ``Validate and assemble release bundle`` run. CircleCI workspaces
+carry the source archive and each target's wheels between jobs, using distinct
+paths for parallel outputs. The final job stores one downloadable artifact,
+``release-bundle.tar.gz``. Extracting it produces::
 
     dist/
         pynuodb-<version>.tar.gz
@@ -135,22 +148,25 @@ contents. On tag runs, the tag version must match the package version
 distribution metadata.
 
 The manifest records distribution sizes and SHA-256 checksums, the source
-commit/ref, repository, workflow ref, event, run ID, and run attempt. Artifacts
-request 90-day retention (subject to repository/organization limits); archive
-approved bundles internally before they expire. Dependency resolution and
-builder images can change, so a rebuild is not guaranteed to be byte-identical.
+commit/ref, repository, CircleCI pipeline ID/number, workflow ID, and the exact
+artifact-producing job number and URL. A rerun produces a new job identity;
+do not select artifacts by version or branch name alone. A pull-request URL is
+recorded when CircleCI supplies one, but its absence is not release approval.
+Artifacts are subject to CircleCI retention settings; archive approved bundles
+internally before they expire. Dependency resolution and builder images can
+change, so a rebuild is not guaranteed to be byte-identical.
 
 For internal publishing:
 
-#. Select a successful run of this workflow for an approved release commit or
-   protected version tag. Use its exact run ID and attempt, not "latest".
-#. Confirm that CircleCI database regressions passed for the same release
-   commit. GitHub's bundle job does not automatically gate on CircleCI status.
-#. Download the **final release bundle**, not the intermediate wheel artifacts
-   or CircleCI's diagnostic distributions. Check its manifest against the
-   approved repository, commit, version, and run identity. Pull-request runs
-   build a merge commit for testing and must not be used for publication.
-#. Verify the downloaded distributions from the bundle directory::
+#. Select a successful CircleCI workflow for an approved release commit or
+   protected version tag. Use its exact workflow ID and final job number,
+   not "latest". Bundle assembly is automatically gated on builds and tests.
+#. Download ``release-bundle.tar.gz`` from that workflow's final assembly job,
+   not the intermediate wheel artifacts or diagnostic distributions. Extract
+   it and check the manifest against the approved repository, commit, version,
+   pipeline, workflow, and job identity. Branch/PR test artifacts must not be
+   treated as approved releases merely because their tests passed.
+#. Verify the downloaded distributions from the extracted bundle directory::
 
        sha256sum --check SHA256SUMS
 
@@ -158,13 +174,15 @@ For internal publishing:
    separate publishing job. Do not rebuild distributions during publishing.
 
 Checksums detect corruption; they do not authenticate an untrusted build or
-replace release approval. No GitHub-to-internal-GitLab connection is required:
-the internal runner can fetch the selected artifact using outbound access.
+replace release approval. No inbound connection to internal GitLab is required:
+the internal runner can fetch the selected CircleCI artifact using outbound
+access (with a read-only CircleCI credential if required for artifact access).
 The PyPI token must never be supplied to this workflow or the wheel tests.
 
-When adding Python versions or targets, update ``pyproject.toml``, the workflow
-matrix, and ``PYTHONS``/``TARGETS`` in ``ci/release_bundle.py`` together. Test the
-bundle validator locally with::
+When adding Python versions or targets, update ``pyproject.toml``, the CircleCI
+workflow jobs, and ``PYTHONS``/``TARGETS`` in ``ci/release_bundle.py`` together.
+Test the bundle validator and workflow invariants locally with::
 
-    python -m pip install packaging 'pytest>=8,<9'
-    python -m pytest ci/test_release_bundle.py
+    python -m pip install packaging 'pytest>=8,<9' 'PyYAML>=6,<7'
+    python -m pytest ci
+    circleci config validate .circleci/config.yml

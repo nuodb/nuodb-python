@@ -17,7 +17,7 @@ from packaging.utils import parse_sdist_filename, parse_wheel_filename
 from packaging.version import Version
 
 
-# Keep in sync with pyproject.toml and .github/workflows/wheels.yml.
+# Keep in sync with pyproject.toml and .circleci/config.yml.
 PYTHONS = ("cp39", "cp310", "cp311", "cp312", "cp313")
 TARGETS = ("linux-x86_64", "linux-aarch64", "macos-x86_64",
            "macos-arm64", "windows-amd64")
@@ -138,18 +138,40 @@ def build_manifest(bundle, provenance):
     }
 
 
+def circleci_provenance():
+    """Record the exact workflow and artifact-producing job, including reruns."""
+    required = (
+        "CIRCLE_PROJECT_USERNAME", "CIRCLE_PROJECT_REPONAME", "CIRCLE_SHA1",
+        "CIRCLE_WORKFLOW_ID", "CIRCLE_BUILD_NUM", "CIRCLE_BUILD_URL", "CIRCLE_JOB",
+        "RELEASE_PIPELINE_ID", "RELEASE_PIPELINE_NUMBER",
+    )
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise ValueError("Missing CircleCI provenance: " + ", ".join(missing))
+    tag, branch = os.environ.get("CIRCLE_TAG"), os.environ.get("CIRCLE_BRANCH")
+    if not tag and not branch:
+        raise ValueError("CircleCI must identify a tag or branch")
+    return {
+        "provider": "circleci",
+        "repository": os.environ["CIRCLE_PROJECT_USERNAME"] + "/" + os.environ["CIRCLE_PROJECT_REPONAME"],
+        "commit": os.environ["CIRCLE_SHA1"],
+        "ref": "refs/tags/" + tag if tag else "refs/heads/" + branch,
+        "pipeline_id": os.environ["RELEASE_PIPELINE_ID"],
+        "pipeline_number": os.environ["RELEASE_PIPELINE_NUMBER"],
+        "workflow_id": os.environ["CIRCLE_WORKFLOW_ID"],
+        "job_number": os.environ["CIRCLE_BUILD_NUM"],
+        "job_name": os.environ["CIRCLE_JOB"],
+        "job_url": os.environ["CIRCLE_BUILD_URL"],
+        # Informational only: an empty PR URL is NOT authorization to publish.
+        "pull_request": os.environ.get("CIRCLE_PULL_REQUEST", ""),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bundle", type=Path, help="directory containing dist/")
     args = parser.parse_args()
-    provenance = {key: os.environ[env] for key, env in {
-        "repository": "GITHUB_REPOSITORY", "commit": "GITHUB_SHA", "ref": "GITHUB_REF",
-        "event": "GITHUB_EVENT_NAME", "run_id": "GITHUB_RUN_ID",
-        "run_attempt": "GITHUB_RUN_ATTEMPT", "workflow_ref": "GITHUB_WORKFLOW_REF",
-    }.items()}
-    provenance["run_url"] = "{}/{}/actions/runs/{}".format(
-        os.environ["GITHUB_SERVER_URL"], provenance["repository"], provenance["run_id"])
-    manifest = build_manifest(args.bundle, provenance)
+    manifest = build_manifest(args.bundle, circleci_provenance())
     (args.bundle / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     checksums = "".join("{}  dist/{}\n".format(file["sha256"], file["filename"])
                         for file in manifest["files"])

@@ -12,7 +12,7 @@ from ci import release_bundle as release
 
 
 VERSION = "5.0"
-PROVENANCE = {"ref": "refs/tags/v5.0", "commit": "a" * 40, "run_id": "123"}
+PROVENANCE = {"ref": "refs/tags/v5.0", "commit": "a" * 40, "workflow_id": "workflow-123"}
 
 
 def metadata(version=VERSION):
@@ -122,21 +122,65 @@ def test_missing_sdist(bundle):
         release.build_manifest(bundle, PROVENANCE)
 
 
-def test_cli_writes_manifest_and_checksums(bundle, monkeypatch):
+@pytest.fixture
+def circleci_env(monkeypatch):
     env = {
-        "GITHUB_REPOSITORY": "nuodb/nuodb-python", "GITHUB_SHA": "a" * 40,
-        "GITHUB_REF": "refs/tags/v5.0.0", "GITHUB_EVENT_NAME": "push",
-        "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2",
-        "GITHUB_WORKFLOW_REF": "nuodb/nuodb-python/.github/workflows/wheels.yml@refs/tags/v5.0.0",
-        "GITHUB_SERVER_URL": "https://github.com",
+        "CIRCLE_PROJECT_USERNAME": "nuodb", "CIRCLE_PROJECT_REPONAME": "nuodb-python",
+        "CIRCLE_SHA1": "a" * 40, "CIRCLE_TAG": "v5.0.0", "CIRCLE_BRANCH": "",
+        "CIRCLE_WORKFLOW_ID": "workflow-123", "CIRCLE_BUILD_NUM": "456",
+        "CIRCLE_BUILD_URL": "https://circleci.com/gh/nuodb/nuodb-python/456",
+        "CIRCLE_JOB": "assemble_release_bundle", "CIRCLE_PULL_REQUEST": "",
+        "RELEASE_PIPELINE_ID": "pipeline-789", "RELEASE_PIPELINE_NUMBER": "789",
     }
     for name, value in env.items():
         monkeypatch.setenv(name, value)
+    return env
+
+
+def test_circleci_provenance(circleci_env):
+    source = release.circleci_provenance()
+    assert source["provider"] == "circleci"
+    assert source["repository"] == "nuodb/nuodb-python"
+    assert source["ref"] == "refs/tags/v5.0.0"
+    assert source["commit"] == "a" * 40
+    assert source["pipeline_id"] == "pipeline-789"
+    assert source["workflow_id"] == "workflow-123"
+
+
+def test_branch_provenance(circleci_env, monkeypatch):
+    monkeypatch.setenv("CIRCLE_TAG", "")
+    monkeypatch.setenv("CIRCLE_BRANCH", "ci/platform-wheel-artifacts")
+    monkeypatch.setenv("CIRCLE_PULL_REQUEST", "https://github.com/nuodb/nuodb-python/pull/218")
+    source = release.circleci_provenance()
+    assert source["ref"] == "refs/heads/ci/platform-wheel-artifacts"
+    assert source["pull_request"].endswith("/218")
+
+
+def test_tag_takes_precedence(circleci_env, monkeypatch):
+    monkeypatch.setenv("CIRCLE_BRANCH", "master")
+    assert release.circleci_provenance()["ref"] == "refs/tags/v5.0.0"
+
+
+@pytest.mark.parametrize("missing", ["CIRCLE_SHA1", "CIRCLE_WORKFLOW_ID", "CIRCLE_BUILD_NUM",
+                                    "RELEASE_PIPELINE_ID", "RELEASE_PIPELINE_NUMBER"])
+def test_missing_provenance(circleci_env, monkeypatch, missing):
+    monkeypatch.delenv(missing)
+    with pytest.raises(ValueError, match="Missing CircleCI provenance"):
+        release.circleci_provenance()
+
+
+def test_missing_ref(circleci_env, monkeypatch):
+    monkeypatch.setenv("CIRCLE_TAG", "")
+    with pytest.raises(ValueError, match="identify a tag or branch"):
+        release.circleci_provenance()
+
+
+def test_cli_writes_manifest_and_checksums(bundle, monkeypatch, circleci_env):
     monkeypatch.setattr("sys.argv", ["release_bundle.py", str(bundle)])
     release.main()
     manifest = json.loads((bundle / "manifest.json").read_text())
-    assert manifest["source"]["run_attempt"] == "2"
-    assert manifest["source"]["run_url"] == "https://github.com/nuodb/nuodb-python/actions/runs/123"
+    assert manifest["source"]["job_number"] == "456"
+    assert manifest["source"]["job_url"] == "https://circleci.com/gh/nuodb/nuodb-python/456"
     checksums = (bundle / "SHA256SUMS").read_text().splitlines()
     assert len(checksums) == 26
     for line, entry in zip(checksums, manifest["files"]):

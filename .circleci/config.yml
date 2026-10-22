@@ -24,7 +24,154 @@ commands:
             - store_artifacts:
                 path: artifacts
 
+  build_wheels:
+    description: "Build and test wheels from the shared source archive (no PyPI credentials)"
+    parameters:
+      target:
+        type: string
+      platform:
+        type: enum
+        enum: [linux, macos, windows]
+      python:
+        type: string
+        default: .ci-venv/bin/python
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Build and test << parameters.target >> wheels
+          command: |
+            << parameters.python >> -m pip install cibuildwheel==4.3.4
+            << parameters.python >> -m cibuildwheel --platform << parameters.platform >> \
+                --output-dir workspace/wheels/<< parameters.target >> workspace/sdist/*.tar.gz
+      # Each parallel job persists a distinct directory; never re-persist sdist/.
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - wheels/<< parameters.target >>
+      - store_artifacts:
+          path: workspace/wheels/<< parameters.target >>
+
 jobs:
+  build_sdist:
+    description: "Build and validate the single source archive used by every wheel job"
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Test CI helpers and build the source distribution
+          command: |
+            python -m pip install build==1.6.1 twine==7.0.0 packaging 'pytest>=8,<9' 'PyYAML>=6,<7'
+            python -m pytest -v ci
+            python -m build --sdist --outdir workspace/sdist
+            python -m twine check --strict workspace/sdist/*
+      - run:
+          name: Check source installation without a compiler
+          command: |
+            python -m venv /tmp/fallback-venv
+            CC=/no-c-compiler /tmp/fallback-venv/bin/python -m pip install --no-cache-dir workspace/sdist/*.tar.gz
+            cd /tmp
+            /tmp/fallback-venv/bin/python -c 'import pynuodb; from pynuodb import encodedsession; assert not encodedsession._HAVE_FETCH_ACCEL'
+      - persist_to_workspace:
+          root: workspace
+          paths: [sdist]
+      - store_artifacts:
+          path: workspace/sdist
+
+  wheel_linux:
+    parameters:
+      arch:
+        type: enum
+        enum: [x86_64, aarch64]
+      resource_class:
+        type: enum
+        enum: [medium, arm.medium]
+    machine:
+      image: ubuntu-2404:current
+    resource_class: << parameters.resource_class >>
+    environment:
+      CIBW_ARCHS: << parameters.arch >>
+    steps:
+      - run:
+          name: Prepare wheel tooling environment
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y python3-venv
+            /usr/bin/python3 -m venv .ci-venv
+      - build_wheels:
+          target: linux-<< parameters.arch >>
+          platform: linux
+
+  wheel_macos:
+    parameters:
+      arch:
+        type: enum
+        enum: [x86_64, arm64]
+    macos:
+      xcode: 16.4.0
+    resource_class: m4pro.medium
+    environment:
+      CIBW_ARCHS: << parameters.arch >>
+    steps:
+      - run:
+          name: Prepare Python and Rosetta for macOS wheel tests
+          command: |
+            brew install python@3.12
+            /opt/homebrew/opt/python@3.12/bin/python3.12 -m venv .ci-venv
+            # cibuildwheel runs Intel wheel tests under Rosetta on Apple Silicon.
+            # Fail here if x86_64 execution is unavailable; do not skip tests.
+            sudo softwareupdate --install-rosetta --agree-to-license
+            arch -x86_64 /usr/bin/true
+      - build_wheels:
+          target: macos-<< parameters.arch >>
+          platform: macos
+
+  wheel_windows:
+    machine:
+      image: windows-server-2022-gui:current
+    resource_class: windows.medium
+    shell: bash.exe --login -eo pipefail
+    environment:
+      CIBW_ARCHS: AMD64
+    steps:
+      - run:
+          name: Prepare wheel tooling environment
+          command: |
+            MSYS_NO_PATHCONV=1 choco install python312 --yes --no-progress --params '/InstallDir:C:\Python312'
+            /c/Python312/python.exe -m venv .ci-venv
+      - build_wheels:
+          target: windows-amd64
+          platform: windows
+          python: .ci-venv/Scripts/python.exe
+
+  assemble_release_bundle:
+    description: "Validate and store a complete bundle only after all builds and tests pass"
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    environment:
+      RELEASE_PIPELINE_ID: << pipeline.id >>
+      RELEASE_PIPELINE_NUMBER: << pipeline.number >>
+    steps:
+      - checkout
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Validate distributions and record CircleCI provenance
+          command: |
+            mkdir -p release-bundle/dist
+            cp workspace/sdist/*.tar.gz workspace/wheels/*/*.whl release-bundle/dist/
+            python -m pip install twine==7.0.0 packaging
+            python -m twine check --strict release-bundle/dist/*
+            python ci/release_bundle.py release-bundle
+            (cd release-bundle && sha256sum --check SHA256SUMS)
+            tar -czf release-bundle.tar.gz -C release-bundle .
+      - store_artifacts:
+          path: release-bundle.tar.gz
+          destination: release-bundle.tar.gz
+
   build_n_run:
     description: "Build the nuodb-python module and run the test suite"
     docker:
@@ -54,12 +201,16 @@ jobs:
       - run:
           name: Make test directories
           command: mkdir -p artifacts results
+      - attach_workspace:
+          at: workspace
       - run:
           name: Build, validate, and install the regression wheel
           command: |
-            python3 -m pip install 'build>=1.2,<2' 'twine>=6,<8' -r test_requirements.txt
-            # The default build creates an sdist, then builds the wheel from it.
-            python3 -m build --outdir artifacts/dist
+            python3 -m pip install 'twine>=6,<8' -r test_requirements.txt
+            mkdir -p artifacts/dist
+            cp workspace/sdist/*.tar.gz artifacts/dist/
+            # Exercise the same source archive used for every release wheel.
+            python3 -m pip wheel --no-deps --wheel-dir artifacts/dist workspace/sdist/*.tar.gz
             python3 -m twine check --strict artifacts/dist/*
             python3 -m pip install --force-reinstall artifacts/dist/*.whl
       - run:
@@ -167,11 +318,57 @@ jobs:
 workflows:
   build-project:
     jobs:
+      # Enable version tags on every upstream job, not just bundle assembly.
+      - build_sdist:
+          name: "Build source distribution"
+          filters: &build-filters
+            tags:
+              only: /^v.*/
+      - wheel_linux:
+          name: "Wheels (linux-x86_64)"
+          arch: x86_64
+          resource_class: medium
+          requires: ["Build source distribution"]
+          filters: *build-filters
+      - wheel_linux:
+          name: "Wheels (linux-aarch64)"
+          arch: aarch64
+          resource_class: arm.medium
+          requires: ["Build source distribution"]
+          filters: *build-filters
+      - wheel_macos:
+          name: "Wheels (macos-x86_64)"
+          arch: x86_64
+          requires: ["Build source distribution"]
+          filters: *build-filters
+      - wheel_macos:
+          name: "Wheels (macos-arm64)"
+          arch: arm64
+          requires: ["Build source distribution"]
+          filters: *build-filters
+      - wheel_windows:
+          name: "Wheels (windows-amd64)"
+          requires: ["Build source distribution"]
+          filters: *build-filters
       - build_n_run:
           name: "Build and run regression tests"
+          requires: ["Build source distribution"]
+          filters: *build-filters
           context:
             - common-config
       - perf_bench:
           name: "Run performance benchmarks, comparing results to master"
+          filters: *build-filters
           context:
             - common-config
+      - assemble_release_bundle:
+          name: "Validate and assemble release bundle"
+          requires:
+            - "Wheels (linux-x86_64)"
+            - "Wheels (linux-aarch64)"
+            - "Wheels (macos-x86_64)"
+            - "Wheels (macos-arm64)"
+            - "Wheels (windows-amd64)"
+            - "Build and run regression tests"
+            - "Run performance benchmarks, comparing results to master"
+          filters: *build-filters
