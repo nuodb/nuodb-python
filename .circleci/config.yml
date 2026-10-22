@@ -10,7 +10,6 @@ commands:
       - run:
           name: On failure action
           command: |
-            env | sort > artifacts/env.out
             cp -a $HOME/.bashrc artifacts || true
             cp -a $HOME/.profile artifacts || true
             cp -a $HOME/.bash_profile artifacts ||
