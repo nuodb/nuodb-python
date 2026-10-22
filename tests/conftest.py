@@ -54,6 +54,9 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
+        "integration: requires a running NuoDB database")
+    config.addinivalue_line(
+        "markers",
         "perf: performance benchmark; skipped unless --run-perf is passed")
 
 
