@@ -124,6 +124,57 @@ organization and consume the corresponding credits. Only the existing database
 and performance jobs use the ``common-config`` context; source/wheel building
 and bundle assembly do not use a secret context.
 
+Understanding wheel filenames
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A wheel is a pre-built, installable Python distribution. For this driver it
+contains both Python modules and the compiled accelerator, so users installing
+a compatible wheel do not need to compile the extension themselves.
+
+The current driver wheels follow this filename pattern::
+
+    pynuodb-<version>-<python_tag>-<abi_tag>-<platform_tag>.whl
+
+For example::
+
+    pynuodb-5.0.0-cp39-cp39-win_amd64.whl
+
+.. list-table:: Reading the example filename
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Component
+     - Meaning
+   * - ``pynuodb``
+     - Package name.
+   * - ``5.0.0``
+     - Driver version.
+   * - First ``cp39``
+     - Python interpreter: CPython 3.9.
+   * - Second ``cp39``
+     - Application binary interface (ABI): the CPython 3.9 interface that
+       the compiled extension must match.
+   * - ``win_amd64``
+     - Windows on x86-64 CPUs, including both Intel and AMD processors.
+
+The Python tags ``cp39``, ``cp310``, ``cp311``, ``cp312``, and ``cp313`` identify
+CPython 3.9, 3.10, 3.11, 3.12, and 3.13 respectively. Cython is the build-time
+tool that translates the extension sources into C; its version is not encoded
+in a wheel filename.
+
+The current extension uses a CPython-version-specific ABI, rather than the
+cross-version ``abi3`` tag. Its CPython 3.9 wheel cannot be reused for CPython
+3.13, and a Windows x86-64 binary cannot be installed on Linux ARM64. Therefore,
+the five Python versions and five OS/CPU targets listed above require
+**5 x 5 = 25 wheels**, plus one source archive. Linux uses ``manylinux2014``
+compatibility tags rather than a separate wheel for each compatible glibc-based
+Linux distribution.
+
+All release wheels share the same package name and driver version on PyPI.
+Users still run ``python -m pip install pynuodb``; ``pip`` selects a compatible
+wheel automatically when one has been published. CI artifacts are build
+candidates, not evidence that a version has already been published.
+
 Release bundle
 ^^^^^^^^^^^^^^
 
