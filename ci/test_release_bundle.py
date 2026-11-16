@@ -175,7 +175,35 @@ def test_missing_ref(circleci_env, monkeypatch):
         release.circleci_provenance()
 
 
+@pytest.fixture
+def github_actions_env(monkeypatch):
+    env = {
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_REPOSITORY": "nuodb/nuodb-python",
+        "GITHUB_SHA": "b" * 40,
+        "GITHUB_REF": "refs/tags/v5.0.0",
+        "GITHUB_RUN_ID": "999",
+        "GITHUB_RUN_NUMBER": "42",
+        "GITHUB_WORKFLOW": "GHA build compare",
+        "GITHUB_JOB": "assemble_release_bundle",
+        "GITHUB_SERVER_URL": "https://github.com",
+    }
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    return env
+
+
+def test_github_actions_provenance(github_actions_env):
+    source = release.github_actions_provenance()
+    assert source["provider"] == "github-actions"
+    assert source["repository"] == "nuodb/nuodb-python"
+    assert source["ref"] == "refs/tags/v5.0.0"
+    assert source["run_id"] == "999"
+    assert source["job_url"] == "https://github.com/nuodb/nuodb-python/actions/runs/999"
+
+
 def test_cli_writes_manifest_and_checksums(bundle, monkeypatch, circleci_env):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr("sys.argv", ["release_bundle.py", str(bundle)])
     release.main()
     manifest = json.loads((bundle / "manifest.json").read_text())

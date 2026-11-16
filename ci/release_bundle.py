@@ -138,6 +138,39 @@ def build_manifest(bundle, provenance):
     }
 
 
+def github_actions_provenance():
+    required = (
+        "GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_REF", "GITHUB_RUN_ID",
+        "GITHUB_RUN_NUMBER", "GITHUB_WORKFLOW", "GITHUB_JOB",
+    )
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise ValueError("Missing GitHub Actions provenance: " + ", ".join(missing))
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
+    run_id = os.environ["GITHUB_RUN_ID"]
+    ref = os.environ["GITHUB_REF"]
+    pull_request = ""
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path and Path(event_path).is_file():
+        with open(event_path, "r", encoding="utf-8") as stream:
+            event = json.load(stream)
+        pull_number = (event.get("pull_request") or {}).get("number")
+        if pull_number:
+            pull_request = "%s/%s/pull/%s" % (server, os.environ["GITHUB_REPOSITORY"], pull_number)
+    return {
+        "provider": "github-actions",
+        "repository": os.environ["GITHUB_REPOSITORY"],
+        "commit": os.environ["GITHUB_SHA"],
+        "ref": ref,
+        "run_id": run_id,
+        "run_number": os.environ["GITHUB_RUN_NUMBER"],
+        "workflow": os.environ["GITHUB_WORKFLOW"],
+        "job_name": os.environ["GITHUB_JOB"],
+        "job_url": "%s/%s/actions/runs/%s" % (server, os.environ["GITHUB_REPOSITORY"], run_id),
+        "pull_request": pull_request,
+    }
+
+
 def circleci_provenance():
     """Record the exact workflow and artifact-producing job, including reruns."""
     required = (
@@ -167,11 +200,17 @@ def circleci_provenance():
     }
 
 
+def ci_provenance():
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return github_actions_provenance()
+    return circleci_provenance()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bundle", type=Path, help="directory containing dist/")
     args = parser.parse_args()
-    manifest = build_manifest(args.bundle, circleci_provenance())
+    manifest = build_manifest(args.bundle, ci_provenance())
     (args.bundle / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     checksums = "".join("{}  dist/{}\n".format(file["sha256"], file["filename"])
                         for file in manifest["files"])
