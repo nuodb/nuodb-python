@@ -7,16 +7,24 @@ NuoDB - Python
 
 .. contents::
 
-This package contains the community driven pure-Python NuoDB_ client library
-that provides a standard `PEP 249`_ SQL API. This is a community driven driver
-with limited support and testing from NuoDB.
+This package contains the community driven NuoDB_ client library that provides
+a standard `PEP 249`_ SQL API. It includes a pure-Python implementation and an
+optional Cython-based accelerator for encoding parameters and decoding results.
+The same Python API is used with or without the accelerator. This is a
+community driven driver with limited support and testing from NuoDB.
 
 Requirements
 ------------
 
 * Python >= 3.9
 
-  - Tested with CPython_ 3.9
+  - The CI wheel matrix builds and tests standard (GIL-enabled) CPython_
+    3.9, 3.10, 3.11, 3.12, and 3.13 on Linux x86-64/ARM64, macOS Intel/Apple
+    Silicon, and Windows x86-64.
+  - Each wheel runs database-independent accelerator, encoding, and date/time
+    tests. Full database regressions and performance tests run separately on
+    Linux using the Python version in the NuoDB CI image; they do not run for
+    every wheel combination.
 
 * NuoDB_ >= 6.0.2
 
@@ -30,15 +38,32 @@ Installation
 The current stable release is available on PyPI and can be installed with
 ``pip``::
 
-    $ pip install pynuodb
+    $ python -m pip install pynuodb
 
-Alternatively (e.g. if ``pip`` is not available), a tarball can be downloaded
-from GitHub and installed with Setuptools::
+For a release with compatible wheels on PyPI, ``pip`` automatically selects
+the wheel matching your Python version, operating system, and CPU architecture.
+There is no separate package name or manual binary selection. Installing a
+matching wheel requires neither Cython nor a C compiler; the accelerator is
+already compiled into the wheel.
+
+If no compatible wheel is available and the release provides a source archive,
+``pip`` attempts a local build. A C compiler is needed to build the optional
+accelerator. If extension compilation is unavailable or fails, installation
+can continue with the pure-Python implementation, without acceleration. This
+fallback applies to the driver's optional extension: build requirements and
+runtime dependencies, including ``cryptography``, must still be installable.
+
+The CI workflow in this repository generates wheel candidates and a source
+archive. Publishing them to PyPI is a separate release step; a successful CI
+build does not imply that its wheels are already available on PyPI. See the
+`Contributor guide`_ for the build matrix, wheel filenames, and release process.
+
+To install a development snapshot from GitHub instead of a released version::
 
     $ curl -L https://github.com/nuodb/nuodb-python/archive/master.tar.gz | tar xz
     $ cd nuodb-python*
-    $ python setup.py install
-    # The folder nuodb-python* can be safely removed now.
+    $ python -m pip install .
+    # The extracted source folder can be removed after installation.
 
 Example
 -------
@@ -105,3 +130,4 @@ PyNuoDB is licensed under a `BSD 3-Clause License`_.
 .. _PEP 249: https://www.python.org/dev/peps/pep-0249/
 .. _Quick Start Guides / Docker: https://doc.nuodb.com/nuodb/latest/quick-start-guide/docker/
 .. _BSD 3-Clause License: https://github.com/nuodb/nuodb-python/blob/master/LICENSE
+.. _Contributor guide: https://github.com/nuodb/nuodb-python/blob/master/CONTRIBUTING.rst

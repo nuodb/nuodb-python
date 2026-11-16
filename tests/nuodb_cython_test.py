@@ -867,6 +867,7 @@ _MIXED_TYPES_QUERY = """
 """
 
 
+@pytest.mark.integration
 class TestNuoDBCython(nuodb_base.NuoBase):
     def test_cython_matches_pure_python(self):
         """fetchall() results must be byte-identical between the Cython

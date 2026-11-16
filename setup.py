@@ -108,6 +108,7 @@ setup(
     url='https://github.com/nuodb/nuodb-python',
     license='BSD License',
     long_description=open(readme).read(),
+    long_description_content_type='text/x-rst',
     python_requires='>=3.9',
     install_requires=['tzlocal', 'jdcal', 'cryptography>=36.0'],
     classifiers=[
