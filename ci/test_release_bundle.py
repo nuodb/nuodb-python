@@ -7,6 +7,7 @@ import tarfile
 import zipfile
 
 import pytest
+from packaging.version import Version
 
 from ci import release_bundle as release
 
