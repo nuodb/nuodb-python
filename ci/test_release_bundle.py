@@ -110,6 +110,27 @@ def test_wrong_tag(bundle):
         release.build_manifest(bundle, {"ref": "refs/tags/v6.0"})
 
 
+def test_version_from_git_tag_ref_ga():
+    assert release.version_from_git_tag_ref("refs/tags/v5.0.0") == Version("5.0.0")
+    assert release.version_from_git_tag_ref("refs/tags/v5.0") == Version("5.0")
+
+
+def test_version_from_git_tag_ref_rc():
+    assert release.version_from_git_tag_ref("refs/tags/v5.0.0-rc1") == Version("5.0.0rc1")
+    assert release.version_from_git_tag_ref("refs/tags/v5.0.0-RC2") == Version("5.0.0rc2")
+
+
+def test_git_ref_is_prerelease():
+    assert release.git_ref_is_prerelease("refs/tags/v5.0.0-rc1")
+    assert not release.git_ref_is_prerelease("refs/tags/v5.0.0")
+    assert release.git_ref_is_prerelease("refs/tags/v5.0.0-beta1")
+
+
+def test_manifest_ga_not_prerelease(bundle):
+    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/tags/v5.0"})
+    assert manifest.get("prerelease") is False
+
+
 def test_unexpected_file(bundle):
     (bundle / "dist" / "notes.txt").write_text("not a distribution")
     with pytest.raises(ValueError, match="only wheel files"):

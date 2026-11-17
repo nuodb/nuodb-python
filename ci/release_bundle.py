@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import tarfile
 import zipfile
 
@@ -29,6 +30,39 @@ SOURCE_FILES = {
     "tests/nuodb_cython_test.py", "tests/nuodb_crypt_test.py",
     "tests/nuodb_datatype_ticks_test.py",
 }
+
+
+def version_from_git_tag_ref(ref):
+    if not ref.startswith("refs/tags/"):
+        return None
+    label = ref.removeprefix("refs/tags/")
+    if label.startswith("v"):
+        label = label[1:]
+
+    def pre_release_suffix(match):
+        kind = match.group("kind").lower()
+        if kind in ("alpha", "a"):
+            letter = "a"
+        elif kind in ("beta", "b"):
+            letter = "b"
+        else:
+            letter = "rc"
+        return letter + match.group("num")
+
+    label = re.sub(
+        r"-(?P<kind>rc|a|b|alpha|beta)(?P<num>\d+)$",
+        pre_release_suffix,
+        label,
+        flags=re.IGNORECASE,
+    )
+    return Version(label)
+
+
+def git_ref_is_prerelease(ref):
+    if not ref.startswith("refs/tags/"):
+        return False
+    label = ref.removeprefix("refs/tags/").lstrip("vV")
+    return bool(re.search(r"-(?:(?:rc)|(?:a)|(?:b)|(?:alpha)|(?:beta))\d*$", label, re.IGNORECASE))
 
 
 def package_version(data):
@@ -113,7 +147,8 @@ def build_manifest(bundle, provenance):
     version = validate_sdist(sdists[0])
     ref = provenance["ref"]
     if ref.startswith("refs/tags/"):
-        if Version(ref.removeprefix("refs/tags/").removeprefix("v")) != version:
+        tagged = version_from_git_tag_ref(ref)
+        if tagged is None or tagged != version:
             raise ValueError("Release tag does not match distribution version")
 
     expected = {(python, target) for python in PYTHONS for target in TARGETS}
@@ -126,7 +161,7 @@ def build_manifest(bundle, provenance):
     if found != expected:
         raise ValueError("Incomplete wheel matrix; missing: " + str(sorted(expected - found)))
 
-    return {
+    manifest = {
         "schema_version": 1,
         "package": "pynuodb",
         "version": str(version),
@@ -136,6 +171,9 @@ def build_manifest(bundle, provenance):
             for path in files
         ],
     }
+    if ref.startswith("refs/tags/"):
+        manifest["prerelease"] = git_ref_is_prerelease(ref)
+    return manifest
 
 
 def github_actions_provenance():

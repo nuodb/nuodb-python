@@ -32,5 +32,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: pynuodb ${{ needs.pipeline.outputs.package_version }}
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-RC') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-Alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-Beta') }}
           generate_release_notes: true
           files: dist/*
