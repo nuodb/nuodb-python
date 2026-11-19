@@ -111,25 +111,38 @@ def test_wrong_tag(bundle):
         release.build_manifest(bundle, {"ref": "refs/tags/v6.0"})
 
 
-def test_version_from_git_tag_ref_ga():
-    assert release.version_from_git_tag_ref("refs/tags/v5.0.0") == Version("5.0.0")
-    assert release.version_from_git_tag_ref("refs/tags/v5.0") == Version("5.0")
+@pytest.mark.parametrize("tag, expected", [
+    ("v5.0.0", "5.0.0"),
+    ("v5.0", "5.0"),
+    ("5.0.0", "5.0.0"),
+    ("v5.0.0-rc1", "5.0.0rc1"),
+    ("v5.0.0-RC2", "5.0.0rc2"),
+    ("v5.0.0-rc10", "5.0.0rc10"),
+])
+def test_release_tag_version(tag, expected):
+    version = release.release_tag_version(tag)
+    assert version == Version(expected)
+    assert version.is_prerelease == ("-" in tag)
 
 
-def test_version_from_git_tag_ref_rc():
-    assert release.version_from_git_tag_ref("refs/tags/v5.0.0-rc1") == Version("5.0.0rc1")
-    assert release.version_from_git_tag_ref("refs/tags/v5.0.0-RC2") == Version("5.0.0rc2")
+@pytest.mark.parametrize("tag", [
+    "foobar", "", "v", "v5.0.0-gamma1", "v5.0.0-rc", "v5.0.0rc1",
+    "v5.0.0-a1", "v5.0.0-alpha1", "v5.0.0-b1", "v5.0.0-beta1",
+    "v5.0.0-rc1-extra", "v5.0.0.dev1", "release-5.0.0",
+])
+def test_release_tag_version_rejects(tag):
+    assert release.release_tag_version(tag) is None
 
 
-def test_git_ref_is_prerelease():
-    assert release.git_ref_is_prerelease("refs/tags/v5.0.0-rc1")
-    assert not release.git_ref_is_prerelease("refs/tags/v5.0.0")
-    assert release.git_ref_is_prerelease("refs/tags/v5.0.0-beta1")
+def test_non_version_tag(bundle):
+    with pytest.raises(ValueError, match="tag does not match"):
+        release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/tags/foobar"})
 
 
-def test_manifest_ga_not_prerelease(bundle):
-    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/tags/v5.0"})
-    assert manifest.get("prerelease") is False
+@pytest.mark.parametrize("ref", ["refs/tags/v5.0", "refs/heads/master"])
+def test_manifest_ga_not_prerelease(bundle, ref):
+    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": ref})
+    assert manifest["prerelease"] is False
 
 
 def test_unexpected_file(bundle):

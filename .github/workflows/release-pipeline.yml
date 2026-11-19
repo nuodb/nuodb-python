@@ -6,6 +6,9 @@ on:
       package_version:
         description: Version from the assembled release manifest
         value: ${{ jobs.assemble_release_bundle.outputs.package_version }}
+      prerelease:
+        description: Pre-release flag from the assembled release manifest
+        value: ${{ jobs.assemble_release_bundle.outputs.prerelease }}
 
 permissions:
   contents: read
@@ -182,6 +185,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       package_version: ${{ steps.manifest.outputs.version }}
+      prerelease: ${{ steps.manifest.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -205,11 +209,15 @@ jobs:
           python ci/release_bundle.py release-bundle
           (cd release-bundle && sha256sum --check SHA256SUMS)
           tar -czf release-bundle.tar.gz -C release-bundle .
-      - name: Export manifest version
+      - name: Export manifest version and pre-release flag
         id: manifest
         run: |
-          VERSION=$(python -c "import json; print(json.load(open('release-bundle/manifest.json'))['version'])")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json
+          manifest = json.load(open("release-bundle/manifest.json"))
+          print("version=" + manifest["version"])
+          print("prerelease=" + str(manifest.get("prerelease", False)).lower())
+          EOF
       - uses: actions/upload-artifact@v4
         with:
           name: gha-release-bundle-dist

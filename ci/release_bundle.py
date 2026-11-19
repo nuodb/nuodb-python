@@ -32,37 +32,17 @@ SOURCE_FILES = {
 }
 
 
-def version_from_git_tag_ref(ref):
-    if not ref.startswith("refs/tags/"):
+RELEASE_TAG = re.compile(r"v?(?P<release>\d+(?:\.\d+)*)(?:-rc(?P<rc>\d+))?", re.IGNORECASE)
+
+
+def release_tag_version(tag):
+    match = RELEASE_TAG.fullmatch(tag)
+    if not match:
         return None
-    label = ref.removeprefix("refs/tags/")
-    if label.startswith("v"):
-        label = label[1:]
-
-    def pre_release_suffix(match):
-        kind = match.group("kind").lower()
-        if kind in ("alpha", "a"):
-            letter = "a"
-        elif kind in ("beta", "b"):
-            letter = "b"
-        else:
-            letter = "rc"
-        return letter + match.group("num")
-
-    label = re.sub(
-        r"-(?P<kind>rc|a|b|alpha|beta)(?P<num>\d+)$",
-        pre_release_suffix,
-        label,
-        flags=re.IGNORECASE,
-    )
+    label = match["release"]
+    if match["rc"]:
+        label += "rc" + match["rc"]
     return Version(label)
-
-
-def git_ref_is_prerelease(ref):
-    if not ref.startswith("refs/tags/"):
-        return False
-    label = ref.removeprefix("refs/tags/").lstrip("vV")
-    return bool(re.search(r"-(?:(?:rc)|(?:a)|(?:b)|(?:alpha)|(?:beta))\d*$", label, re.IGNORECASE))
 
 
 def package_version(data):
@@ -146,10 +126,8 @@ def build_manifest(bundle, provenance):
         raise ValueError("Expected one source archive and only wheel files in dist/")
     version = validate_sdist(sdists[0])
     ref = provenance["ref"]
-    if ref.startswith("refs/tags/"):
-        tagged = version_from_git_tag_ref(ref)
-        if tagged is None or tagged != version:
-            raise ValueError("Release tag does not match distribution version")
+    if ref.startswith("refs/tags/") and release_tag_version(ref.removeprefix("refs/tags/")) != version:
+        raise ValueError("Release tag does not match distribution version")
 
     expected = {(python, target) for python in PYTHONS for target in TARGETS}
     found = set()
@@ -165,14 +143,13 @@ def build_manifest(bundle, provenance):
         "schema_version": 1,
         "package": "pynuodb",
         "version": str(version),
+        "prerelease": version.is_prerelease,
         "source": provenance,
         "files": [
             {"filename": path.name, "size": path.stat().st_size, "sha256": sha256(path)}
             for path in files
         ],
     }
-    if ref.startswith("refs/tags/"):
-        manifest["prerelease"] = git_ref_is_prerelease(ref)
     return manifest
 
 
