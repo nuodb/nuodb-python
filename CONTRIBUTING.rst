@@ -249,42 +249,43 @@ rejected. The release manifest records ``prerelease`` for
 every build, derived from the package version. PyPI lists pre-release versions
 as such, so ``pip install pynuodb`` does not move users to them.
 
-GitHub Actions can publish tag builds to PyPI using trusted publishing (OIDC).
-The workflow ``release-publish.yml`` runs on ``v*`` tags and marks the GitHub
-Release as a pre-release when the manifest's ``prerelease`` is true. CircleCI
-remains the comparison build until the team completes the migration assessment.
-
 The manifest records distribution sizes and SHA-256 checksums, the source
-commit/ref, repository, CircleCI pipeline ID/number, workflow ID, and the exact
-artifact-producing job number and URL. A rerun produces a new job identity;
-do not select artifacts by version or branch name alone. A pull-request URL is
-recorded when CircleCI supplies one, but its absence is not release approval.
-Artifacts are subject to CircleCI retention settings; archive approved bundles
-internally before they expire. Dependency resolution and builder images can
-change, so a rebuild is not guaranteed to be byte-identical.
+commit/ref, and repository, plus the identity of the run that produced it: the
+CircleCI pipeline, workflow, and job, or the GitHub Actions run, workflow, and
+job. A rerun produces a new run identity. A pull-request URL is recorded when
+the CI system supplies one, but its absence is not release approval. Checksums
+detect corruption; they do not authenticate a build. Dependency resolution and
+builder images can change, so a rebuild is not guaranteed to be byte-identical,
+and CircleCI and GitHub Actions bundles for the same commit differ in their
+compiled macOS and Windows extensions.
 
-For internal publishing:
+Publishing a release
+^^^^^^^^^^^^^^^^^^^^
 
-#. Select a successful CircleCI workflow for an approved release commit or
-   protected version tag. Use its exact workflow ID and final job number,
-   not "latest". Bundle assembly is automatically gated on builds and tests.
-#. Download ``release-bundle.tar.gz`` from that workflow's final assembly job,
-   not the intermediate wheel artifacts or diagnostic distributions. Extract
-   it and check the manifest against the approved repository, commit, version,
-   pipeline, workflow, and job identity. Branch/PR test artifacts must not be
-   treated as approved releases merely because their tests passed.
-#. Verify the downloaded distributions from the extracted bundle directory::
+Releases are published from GitHub Actions. CircleCI does not publish; it
+remains the test gate and comparison build until the team completes the
+migration assessment.
 
-       sha256sum --check SHA256SUMS
+#. On ``master``, make sure ``CHANGES.rst`` has a section for the version, set
+   ``__version__`` in ``pynuodb/__init__.py``, and commit. Wait for CircleCI to
+   pass on that commit.
+#. Push a tag on that commit: ``vX.Y.Z`` for general availability or
+   ``vX.Y.Z-rcN`` for a release candidate.
+#. The tag starts ``release-publish.yml``. It runs the reusable
+   ``release-pipeline.yml`` (source archive, the 25 wheels, and the
+   ``ci/release_bundle.py`` checks), then its publish job uploads ``dist/`` to
+   PyPI using trusted publishing (OIDC) through the ``pypi`` environment and
+   creates the GitHub Release with the same files. The GitHub Release is marked
+   as a pre-release when the manifest's ``prerelease`` is true. No PyPI token is
+   stored in the repository or in CI.
+#. The tag also starts ``build-compare.yml`` (the same pipeline without
+   publishing) and a CircleCI pipeline, if tag builds are enabled there.
+#. Check the PyPI release page and the GitHub Release.
 
-#. Preserve the approved bundle internally and pass only ``dist/*`` to the
-   separate publishing job. Do not rebuild distributions during publishing.
-
-Checksums detect corruption; they do not authenticate an untrusted build or
-replace release approval. No inbound connection to internal GitLab is required:
-the internal runner can fetch the selected CircleCI artifact using outbound
-access (with a read-only CircleCI credential if required for artifact access).
-The PyPI token must never be supplied to this workflow or the wheel tests.
+If the release workflow fails before its publish job, nothing has been
+published: fix the problem on ``master`` and move the tag to the fixed commit.
+Once a version has been uploaded to PyPI it cannot be replaced, even if it is
+deleted; publish a new version (for example the next ``-rcN``) instead.
 
 When adding Python versions or targets, update ``pyproject.toml``, the CircleCI
 workflow jobs, and ``PYTHONS``/``TARGETS`` in ``ci/release_bundle.py`` together.
