@@ -32,16 +32,19 @@ SOURCE_FILES = {
 }
 
 
-RELEASE_TAG = re.compile(r"v?(?P<release>\d+(?:\.\d+)*)(?:-rc(?P<rc>\d+))?", re.IGNORECASE)
+RELEASE_TAG = re.compile(r"refs/tags/v?(?P<release>\d+(?:\.\d+)*)(?:-(?i:rc)(?P<rc>\d+))?")
 
 
-def release_tag_version(tag):
-    match = RELEASE_TAG.fullmatch(tag)
-    if not match:
+def release_tag_version(ref):
+    match = RELEASE_TAG.fullmatch(ref)
+    if match is None:
         return None
     label = match["release"]
-    if match["rc"]:
-        label += "rc" + match["rc"]
+    rc = match["rc"]
+    if rc is not None:
+        if rc.startswith("0"):
+            raise ValueError("Release candidate numbers start at rc1 without leading zeros: " + ref)
+        label += "rc" + rc
     return Version(label)
 
 
@@ -126,7 +129,7 @@ def build_manifest(bundle, provenance):
         raise ValueError("Expected one source archive and only wheel files in dist/")
     version = validate_sdist(sdists[0])
     ref = provenance["ref"]
-    if ref.startswith("refs/tags/") and release_tag_version(ref.removeprefix("refs/tags/")) != version:
+    if ref.startswith("refs/tags/") and release_tag_version(ref) != version:
         raise ValueError("Release tag does not match distribution version")
 
     expected = {(python, target) for python in PYTHONS for target in TARGETS}

@@ -120,23 +120,37 @@ def test_wrong_tag(bundle):
     ("v5.0.0-rc10", "5.0.0rc10"),
 ])
 def test_release_tag_version(tag, expected):
-    version = release.release_tag_version(tag)
+    version = release.release_tag_version("refs/tags/" + tag)
     assert version == Version(expected)
     assert version.is_prerelease == ("-" in tag)
 
 
-@pytest.mark.parametrize("tag", [
-    "foobar", "", "v", "v5.0.0-gamma1", "v5.0.0-rc", "v5.0.0rc1",
-    "v5.0.0-a1", "v5.0.0-alpha1", "v5.0.0-b1", "v5.0.0-beta1",
-    "v5.0.0-rc1-extra", "v5.0.0.dev1", "release-5.0.0",
+@pytest.mark.parametrize("ref", [
+    "refs/tags/foobar", "refs/tags/", "refs/tags/v", "refs/tags/v5.0.0-gamma1",
+    "refs/tags/v5.0.0-rc", "refs/tags/v5.0.0rc1",
+    "refs/tags/v5.0.0-a1", "refs/tags/v5.0.0-alpha1",
+    "refs/tags/v5.0.0-b1", "refs/tags/v5.0.0-beta1",
+    "refs/tags/v5.0.0-rc1-extra", "refs/tags/v5.0.0.dev1", "refs/tags/release-5.0.0",
+    "v5.0.0", "refs/heads/v5.0.0", "refs/heads/master", "refs/pull/219/merge",
 ])
-def test_release_tag_version_rejects(tag):
-    assert release.release_tag_version(tag) is None
+def test_release_tag_version_rejects(ref):
+    assert release.release_tag_version(ref) is None
+
+
+@pytest.mark.parametrize("tag", ["v5.0.0-rc0", "v5.0.0-rc01", "v5.0.0-RC00"])
+def test_release_candidate_starts_at_one(tag):
+    with pytest.raises(ValueError, match="start at rc1"):
+        release.release_tag_version("refs/tags/" + tag)
 
 
 def test_non_version_tag(bundle):
     with pytest.raises(ValueError, match="tag does not match"):
         release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/tags/foobar"})
+
+
+def test_branch_skips_tag_check(bundle):
+    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/heads/v6.0"})
+    assert manifest["version"] == VERSION
 
 
 @pytest.mark.parametrize("ref", ["refs/tags/v5.0", "refs/heads/master"])
