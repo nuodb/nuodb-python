@@ -29,6 +29,7 @@ SOURCE_FILES = {
     "tests/__init__.py", "tests/conftest.py", "tests/nuodb_base.py",
     "tests/nuodb_cython_test.py", "tests/nuodb_crypt_test.py",
     "tests/nuodb_datatype_ticks_test.py",
+    "tests/holmes.txt", "tests/640px-Starling.JPG",
 }
 
 
