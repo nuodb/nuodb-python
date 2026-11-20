@@ -198,6 +198,26 @@ contents. On tag runs, the tag version must match the package version
 (``v5.0`` and ``v5.0.0`` are equivalent). ``twine check --strict`` checks all
 distribution metadata.
 
+The package version is defined only in ``pynuodb/__init__.py``
+(``__version__``); ``setup.py`` reads it from there. To release, change that one
+line, commit, and push a matching tag. A tag that does not match the package
+version fails the release bundle job.
+
+Pre-releases are optional. A general availability release can be tagged
+directly (for example ``v5.0.0`` with ``__version__ = '5.0.0'``). To publish a
+release candidate first, use a Git tag such as ``v5.0.0-rc1`` with the PEP 440
+package version ``5.0.0rc1``. Only ``-rcN`` pre-release tags are accepted,
+numbered from ``-rc1`` without leading zeros; alpha
+and beta tags, and tags without the hyphen (such as ``v5.0.0rc1``), are
+rejected. The release manifest records ``prerelease`` for
+every build, derived from the package version. PyPI lists pre-release versions
+as such, so ``pip install pynuodb`` does not move users to them.
+
+GitHub Actions can publish tag builds to PyPI using trusted publishing (OIDC).
+The workflow ``release-publish.yml`` runs on ``v*`` tags and marks the GitHub
+Release as a pre-release when the manifest's ``prerelease`` is true. CircleCI
+remains the comparison build until the team completes the migration assessment.
+
 The manifest records distribution sizes and SHA-256 checksums, the source
 commit/ref, repository, CircleCI pipeline ID/number, workflow ID, and the exact
 artifact-producing job number and URL. A rerun produces a new job identity;

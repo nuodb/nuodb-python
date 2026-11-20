@@ -7,6 +7,7 @@ import tarfile
 import zipfile
 
 import pytest
+from packaging.version import Version
 
 from ci import release_bundle as release
 
@@ -110,6 +111,54 @@ def test_wrong_tag(bundle):
         release.build_manifest(bundle, {"ref": "refs/tags/v6.0"})
 
 
+@pytest.mark.parametrize("tag, expected", [
+    ("v5.0.0", "5.0.0"),
+    ("v5.0", "5.0"),
+    ("5.0.0", "5.0.0"),
+    ("v5.0.0-rc1", "5.0.0rc1"),
+    ("v5.0.0-RC2", "5.0.0rc2"),
+    ("v5.0.0-rc10", "5.0.0rc10"),
+])
+def test_release_tag_version(tag, expected):
+    version = release.release_tag_version("refs/tags/" + tag)
+    assert version == Version(expected)
+    assert version.is_prerelease == ("-" in tag)
+
+
+@pytest.mark.parametrize("ref", [
+    "refs/tags/foobar", "refs/tags/", "refs/tags/v", "refs/tags/v5.0.0-gamma1",
+    "refs/tags/v5.0.0-rc", "refs/tags/v5.0.0rc1",
+    "refs/tags/v5.0.0-a1", "refs/tags/v5.0.0-alpha1",
+    "refs/tags/v5.0.0-b1", "refs/tags/v5.0.0-beta1",
+    "refs/tags/v5.0.0-rc1-extra", "refs/tags/v5.0.0.dev1", "refs/tags/release-5.0.0",
+    "v5.0.0", "refs/heads/v5.0.0", "refs/heads/master", "refs/pull/219/merge",
+])
+def test_release_tag_version_rejects(ref):
+    assert release.release_tag_version(ref) is None
+
+
+@pytest.mark.parametrize("tag", ["v5.0.0-rc0", "v5.0.0-rc01", "v5.0.0-RC00"])
+def test_release_candidate_starts_at_one(tag):
+    with pytest.raises(ValueError, match="start at rc1"):
+        release.release_tag_version("refs/tags/" + tag)
+
+
+def test_non_version_tag(bundle):
+    with pytest.raises(ValueError, match="tag does not match"):
+        release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/tags/foobar"})
+
+
+def test_branch_skips_tag_check(bundle):
+    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": "refs/heads/v6.0"})
+    assert manifest["version"] == VERSION
+
+
+@pytest.mark.parametrize("ref", ["refs/tags/v5.0", "refs/heads/master"])
+def test_manifest_ga_not_prerelease(bundle, ref):
+    manifest = release.build_manifest(bundle, {**PROVENANCE, "ref": ref})
+    assert manifest["prerelease"] is False
+
+
 def test_unexpected_file(bundle):
     (bundle / "dist" / "notes.txt").write_text("not a distribution")
     with pytest.raises(ValueError, match="only wheel files"):
@@ -175,7 +224,35 @@ def test_missing_ref(circleci_env, monkeypatch):
         release.circleci_provenance()
 
 
+@pytest.fixture
+def github_actions_env(monkeypatch):
+    env = {
+        "GITHUB_ACTIONS": "true",
+        "GITHUB_REPOSITORY": "nuodb/nuodb-python",
+        "GITHUB_SHA": "b" * 40,
+        "GITHUB_REF": "refs/tags/v5.0.0",
+        "GITHUB_RUN_ID": "999",
+        "GITHUB_RUN_NUMBER": "42",
+        "GITHUB_WORKFLOW": "GHA build compare",
+        "GITHUB_JOB": "assemble_release_bundle",
+        "GITHUB_SERVER_URL": "https://github.com",
+    }
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    return env
+
+
+def test_github_actions_provenance(github_actions_env):
+    source = release.github_actions_provenance()
+    assert source["provider"] == "github-actions"
+    assert source["repository"] == "nuodb/nuodb-python"
+    assert source["ref"] == "refs/tags/v5.0.0"
+    assert source["run_id"] == "999"
+    assert source["job_url"] == "https://github.com/nuodb/nuodb-python/actions/runs/999"
+
+
 def test_cli_writes_manifest_and_checksums(bundle, monkeypatch, circleci_env):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr("sys.argv", ["release_bundle.py", str(bundle)])
     release.main()
     manifest = json.loads((bundle / "manifest.json").read_text())

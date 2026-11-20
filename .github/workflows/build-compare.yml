@@ -1,0 +1,14 @@
+name: GHA build compare (CircleCI parity)
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/release-pipeline.yml

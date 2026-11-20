@@ -1,0 +1,230 @@
+name: Release pipeline (reusable)
+
+on:
+  workflow_call:
+    outputs:
+      package_version:
+        description: Version from the assembled release manifest
+        value: ${{ jobs.assemble_release_bundle.outputs.package_version }}
+      prerelease:
+        description: Pre-release flag from the assembled release manifest
+        value: ${{ jobs.assemble_release_bundle.outputs.prerelease }}
+
+permissions:
+  contents: read
+
+jobs:
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test CI helpers and build the source distribution
+        run: |
+          python -m pip install build==1.6.1 twine==7.0.0 packaging 'pytest>=8,<9' 'PyYAML>=6,<7'
+          python -m pytest -v ci
+          mkdir -p workspace/sdist
+          python -m build --sdist --outdir workspace/sdist
+          python -m twine check --strict workspace/sdist/*
+      - name: Check source installation without a compiler
+        run: |
+          python -m venv /tmp/fallback-venv
+          CC=/no-c-compiler /tmp/fallback-venv/bin/python -m pip install --no-cache-dir workspace/sdist/*.tar.gz
+          cd /tmp
+          /tmp/fallback-venv/bin/python -c 'import pynuodb; from pynuodb import encodedsession; assert not encodedsession._HAVE_FETCH_ACCEL'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist/*.tar.gz
+          retention-days: 14
+
+  wheel_linux_x86_64:
+    name: Wheels (linux-x86_64)
+    needs: build_sdist
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and test linux x86_64 wheels
+        env:
+          CIBW_ARCHS: x86_64
+        run: |
+          python -m pip install cibuildwheel==4.3.4
+          mkdir -p workspace/wheels/linux-x86_64
+          python -m cibuildwheel --platform linux \
+            --output-dir workspace/wheels/linux-x86_64 workspace/sdist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-x86_64
+          path: workspace/wheels/linux-x86_64/*.whl
+          retention-days: 14
+
+  wheel_linux_aarch64:
+    name: Wheels (linux-aarch64)
+    needs: build_sdist
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and test linux aarch64 wheels
+        env:
+          CIBW_ARCHS: aarch64
+        run: |
+          python -m pip install cibuildwheel==4.3.4
+          mkdir -p workspace/wheels/linux-aarch64
+          python -m cibuildwheel --platform linux \
+            --output-dir workspace/wheels/linux-aarch64 workspace/sdist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-aarch64
+          path: workspace/wheels/linux-aarch64/*.whl
+          retention-days: 14
+
+  wheel_macos_x86_64:
+    name: Wheels (macos-x86_64)
+    needs: build_sdist
+    runs-on: macos-13
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and test macOS Intel wheels
+        env:
+          CIBW_ARCHS: x86_64
+        run: |
+          python -m pip install cibuildwheel==4.3.4
+          mkdir -p workspace/wheels/macos-x86_64
+          python -m cibuildwheel --platform macos \
+            --output-dir workspace/wheels/macos-x86_64 workspace/sdist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-x86_64
+          path: workspace/wheels/macos-x86_64/*.whl
+          retention-days: 14
+
+  wheel_macos_arm64:
+    name: Wheels (macos-arm64)
+    needs: build_sdist
+    runs-on: macos-14
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and test macOS Apple Silicon wheels
+        env:
+          CIBW_ARCHS: arm64
+        run: |
+          python -m pip install cibuildwheel==4.3.4
+          mkdir -p workspace/wheels/macos-arm64
+          python -m cibuildwheel --platform macos \
+            --output-dir workspace/wheels/macos-arm64 workspace/sdist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-arm64
+          path: workspace/wheels/macos-arm64/*.whl
+          retention-days: 14
+
+  wheel_windows_amd64:
+    name: Wheels (windows-amd64)
+    needs: build_sdist
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: workspace/sdist
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and test Windows wheels
+        env:
+          CIBW_ARCHS: AMD64
+        run: |
+          python -m pip install cibuildwheel==4.3.4
+          mkdir -p workspace/wheels/windows-amd64
+          python -m cibuildwheel --platform windows \
+            --output-dir workspace/wheels/windows-amd64 workspace/sdist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-amd64
+          path: workspace/wheels/windows-amd64/*.whl
+          retention-days: 14
+
+  assemble_release_bundle:
+    name: Validate and assemble release bundle
+    needs:
+      - wheel_linux_x86_64
+      - wheel_linux_aarch64
+      - wheel_macos_x86_64
+      - wheel_macos_arm64
+      - wheel_windows_amd64
+    runs-on: ubuntu-24.04
+    outputs:
+      package_version: ${{ steps.manifest.outputs.version }}
+      prerelease: ${{ steps.manifest.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: incoming/wheels
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: incoming/sdist
+      - name: Validate distributions and record GitHub Actions provenance
+        env:
+          GITHUB_ACTIONS: "true"
+        run: |
+          mkdir -p release-bundle/dist
+          cp incoming/sdist/*.tar.gz release-bundle/dist/
+          cp incoming/wheels/*.whl release-bundle/dist/
+          python -m pip install twine==7.0.0 packaging
+          python -m twine check --strict release-bundle/dist/*
+          python ci/release_bundle.py release-bundle
+          (cd release-bundle && sha256sum --check SHA256SUMS)
+          tar -czf release-bundle.tar.gz -C release-bundle .
+      - name: Export manifest version and pre-release flag
+        id: manifest
+        run: |
+          python - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json
+          manifest = json.load(open("release-bundle/manifest.json"))
+          print("version=" + manifest["version"])
+          print("prerelease=" + str(manifest.get("prerelease", False)).lower())
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gha-release-bundle-dist
+          path: release-bundle/dist/*
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gha-release-bundle
+          path: release-bundle.tar.gz
+          retention-days: 90

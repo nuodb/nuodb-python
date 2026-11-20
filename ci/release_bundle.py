@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import tarfile
 import zipfile
 
@@ -29,6 +30,22 @@ SOURCE_FILES = {
     "tests/nuodb_cython_test.py", "tests/nuodb_crypt_test.py",
     "tests/nuodb_datatype_ticks_test.py",
 }
+
+
+RELEASE_TAG = re.compile(r"refs/tags/v?(?P<release>\d+(?:\.\d+)*)(?:-(?i:rc)(?P<rc>\d+))?")
+
+
+def release_tag_version(ref):
+    match = RELEASE_TAG.fullmatch(ref)
+    if match is None:
+        return None
+    label = match["release"]
+    rc = match["rc"]
+    if rc is not None:
+        if rc.startswith("0"):
+            raise ValueError("Release candidate numbers start at rc1 without leading zeros: " + ref)
+        label += "rc" + rc
+    return Version(label)
 
 
 def package_version(data):
@@ -112,9 +129,8 @@ def build_manifest(bundle, provenance):
         raise ValueError("Expected one source archive and only wheel files in dist/")
     version = validate_sdist(sdists[0])
     ref = provenance["ref"]
-    if ref.startswith("refs/tags/"):
-        if Version(ref.removeprefix("refs/tags/").removeprefix("v")) != version:
-            raise ValueError("Release tag does not match distribution version")
+    if ref.startswith("refs/tags/") and release_tag_version(ref) != version:
+        raise ValueError("Release tag does not match distribution version")
 
     expected = {(python, target) for python in PYTHONS for target in TARGETS}
     found = set()
@@ -126,15 +142,50 @@ def build_manifest(bundle, provenance):
     if found != expected:
         raise ValueError("Incomplete wheel matrix; missing: " + str(sorted(expected - found)))
 
-    return {
+    manifest = {
         "schema_version": 1,
         "package": "pynuodb",
         "version": str(version),
+        "prerelease": version.is_prerelease,
         "source": provenance,
         "files": [
             {"filename": path.name, "size": path.stat().st_size, "sha256": sha256(path)}
             for path in files
         ],
+    }
+    return manifest
+
+
+def github_actions_provenance():
+    required = (
+        "GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_REF", "GITHUB_RUN_ID",
+        "GITHUB_RUN_NUMBER", "GITHUB_WORKFLOW", "GITHUB_JOB",
+    )
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise ValueError("Missing GitHub Actions provenance: " + ", ".join(missing))
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
+    run_id = os.environ["GITHUB_RUN_ID"]
+    ref = os.environ["GITHUB_REF"]
+    pull_request = ""
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if event_path and Path(event_path).is_file():
+        with open(event_path, "r", encoding="utf-8") as stream:
+            event = json.load(stream)
+        pull_number = (event.get("pull_request") or {}).get("number")
+        if pull_number:
+            pull_request = "%s/%s/pull/%s" % (server, os.environ["GITHUB_REPOSITORY"], pull_number)
+    return {
+        "provider": "github-actions",
+        "repository": os.environ["GITHUB_REPOSITORY"],
+        "commit": os.environ["GITHUB_SHA"],
+        "ref": ref,
+        "run_id": run_id,
+        "run_number": os.environ["GITHUB_RUN_NUMBER"],
+        "workflow": os.environ["GITHUB_WORKFLOW"],
+        "job_name": os.environ["GITHUB_JOB"],
+        "job_url": "%s/%s/actions/runs/%s" % (server, os.environ["GITHUB_REPOSITORY"], run_id),
+        "pull_request": pull_request,
     }
 
 
@@ -167,11 +218,17 @@ def circleci_provenance():
     }
 
 
+def ci_provenance():
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return github_actions_provenance()
+    return circleci_provenance()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("bundle", type=Path, help="directory containing dist/")
     args = parser.parse_args()
-    manifest = build_manifest(args.bundle, circleci_provenance())
+    manifest = build_manifest(args.bundle, ci_provenance())
     (args.bundle / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     checksums = "".join("{}  dist/{}\n".format(file["sha256"], file["filename"])
                         for file in manifest["files"])
