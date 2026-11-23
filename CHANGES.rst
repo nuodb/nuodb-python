@@ -9,8 +9,9 @@ Changes since 4.1.0
 
 * Require Python >= 3.9; remove Python 2 and older Python 3 compatibility.
 * Require ``cryptography>=36.0`` as a runtime dependency instead of the optional
-  ``[crypto]`` extra. Use the standard-library ``zoneinfo`` module instead of
-  the older ``pytz`` compatibility path.
+  ``[crypto]`` extra.
+* Use the standard-library ``zoneinfo`` module instead of the older ``pytz``
+  compatibility path.
 * Add optional Cython acceleration for result decoding, result-set handling,
   batch parameter encoding, and batch result decoding. Keep pure-Python
   implementations available when the extension is not installed.
