@@ -1,82 +1,119 @@
 Development
------------
+===========
 
-The following sections are intended for developers.
+Requirements and installation
+-----------------------------
 
-Requirements
-~~~~~~~~~~~~
+Use Python >= 3.9 and a virtual environment. A C compiler and matching Python
+development headers are required to build and test the native extension.
 
-Developers should use virtualenv to maintain multiple side-by-side
-environments to test with. Specifically, all contributions must be
-tested with Python >= 3.9 to ensure the library remains compatible.
+From the project directory::
 
-Dependencies
-~~~~~~~~~~~~
+    python3 -m venv .venv
+    . .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -e .
+    python -m pip install pytest pytest-benchmark pytest-cov mock nose
 
-Here was my basic setup on Mac OS X:
+``requirements.txt`` lists runtime dependencies, not test dependencies.
+``test_requirements.txt`` also lists optional Admin and coverage-reporting tools.
+Some ``pynuoadmin`` releases require ``pynuodb<5``; check those constraints before
+installing the full test requirements into the driver development environment.
 
-    | virtualenv --python=/usr/bin/python3 ~/.venv/pynuodb
-    | source ~/.venv/pynuodb/bin/activate
-    | pip install mock
-    | pip install nose
-    | pip install pytest
-    | pip install coverage
+Verify that the checkout and its compiled extension are loaded::
 
-There are some commonly used libraries with this:
+    python -c "import pynuodb; print(pynuodb.__file__)"
+    python -c "from pynuodb import _fetch; print(_fetch.__file__)"
 
-    | pip install sqlalchemy
-    | pip install sqlalchemy-nuodb
+An extension import error means native compilation did not succeed. The driver
+can run with the pure-Python fallback, but the Cython tests require the extension.
+Re-run ``python -m pip install -e .`` after changing ``.pyx``, ``.pxi``, or native
+header files to rebuild it.
 
-Or simply:
+Database-independent tests
+--------------------------
 
-    | pip install -r requirements.txt
+The encoder/decoder unit tests and tick-conversion tests can run without NuoDB::
 
-Then once those are setup...
+    python -m pytest tests/nuodb_cython_test.py tests/nuodb_datatype_ticks_test.py \
+        -k "not TestNuoDBCython"
 
-Developer Testing
+Database-backed tests
+---------------------
+
+Use a disposable NuoDB environment. Tests create and drop database objects;
+do not point them at a production database.
+
+Default local setup
+~~~~~~~~~~~~~~~~~~~
+
+Install NuoDB and start a licensed local Admin service before running the tests.
+Set ``NUODB_HOME`` to the installation directory and put its tools on ``PATH``::
+
+    export NUODB_HOME=/path/to/nuodb
+    export PATH="$NUODB_HOME/bin:$PATH"
+    nuocmd show domain
+    python -m pytest tests
+
+``nuocmd`` must be configured for the Admin service's endpoint, authentication,
+and TLS settings. The fixtures locate a local Admin Process, create or reuse
+``pynuodb_test``, provision an archive and engines, and clean up resources they
+created. An existing test database must use ``dba`` / ``dba_password``. Use a
+dedicated domain: fixtures can reset database options and remove archive data.
+
+CI uses ``America/New_York`` as the local timezone. Use the same timezone for
+reproducible date/time testing. A TAR-based single-host setup is described in the
+`NuoDB quick-start guide`_.
+
+Three engine-service tests also require ``pynuoadmin`` to be importable in the
+test interpreter; they otherwise skip with "No AP available". Keep the Admin
+client separate from the driver under test. In particular, do not add the entire
+NuoDB distribution's bundled ``site-packages`` directory to ``PYTHONPATH``: it
+can shadow the checkout's dependencies. Expose only the ``pynuoadmin`` package
+and install its required dependencies in the test environment.
+
+Existing database
 ~~~~~~~~~~~~~~~~~
 
-Prerequisite for testing is to unset LC_CTYPE:
+To bypass local ``nuocmd`` discovery and lifecycle management::
 
-    | unset LC_CTYPE
+    python -m pytest tests --use-existing-db \
+        --db-host localhost:48004 --db-name pynuodb_test \
+        --db-user dba --db-password '<test-password>' --db-schema test
 
-My basic means of testing has been:
+The user needs permission to create and drop test objects. The client must be
+able to reach the connection endpoint and any TE addresses returned by NuoDB.
+This mode does not create or delete the database, but the tests still modify its
+contents. Engine-service tests additionally need access to the Admin API.
 
-    | source ~/.venv/pynuodb/bin/activate
-    | cd <project directory>
-    | py.test
+Test options
+~~~~~~~~~~~~
 
-First and foremost, painful py.test less, it captures STDOUT and will not
-display your log messages. To disable this behavior and enable sane logging
-the following option is suggested:
+Use ``-s`` to display captured output, ``-k`` to select tests, or ``--pdb`` to
+enter the debugger on failure. Generate coverage with::
 
-    | --capture=no
+    python -m pytest tests --cov=pynuodb --cov-report=html --cov-report=term-missing
 
-To stop on first failure you could augment that with the pdb option:
+The pytest session header reports whether the native extension is loaded.
 
-    | py.test --pdb
+Performance tests
+-----------------
 
-To run a specific test you could do something like this:
+Performance tests are skipped unless ``--run-perf`` is supplied. With a test
+database configured, run::
 
-    | py.test -k "SomeTest and test_something"
+    python -m pytest tests/perf --run-perf --benchmark-only \
+        --benchmark-json=benchmark.json
 
-Or any combination of the above, if you like.
+The same ``--use-existing-db`` and ``--db-*`` options apply. Compare two runs
+performed on the same hardware and database configuration with::
 
-To gather coverage information you can run the following command:
-
-    | py.test --cov=pynuodb --cov-report html --cov-report term-missing
-
-Developer Installation
-~~~~~~~~~~~~~~~~~~~~~~
-
-With pip installed, you can install this project via:
-
-    | pip install -e .
+    python tests/perf/compare.py baseline.json branch.json
 
 Release
 -------
 
-Maintain the list of changes per release in CHANGES.rst. Also note the known defects.
+Maintain the changes and known defects for each release in ``CHANGES.rst``.
 
 Building distribution artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,9 +121,8 @@ Building distribution artifacts
 ``.circleci/config.yml`` owns the complete build, test, and artifact workflow.
 It runs on branch builds and version tags matching ``v*``, subject to the
 project's CircleCI trigger settings, and can be triggered manually in CircleCI.
-It does **not** publish to PyPI or use PyPI credentials. The internal deployment
-process remains responsible for authorizing a release and publishing it.
-There is no separate GitHub Actions build workflow.
+CircleCI does **not** publish to PyPI or use PyPI credentials. Publishing is
+done by GitHub Actions on version tags, as described under `Release bundle`_.
 
 The initial wheel matrix is CPython 3.9 through 3.13 (standard, GIL-enabled
 builds) on:
@@ -213,42 +249,43 @@ rejected. The release manifest records ``prerelease`` for
 every build, derived from the package version. PyPI lists pre-release versions
 as such, so ``pip install pynuodb`` does not move users to them.
 
-GitHub Actions can publish tag builds to PyPI using trusted publishing (OIDC).
-The workflow ``release-publish.yml`` runs on ``v*`` tags and marks the GitHub
-Release as a pre-release when the manifest's ``prerelease`` is true. CircleCI
-remains the comparison build until the team completes the migration assessment.
-
 The manifest records distribution sizes and SHA-256 checksums, the source
-commit/ref, repository, CircleCI pipeline ID/number, workflow ID, and the exact
-artifact-producing job number and URL. A rerun produces a new job identity;
-do not select artifacts by version or branch name alone. A pull-request URL is
-recorded when CircleCI supplies one, but its absence is not release approval.
-Artifacts are subject to CircleCI retention settings; archive approved bundles
-internally before they expire. Dependency resolution and builder images can
-change, so a rebuild is not guaranteed to be byte-identical.
+commit/ref, and repository, plus the identity of the run that produced it: the
+CircleCI pipeline, workflow, and job, or the GitHub Actions run, workflow, and
+job. A rerun produces a new run identity. A pull-request URL is recorded when
+the CI system supplies one, but its absence is not release approval. Checksums
+detect corruption; they do not authenticate a build. Dependency resolution and
+builder images can change, so a rebuild is not guaranteed to be byte-identical,
+and CircleCI and GitHub Actions bundles for the same commit differ in their
+compiled macOS and Windows extensions.
 
-For internal publishing:
+Publishing a release
+^^^^^^^^^^^^^^^^^^^^
 
-#. Select a successful CircleCI workflow for an approved release commit or
-   protected version tag. Use its exact workflow ID and final job number,
-   not "latest". Bundle assembly is automatically gated on builds and tests.
-#. Download ``release-bundle.tar.gz`` from that workflow's final assembly job,
-   not the intermediate wheel artifacts or diagnostic distributions. Extract
-   it and check the manifest against the approved repository, commit, version,
-   pipeline, workflow, and job identity. Branch/PR test artifacts must not be
-   treated as approved releases merely because their tests passed.
-#. Verify the downloaded distributions from the extracted bundle directory::
+Releases are published from GitHub Actions. CircleCI does not publish; it
+remains the test gate and comparison build until the team completes the
+migration assessment.
 
-       sha256sum --check SHA256SUMS
+#. On ``master``, make sure ``CHANGES.rst`` has a section for the version, set
+   ``__version__`` in ``pynuodb/__init__.py``, and commit. Wait for CircleCI to
+   pass on that commit.
+#. Push a tag on that commit: ``vX.Y.Z`` for general availability or
+   ``vX.Y.Z-rcN`` for a release candidate.
+#. The tag starts ``release-publish.yml``. It runs the reusable
+   ``release-pipeline.yml`` (source archive, the 25 wheels, and the
+   ``ci/release_bundle.py`` checks), then its publish job uploads ``dist/`` to
+   PyPI using trusted publishing (OIDC) through the ``pypi`` environment and
+   creates the GitHub Release with the same files. The GitHub Release is marked
+   as a pre-release when the manifest's ``prerelease`` is true. No PyPI token is
+   stored in the repository or in CI.
+#. The tag also starts ``build-compare.yml`` (the same pipeline without
+   publishing) and a CircleCI pipeline, if tag builds are enabled there.
+#. Check the PyPI release page and the GitHub Release.
 
-#. Preserve the approved bundle internally and pass only ``dist/*`` to the
-   separate publishing job. Do not rebuild distributions during publishing.
-
-Checksums detect corruption; they do not authenticate an untrusted build or
-replace release approval. No inbound connection to internal GitLab is required:
-the internal runner can fetch the selected CircleCI artifact using outbound
-access (with a read-only CircleCI credential if required for artifact access).
-The PyPI token must never be supplied to this workflow or the wheel tests.
+If the release workflow fails before its publish job, nothing has been
+published: fix the problem on ``master`` and move the tag to the fixed commit.
+Once a version has been uploaded to PyPI it cannot be replaced, even if it is
+deleted; publish a new version (for example the next ``-rcN``) instead.
 
 When adding Python versions or targets, update ``pyproject.toml``, the CircleCI
 workflow jobs, and ``PYTHONS``/``TARGETS`` in ``ci/release_bundle.py`` together.
@@ -257,3 +294,5 @@ Test the bundle validator and workflow invariants locally with::
     python -m pip install packaging 'pytest>=8,<9' 'PyYAML>=6,<7'
     python -m pytest ci
     circleci config validate .circleci/config.yml
+
+.. _NuoDB quick-start guide: https://doc.nuodb.com/nuodb/latest/quick-start-guide/linux/tar/
